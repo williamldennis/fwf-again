@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.willydennis.fwf"
+      "bundleIdentifier": "com.willydennis.fwf",
+      "infoPlist": {
+        "NSContactsUsageDescription": "This app needs access to your contacts to help you connect with friends."
+      }
     },
     "android": {
       "adaptiveIcon": {
