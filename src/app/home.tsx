@@ -66,25 +66,84 @@ export default function Home() {
                     return;
                 }
                 const contactPhones = (contacts || []).map((c: any) => c.contact_phone);
-                console.log('Contact phones:', contactPhones);
-                if (contactPhones.length === 0) {
-                    setFriendsWeather([]);
-                    setLoading(false);
-                    return;
+                // Force all numbers to be clean digit-only strings
+                const cleanedPhones = contactPhones.map(p => String(p).replace(/[^0-9]/g, ''));
+                const uniquePhones = Array.from(new Set(cleanedPhones));
+                console.log('Unique cleaned contact phones:', uniquePhones);
+                console.log('Does uniquePhones include John (11 digits)?', uniquePhones.includes('13032224444'));
+                console.log('Does uniquePhones include John (10 digits)?', uniquePhones.includes('1303222444'));
+                // Batch into chunks of 500
+                function chunkArray<T>(array: T[], size: number): T[][] {
+                    const result: T[][] = [];
+                    for (let i = 0; i < array.length; i += size) {
+                        result.push(array.slice(i, i + size));
+                    }
+                    return result;
                 }
-                // Fetch friends' profiles (contacts who are users)
-                const { data: friends, error: friendsError } = await supabase
+                const BATCH_SIZE = 500;
+                const phoneChunks = chunkArray<string>(uniquePhones, BATCH_SIZE);
+                console.log('Phone chunks:', phoneChunks);
+                // Log each phone number in the first chunk
+                phoneChunks[0].forEach((num: string, idx: number) => {
+                    console.log(`Chunk 1 phone ${idx}:`, num, typeof num, JSON.stringify(num));
+                });
+                // Direct comparison logs for John's number
+                console.log('Does chunk include John exactly?', phoneChunks[0].includes('13032224444'));
+                console.log('Index of John in chunk:', phoneChunks[0].indexOf('13032224444'));
+                console.log('John in chunk (as string):', phoneChunks[0].find(num => num == '13032224444'));
+                console.log('John in chunk (strict):', phoneChunks[0].find(num => num === '13032224444'));
+                // Check for hidden characters in John's number
+                phoneChunks[0].forEach((num, idx) => {
+                    if (num.includes('13031111111')) {
+                        console.log(`Potential John match at index ${idx}:`, num, num.length, JSON.stringify(num));
+                        for (let i = 0; i < num.length; i++) {
+                            console.log(`Char ${i}:`, num.charCodeAt(i));
+                        }
+                    }
+                });
+
+                // Test batch query with only John's number
+                const { data: johnBatch, error: johnBatchError } = await supabase
                     .from('profiles')
-                    .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at')
-                    .in('phone_number', contactPhones);
-                console.log('Current user:', user);
-                console.log('Friends from Supabase:', friends);
-                if (friendsError) {
-                    setError('Failed to fetch friends.');
-                    setLoading(false);
-                    return;
+                    .select('id, phone_number, email')
+                    .in('phone_number', ['13032224444']);
+                console.log('Batch query with only John:', johnBatch, johnBatchError);
+
+                // Test batch query with only your number
+                const { data: meBatch, error: meBatchError } = await supabase
+                    .from('profiles')
+                    .select('id, phone_number, email')
+                    .in('phone_number', ['13033595357']);
+                console.log('Batch query with only me:', meBatch, meBatchError);
+
+                // Test batch query with both numbers
+                const { data: bothBatch, error: bothBatchError } = await supabase
+                    .from('profiles')
+                    .select('id, phone_number, email')
+                    .in('phone_number', ['13033595357', '13032224444']);
+                console.log('Batch query with both:', bothBatch, bothBatchError);
+
+                // Parallelize the queries
+                const friendResults = await Promise.all(
+                    phoneChunks.map((chunk, idx) => {
+                        console.log(`Querying chunk ${idx + 1}/${phoneChunks.length}:`, chunk);
+                        return supabase
+                            .from('profiles')
+                            .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at')
+                            .in('phone_number', chunk)
+                            .then(result => {
+                                console.log(`Result for chunk ${idx + 1}:`, result.data);
+                                return result;
+                            });
+                    })
+                );
+                let allFriends: any[] = [];
+                for (const result of friendResults) {
+                    if (result.data) allFriends = allFriends.concat(result.data);
                 }
-                const filteredFriends = (friends || []).filter(f => f.id !== user.id);
+                console.log('All friends combined:', allFriends);
+                // Remove the current user from the results
+                const filteredFriends = allFriends.filter(f => f.id !== user.id);
                 console.log('Filtered friendsWeather:', filteredFriends);
                 setFriendsWeather(filteredFriends);
             } catch (err) {
