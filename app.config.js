@@ -15,12 +15,15 @@ export default ({ config }) => ({
     supportsTablet: true,
     infoPlist: {
       NSContactsUsageDescription: "This app needs access to your contacts to help you connect with friends.",
-      // ...add other usage descriptions as needed
+      NSLocationWhenInUseUsageDescription: "This app needs your location to show you the weather.",
     },
   },
   android: {
     ...config.android,
     package: "com.willydennis.fairweatherfriends",
-    // ...other android config
+    permissions: [
+      ...(config.android?.permissions || []),
+      "ACCESS_FINE_LOCATION",
+    ],
   },
 });
