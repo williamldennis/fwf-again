@@ -16,15 +16,24 @@ export default function Login() {
     const checkPermissionsAndRedirect = async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-            const locationStatus = await Location.getForegroundPermissionsAsync();
-            const contactsStatus = await Contacts.getPermissionsAsync();
+            // Fetch user profile from Supabase
+            const user = session.user;
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('contacts_approved, location_approved')
+                .eq('id', user.id)
+                .single();
+            if (error || !profile) {
+                alert('Could not fetch user profile.');
+                return;
+            }
 
-            if (locationStatus.status === 'granted' && contactsStatus.status === 'granted') {
-                router.replace('/home');
-            } else if (locationStatus.status !== 'granted') {
-                router.replace('/location-permission');
-            } else if (contactsStatus.status !== 'granted') {
+            if (!profile.contacts_approved) {
                 router.replace('/contacts-permission');
+            } else if (!profile.location_approved) {
+                router.replace('/location-permission');
+            } else {
+                router.replace('/home');
             }
         }
     };

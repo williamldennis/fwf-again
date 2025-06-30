@@ -10,6 +10,7 @@ export default function Home() {
     const [weather, setWeather] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [friendsWeather, setFriendsWeather] = useState<any[]>([]);
 
     // Logout handler
     const handleLogout = async () => {
@@ -46,6 +47,143 @@ export default function Home() {
                 const response = await fetch(url);
                 const data = await response.json();
                 setWeather(data);
+                // Update user's weather in Supabase
+                await supabase.from('profiles').update({
+                    weather_temp: data.main.temp,
+                    weather_condition: data.weather[0].main,
+                    weather_icon: data.weather[0].icon,
+                    weather_updated_at: new Date().toISOString(),
+                }).eq('id', user.id);
+
+                // Fetch user's contacts with pagination
+                let allContacts: any[] = [];
+                let from = 0;
+                const pageSize = 1000;
+
+                while (true) {
+                    const { data: contacts, error: contactsError } = await supabase
+                        .from('user_contacts')
+                        .select('contact_phone, contact_name')
+                        .eq('user_id', user.id)
+                        .range(from, from + pageSize - 1);
+
+                    if (contactsError) {
+                        setError('Failed to fetch contacts.');
+                        setLoading(false);
+                        return;
+                    }
+
+                    if (!contacts || contacts.length === 0) {
+                        break; // No more data
+                    }
+
+                    allContacts = allContacts.concat(contacts);
+                    from += pageSize;
+
+                    // If we got less than pageSize, we're done
+                    if (contacts.length < pageSize) {
+                        break;
+                    }
+                }
+
+                console.log('Raw contacts from database (with pagination):', allContacts);
+                console.log('Total contacts retrieved:', allContacts.length);
+
+                const contactPhones = (allContacts || []).map((c: any) => c.contact_phone);
+                // Force all numbers to be clean digit-only strings
+                const cleanedPhones = contactPhones.map(p => String(p).replace(/[^0-9]/g, ''));
+                const uniquePhones = Array.from(new Set(cleanedPhones));
+
+                console.log('Total contacts:', allContacts.length);
+                console.log('Total cleanedPhones:', cleanedPhones.length);
+                console.log('Total uniquePhones:', uniquePhones.length);
+
+                // Check if John's number is in the contacts
+                const johnInContacts = uniquePhones.includes('13032224444');
+                console.log('John\'s number in contacts:', johnInContacts);
+                if (johnInContacts) {
+                    console.log('John\'s contact found in database!');
+                } else {
+                    console.log('John\'s contact NOT found in database. Available numbers:', uniquePhones.filter(p => p.includes('130322')));
+                }
+
+                console.log('Unique cleaned contact phones:', uniquePhones);
+                console.log('Does uniquePhones include John (11 digits)?', uniquePhones.includes('13032224444'));
+                console.log('Does uniquePhones include John (10 digits)?', uniquePhones.includes('1303222444'));
+                // Batch into chunks of 500
+                function chunkArray<T>(array: T[], size: number): T[][] {
+                    const result: T[][] = [];
+                    for (let i = 0; i < array.length; i += size) {
+                        result.push(array.slice(i, i + size));
+                    }
+                    return result;
+                }
+                const BATCH_SIZE = 500;
+                const phoneChunks = chunkArray<string>(uniquePhones, BATCH_SIZE);
+                console.log('Phone chunks:', phoneChunks);
+                // Log each phone number in the first chunk
+                phoneChunks[0].forEach((num: string, idx: number) => {
+                    console.log(`Chunk 1 phone ${idx}:`, num, typeof num, JSON.stringify(num));
+                });
+                // Direct comparison logs for John's number
+                console.log('Does chunk include John exactly?', phoneChunks[0].includes('13032224444'));
+                console.log('Index of John in chunk:', phoneChunks[0].indexOf('13032224444'));
+                console.log('John in chunk (as string):', phoneChunks[0].find(num => num == '13032224444'));
+                console.log('John in chunk (strict):', phoneChunks[0].find(num => num === '13032224444'));
+                // Check for hidden characters in John's number
+                phoneChunks[0].forEach((num, idx) => {
+                    if (num.includes('13031111111')) {
+                        console.log(`Potential John match at index ${idx}:`, num, num.length, JSON.stringify(num));
+                        for (let i = 0; i < num.length; i++) {
+                            console.log(`Char ${i}:`, num.charCodeAt(i));
+                        }
+                    }
+                });
+
+                // Test batch query with only John's number
+                const { data: johnBatch, error: johnBatchError } = await supabase
+                    .from('profiles')
+                    .select('id, phone_number, email')
+                    .in('phone_number', ['13032224444']);
+                console.log('Batch query with only John:', johnBatch, johnBatchError);
+
+                // Test batch query with only your number
+                const { data: meBatch, error: meBatchError } = await supabase
+                    .from('profiles')
+                    .select('id, phone_number, email')
+                    .in('phone_number', ['13033595357']);
+                console.log('Batch query with only me:', meBatch, meBatchError);
+
+                // Test batch query with both numbers
+                const { data: bothBatch, error: bothBatchError } = await supabase
+                    .from('profiles')
+                    .select('id, phone_number, email')
+                    .in('phone_number', ['13033595357', '13032224444']);
+                console.log('Batch query with both:', bothBatch, bothBatchError);
+
+                // Parallelize the queries
+                const friendResults = await Promise.all(
+                    phoneChunks.map((chunk, idx) => {
+                        console.log(`Querying chunk ${idx + 1}/${phoneChunks.length}:`, chunk);
+                        return supabase
+                            .from('profiles')
+                            .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at')
+                            .in('phone_number', chunk)
+                            .then(result => {
+                                console.log(`Result for chunk ${idx + 1}:`, result.data);
+                                return result;
+                            });
+                    })
+                );
+                let allFriends: any[] = [];
+                for (const result of friendResults) {
+                    if (result.data) allFriends = allFriends.concat(result.data);
+                }
+                console.log('All friends combined:', allFriends);
+                // Remove the current user from the results
+                const filteredFriends = allFriends.filter(f => f.id !== user.id);
+                console.log('Filtered friendsWeather:', filteredFriends);
+                setFriendsWeather(filteredFriends);
             } catch (err) {
                 setError('Failed to fetch weather.');
             }
@@ -89,46 +227,38 @@ export default function Home() {
                 {/* Friends List */}
                 <ScrollView style={{ flex: 1 }}>
                     <Text style={{ fontSize: 20, fontWeight: 'bold', margin: 16 }}>Friends' Weather</Text>
-
-                    {/* Friend Weather Items */}
-                    <View style={{
-                        flexDirection: 'row',
-                        padding: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: '#eee'
-                    }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '500' }}>Sarah Smith</Text>
-                            <Text style={{ color: '#666' }}>New York, NY</Text>
-                        </View>
-                        <Text style={{ fontSize: 20 }}>65°</Text>
-                    </View>
-
-                    <View style={{
-                        flexDirection: 'row',
-                        padding: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: '#eee'
-                    }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '500' }}>John Doe</Text>
-                            <Text style={{ color: '#666' }}>Los Angeles, CA</Text>
-                        </View>
-                        <Text style={{ fontSize: 20 }}>82°</Text>
-                    </View>
-
-                    <View style={{
-                        flexDirection: 'row',
-                        padding: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: '#eee'
-                    }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '500' }}>Mike Johnson</Text>
-                            <Text style={{ color: '#666' }}>Chicago, IL</Text>
-                        </View>
-                        <Text style={{ fontSize: 20 }}>58°</Text>
-                    </View>
+                    {friendsWeather.length === 0 ? (
+                        <Text style={{ marginLeft: 16, color: '#888' }}>No friends using the app yet.</Text>
+                    ) : (
+                        friendsWeather.map((friend, idx) => (
+                            <View key={friend.id || idx} style={{
+                                flexDirection: 'row',
+                                padding: 16,
+                                borderBottomWidth: 1,
+                                borderBottomColor: '#eee',
+                                alignItems: 'center',
+                            }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 16, fontWeight: '500' }}>{friend.phone_number}</Text>
+                                    <Text style={{ color: '#666', fontSize: 12 }}>
+                                        {friend.weather_updated_at ? `Updated: ${new Date(friend.weather_updated_at).toLocaleTimeString()}` : 'No weather yet'}
+                                    </Text>
+                                </View>
+                                {friend.weather_temp !== null && friend.weather_condition ? (
+                                    <View style={{ alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 20 }}>{Math.round(friend.weather_temp)}°</Text>
+                                        <Text style={{ fontSize: 14 }}>{friend.weather_condition}</Text>
+                                        {friend.weather_icon && (
+                                            <Text style={{ fontSize: 18 }}>{friend.weather_icon}</Text>
+                                            // You can use an <Image> here if you want to show the icon
+                                        )}
+                                    </View>
+                                ) : (
+                                    <Text style={{ color: '#888' }}>No weather</Text>
+                                )}
+                            </View>
+                        ))
+                    )}
                 </ScrollView>
             </View>
         </>
