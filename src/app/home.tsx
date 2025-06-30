@@ -10,6 +10,7 @@ export default function Home() {
     const [weather, setWeather] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [friendsWeather, setFriendsWeather] = useState<any[]>([]);
 
     // Logout handler
     const handleLogout = async () => {
@@ -53,6 +54,34 @@ export default function Home() {
                     weather_icon: data.weather[0].icon,
                     weather_updated_at: new Date().toISOString(),
                 }).eq('id', user.id);
+
+                // Fetch user's contacts
+                const { data: contacts, error: contactsError } = await supabase
+                    .from('user_contacts')
+                    .select('contact_phone')
+                    .eq('user_id', user.id);
+                if (contactsError) {
+                    setError('Failed to fetch contacts.');
+                    setLoading(false);
+                    return;
+                }
+                const contactPhones = (contacts || []).map((c: any) => c.contact_phone);
+                if (contactPhones.length === 0) {
+                    setFriendsWeather([]);
+                    setLoading(false);
+                    return;
+                }
+                // Fetch friends' profiles (contacts who are users)
+                const { data: friends, error: friendsError } = await supabase
+                    .from('profiles')
+                    .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at')
+                    .in('phone_number', contactPhones);
+                if (friendsError) {
+                    setError('Failed to fetch friends.');
+                    setLoading(false);
+                    return;
+                }
+                setFriendsWeather(friends || []);
             } catch (err) {
                 setError('Failed to fetch weather.');
             }
@@ -96,46 +125,38 @@ export default function Home() {
                 {/* Friends List */}
                 <ScrollView style={{ flex: 1 }}>
                     <Text style={{ fontSize: 20, fontWeight: 'bold', margin: 16 }}>Friends' Weather</Text>
-
-                    {/* Friend Weather Items */}
-                    <View style={{
-                        flexDirection: 'row',
-                        padding: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: '#eee'
-                    }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '500' }}>Sarah Smith</Text>
-                            <Text style={{ color: '#666' }}>New York, NY</Text>
-                        </View>
-                        <Text style={{ fontSize: 20 }}>65°</Text>
-                    </View>
-
-                    <View style={{
-                        flexDirection: 'row',
-                        padding: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: '#eee'
-                    }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '500' }}>John Doe</Text>
-                            <Text style={{ color: '#666' }}>Los Angeles, CA</Text>
-                        </View>
-                        <Text style={{ fontSize: 20 }}>82°</Text>
-                    </View>
-
-                    <View style={{
-                        flexDirection: 'row',
-                        padding: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: '#eee'
-                    }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '500' }}>Mike Johnson</Text>
-                            <Text style={{ color: '#666' }}>Chicago, IL</Text>
-                        </View>
-                        <Text style={{ fontSize: 20 }}>58°</Text>
-                    </View>
+                    {friendsWeather.length === 0 ? (
+                        <Text style={{ marginLeft: 16, color: '#888' }}>No friends using the app yet.</Text>
+                    ) : (
+                        friendsWeather.map((friend, idx) => (
+                            <View key={friend.id || idx} style={{
+                                flexDirection: 'row',
+                                padding: 16,
+                                borderBottomWidth: 1,
+                                borderBottomColor: '#eee',
+                                alignItems: 'center',
+                            }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 16, fontWeight: '500' }}>{friend.phone_number}</Text>
+                                    <Text style={{ color: '#666', fontSize: 12 }}>
+                                        {friend.weather_updated_at ? `Updated: ${new Date(friend.weather_updated_at).toLocaleTimeString()}` : 'No weather yet'}
+                                    </Text>
+                                </View>
+                                {friend.weather_temp !== null && friend.weather_condition ? (
+                                    <View style={{ alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 20 }}>{Math.round(friend.weather_temp)}°</Text>
+                                        <Text style={{ fontSize: 14 }}>{friend.weather_condition}</Text>
+                                        {friend.weather_icon && (
+                                            <Text style={{ fontSize: 18 }}>{friend.weather_icon}</Text>
+                                            // You can use an <Image> here if you want to show the icon
+                                        )}
+                                    </View>
+                                ) : (
+                                    <Text style={{ color: '#888' }}>No weather</Text>
+                                )}
+                            </View>
+                        ))
+                    )}
                 </ScrollView>
             </View>
         </>
