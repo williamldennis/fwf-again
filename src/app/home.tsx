@@ -66,6 +66,7 @@ export default function Home() {
                     return;
                 }
                 const contactPhones = (contacts || []).map((c: any) => c.contact_phone);
+                console.log('Contact phones:', contactPhones);
                 if (contactPhones.length === 0) {
                     setFriendsWeather([]);
                     setLoading(false);
@@ -76,12 +77,16 @@ export default function Home() {
                     .from('profiles')
                     .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at')
                     .in('phone_number', contactPhones);
+                console.log('Current user:', user);
+                console.log('Friends from Supabase:', friends);
                 if (friendsError) {
                     setError('Failed to fetch friends.');
                     setLoading(false);
                     return;
                 }
-                setFriendsWeather(friends || []);
+                const filteredFriends = (friends || []).filter(f => f.id !== user.id);
+                console.log('Filtered friendsWeather:', filteredFriends);
+                setFriendsWeather(filteredFriends);
             } catch (err) {
                 setError('Failed to fetch weather.');
             }
