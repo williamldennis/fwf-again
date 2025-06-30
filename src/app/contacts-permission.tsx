@@ -34,14 +34,37 @@ export default function ContactsPermission() {
             data.forEach(contact => {
                 (contact.phoneNumbers || []).forEach(pn => {
                     if (pn.number) {
-                        rows.push({
-                            user_id: user.id,
-                            contact_phone: pn.number.replace(/\D/g, ''), // normalize
-                            contact_name: contact.name,
-                        });
+                        // More comprehensive phone number normalization
+                        let normalizedNumber = pn.number;
+
+                        // Remove all non-digit characters
+                        normalizedNumber = normalizedNumber.replace(/\D/g, '');
+
+                        // Handle US numbers: if it starts with 1 and has 11 digits, keep it
+                        // If it has 10 digits, assume it's a US number and add 1
+                        if (normalizedNumber.length === 10) {
+                            normalizedNumber = '1' + normalizedNumber;
+                        }
+
+                        // Only keep numbers that are at least 10 digits
+                        if (normalizedNumber.length >= 10) {
+                            rows.push({
+                                user_id: user.id,
+                                contact_phone: normalizedNumber,
+                                contact_name: contact.name,
+                            });
+
+                            // Debug logging for specific numbers
+                            if (contact.name && (contact.name.toLowerCase().includes('john') || normalizedNumber.includes('13032224444'))) {
+                                console.log(`Found John's contact: ${contact.name}, Original: ${pn.number}, Normalized: ${normalizedNumber}`);
+                            }
+                        }
                     }
                 });
             });
+
+            console.log(`Total contacts to upload: ${rows.length}`);
+            console.log(`Sample contacts:`, rows.slice(0, 5));
 
             // Optionally: clear old contacts first
             await supabase.from('user_contacts').delete().eq('user_id', user.id);

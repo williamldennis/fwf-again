@@ -55,20 +55,58 @@ export default function Home() {
                     weather_updated_at: new Date().toISOString(),
                 }).eq('id', user.id);
 
-                // Fetch user's contacts
-                const { data: contacts, error: contactsError } = await supabase
-                    .from('user_contacts')
-                    .select('contact_phone')
-                    .eq('user_id', user.id);
-                if (contactsError) {
-                    setError('Failed to fetch contacts.');
-                    setLoading(false);
-                    return;
+                // Fetch user's contacts with pagination
+                let allContacts: any[] = [];
+                let from = 0;
+                const pageSize = 1000;
+
+                while (true) {
+                    const { data: contacts, error: contactsError } = await supabase
+                        .from('user_contacts')
+                        .select('contact_phone, contact_name')
+                        .eq('user_id', user.id)
+                        .range(from, from + pageSize - 1);
+
+                    if (contactsError) {
+                        setError('Failed to fetch contacts.');
+                        setLoading(false);
+                        return;
+                    }
+
+                    if (!contacts || contacts.length === 0) {
+                        break; // No more data
+                    }
+
+                    allContacts = allContacts.concat(contacts);
+                    from += pageSize;
+
+                    // If we got less than pageSize, we're done
+                    if (contacts.length < pageSize) {
+                        break;
+                    }
                 }
-                const contactPhones = (contacts || []).map((c: any) => c.contact_phone);
+
+                console.log('Raw contacts from database (with pagination):', allContacts);
+                console.log('Total contacts retrieved:', allContacts.length);
+
+                const contactPhones = (allContacts || []).map((c: any) => c.contact_phone);
                 // Force all numbers to be clean digit-only strings
                 const cleanedPhones = contactPhones.map(p => String(p).replace(/[^0-9]/g, ''));
                 const uniquePhones = Array.from(new Set(cleanedPhones));
+
+                console.log('Total contacts:', allContacts.length);
+                console.log('Total cleanedPhones:', cleanedPhones.length);
+                console.log('Total uniquePhones:', uniquePhones.length);
+
+                // Check if John's number is in the contacts
+                const johnInContacts = uniquePhones.includes('13032224444');
+                console.log('John\'s number in contacts:', johnInContacts);
+                if (johnInContacts) {
+                    console.log('John\'s contact found in database!');
+                } else {
+                    console.log('John\'s contact NOT found in database. Available numbers:', uniquePhones.filter(p => p.includes('130322')));
+                }
+
                 console.log('Unique cleaned contact phones:', uniquePhones);
                 console.log('Does uniquePhones include John (11 digits)?', uniquePhones.includes('13032224444'));
                 console.log('Does uniquePhones include John (10 digits)?', uniquePhones.includes('1303222444'));
