@@ -46,6 +46,13 @@ export default function Home() {
                 const response = await fetch(url);
                 const data = await response.json();
                 setWeather(data);
+                // Update user's weather in Supabase
+                await supabase.from('profiles').update({
+                    weather_temp: data.main.temp,
+                    weather_condition: data.weather[0].main,
+                    weather_icon: data.weather[0].icon,
+                    weather_updated_at: new Date().toISOString(),
+                }).eq('id', user.id);
             } catch (err) {
                 setError('Failed to fetch weather.');
             }
