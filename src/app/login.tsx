@@ -12,7 +12,7 @@ export default function Login() {
     if (error) {
       alert(error.message);
     } else {
-      router.replace('/'); // Go to home
+      router.replace('/contacts-permission'); // Go to contacts permission page
     }
   };
 
