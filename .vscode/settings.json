@@ -1,7 +1,8 @@
 {
+  "editor.tabSize": 4,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false, // disables auto-detect to enforce your settings
   "editor.formatOnSave": true,
-  "[javascript][typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "editor.formatOnSaveMode": "file"
+  "prettier.tabWidth": 4,
+  "prettier.useTabs": false
 }
