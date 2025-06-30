@@ -1,14 +1,23 @@
+import { useEffect } from 'react';
 import { View, Text, Button, Alert } from 'react-native';
 import { router } from 'expo-router';
 import * as Contacts from 'expo-contacts';
 
 export default function ContactsPermission() {
+  // Check permission on mount
+  useEffect(() => {
+    (async () => {
+      const { status } = await Contacts.getPermissionsAsync();
+      if (status === 'granted') {
+        router.replace('/location-permission');
+      }
+    })();
+  }, []);
+
   const handleApprove = async () => {
     const { status } = await Contacts.requestPermissionsAsync();
     if (status === 'granted') {
-      // Permission granted, you can now access contacts
-      Alert.alert('Permission granted!', 'You can now access contacts.');
-      router.replace('/'); // Or navigate to your next screen
+      router.replace('/location-permission');
     } else {
       Alert.alert('Permission denied', 'You need to allow contacts access to continue.');
     }
