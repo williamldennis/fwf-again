@@ -145,7 +145,6 @@ export default function Home() {
                     }
                 }
 
-                console.log('Raw contacts from database (with pagination):', allContacts);
                 console.log('Total contacts retrieved:', allContacts.length);
 
                 // Create a mapping of cleaned phone numbers to contact names
@@ -160,22 +159,6 @@ export default function Home() {
                 const cleanedPhones = contactPhones.map(p => String(p).replace(/[^0-9]/g, ''));
                 const uniquePhones = Array.from(new Set(cleanedPhones));
 
-                console.log('Total contacts:', allContacts.length);
-                console.log('Total cleanedPhones:', cleanedPhones.length);
-                console.log('Total uniquePhones:', uniquePhones.length);
-
-                // Check if John's number is in the contacts
-                const johnInContacts = uniquePhones.includes('13032224444');
-                console.log('John\'s number in contacts:', johnInContacts);
-                if (johnInContacts) {
-                    console.log('John\'s contact found in database!');
-                } else {
-                    console.log('John\'s contact NOT found in database. Available numbers:', uniquePhones.filter(p => p.includes('130322')));
-                }
-
-                console.log('Unique cleaned contact phones:', uniquePhones);
-                console.log('Does uniquePhones include John (11 digits)?', uniquePhones.includes('13032224444'));
-                console.log('Does uniquePhones include John (10 digits)?', uniquePhones.includes('1303222444'));
                 // Batch into chunks of 500
                 function chunkArray<T>(array: T[], size: number): T[][] {
                     const result: T[][] = [];
@@ -186,46 +169,6 @@ export default function Home() {
                 }
                 const BATCH_SIZE = 500;
                 const phoneChunks = chunkArray<string>(uniquePhones, BATCH_SIZE);
-                console.log('Phone chunks:', phoneChunks);
-                // Log each phone number in the first chunk
-                phoneChunks[0].forEach((num: string, idx: number) => {
-                    console.log(`Chunk 1 phone ${idx}:`, num, typeof num, JSON.stringify(num));
-                });
-                // Direct comparison logs for John's number
-                console.log('Does chunk include John exactly?', phoneChunks[0].includes('13032224444'));
-                console.log('Index of John in chunk:', phoneChunks[0].indexOf('13032224444'));
-                console.log('John in chunk (as string):', phoneChunks[0].find(num => num == '13032224444'));
-                console.log('John in chunk (strict):', phoneChunks[0].find(num => num === '13032224444'));
-                // Check for hidden characters in John's number
-                phoneChunks[0].forEach((num, idx) => {
-                    if (num.includes('13031111111')) {
-                        console.log(`Potential John match at index ${idx}:`, num, num.length, JSON.stringify(num));
-                        for (let i = 0; i < num.length; i++) {
-                            console.log(`Char ${i}:`, num.charCodeAt(i));
-                        }
-                    }
-                });
-
-                // Test batch query with only John's number
-                const { data: johnBatch, error: johnBatchError } = await supabase
-                    .from('profiles')
-                    .select('id, phone_number, email')
-                    .in('phone_number', ['13032224444']);
-                console.log('Batch query with only John:', johnBatch, johnBatchError);
-
-                // Test batch query with only your number
-                const { data: meBatch, error: meBatchError } = await supabase
-                    .from('profiles')
-                    .select('id, phone_number, email')
-                    .in('phone_number', ['13033595357']);
-                console.log('Batch query with only me:', meBatch, meBatchError);
-
-                // Test batch query with both numbers
-                const { data: bothBatch, error: bothBatchError } = await supabase
-                    .from('profiles')
-                    .select('id, phone_number, email')
-                    .in('phone_number', ['13033595357', '13032224444']);
-                console.log('Batch query with both:', bothBatch, bothBatchError);
 
                 // Parallelize the queries
                 const friendResults = await Promise.all(
