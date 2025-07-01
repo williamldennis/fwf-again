@@ -23,6 +23,7 @@
 		22EDE0B87D0C9A530925F6C0 /* libPods-fwf.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-fwf.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7F0C32CAF96F6848F2A5FFAE /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-fwf/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		99A120EE910230C700C3CD71 /* Pods-fwf.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-fwf.release.xcconfig"; path = "Target Support Files/Pods-fwf/Pods-fwf.release.xcconfig"; sourceTree = "<group>"; };
+		9D1EBD64F25B4FB19CBBCE65 /* SplashScreen.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = SplashScreen.storyboard; path = "fwf 2/SplashScreen.storyboard"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = fwf/SplashScreen.storyboard; sourceTree = "<group>"; };
 		ACC5CB71BD8F33329E844871 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = fwf/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B3A0D932D5C725FE34AD2FC4 /* Pods-fwf.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-fwf.debug.xcconfig"; path = "Target Support Files/Pods-fwf/Pods-fwf.debug.xcconfig"; sourceTree = "<group>"; };
@@ -101,6 +102,7 @@
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				3E6EC5508EE06CC3AA82CFF9 /* Pods */,
 				25ACF4E03DF2258E2B680E55 /* ExpoModulesProviders */,
+				9D1EBD64F25B4FB19CBBCE65 /* SplashScreen.storyboard */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -364,7 +366,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.willydennis.fwf;
-				PRODUCT_NAME = "fwf";
+				PRODUCT_NAME = fwf;
 				SWIFT_OBJC_BRIDGING_HEADER = "fwf/fwf-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -398,7 +400,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.willydennis.fwf;
-				PRODUCT_NAME = "fwf";
+				PRODUCT_NAME = fwf;
 				SWIFT_OBJC_BRIDGING_HEADER = "fwf/fwf-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

@@ -6,6 +6,65 @@ import { supabase } from '../utils/supabase';
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 
+const getWeatherGradient = (weatherCondition: string) => {
+    switch (weatherCondition?.toLowerCase()) {
+        case 'clear':
+            return ['#FFD700', '#FFA500']; // Yellow to orange
+        case 'clouds':
+            return ['#E8E8E8', '#B0B0B0']; // Light gray to darker gray
+        case 'rain':
+            return ['#4A90E2', '#7B68EE']; // Blue to purple
+        case 'snow':
+            return ['#F0F8FF', '#E6E6FA']; // Light blue to lavender
+        case 'thunderstorm':
+            return ['#2C3E50', '#34495E']; // Dark blue-gray
+        case 'drizzle':
+            return ['#87CEEB', '#4682B4']; // Sky blue to steel blue
+        case 'mist':
+        case 'fog':
+            return ['#D3D3D3', '#A9A9A9']; // Light gray to dark gray
+        case 'haze':
+            return ['#F5F5DC', '#DEB887']; // Beige to burlywood
+        default:
+            return ['#E8E8E8', '#B0B0B0']; // Default gray
+    }
+};
+
+const getInitials = (name: string) => {
+    if (!name || name === 'Unknown') return '?';
+    return name
+        .split(' ')
+        .map(word => word.charAt(0))
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+};
+
+const Avatar = ({ name, size = 40 }: { name: string; size?: number }) => {
+    const initials = getInitials(name);
+    const backgroundColor = name === 'Unknown' ? '#999' : '#007AFF';
+
+    return (
+        <View style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: 12,
+        }}>
+            <Text style={{
+                color: 'white',
+                fontSize: size * 0.4,
+                fontWeight: 'bold',
+            }}>
+                {initials}
+            </Text>
+        </View>
+    );
+};
+
 export default function Home() {
     const [weather, setWeather] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -227,17 +286,22 @@ export default function Home() {
             />
             <View style={{ flex: 1 }}>
                 {/* Weather Card */}
-                <View style={styles.card}>
+                <View
+                    style={[
+                        styles.card,
+                        { backgroundColor: weather ? getWeatherGradient(weather.weather[0].main)[0] : '#E8E8E8' }
+                    ]}
+                >
                     {loading ? (
-                        <View style={styles.center}><ActivityIndicator size="large" /><Text>Loading weather...</Text></View>
+                        <View style={styles.center}><ActivityIndicator size="large" /><Text style={{ color: '#000' }}>Loading weather...</Text></View>
                     ) : error ? (
-                        <View style={styles.center}><Text>{error}</Text></View>
+                        <View style={styles.center}><Text style={{ color: '#000' }}>{error}</Text></View>
                     ) : weather ? (
                         <>
-                            <Text style={{ fontSize: 24, fontWeight: 'bold' }}>Current Weather</Text>
+                            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#000' }}>Current Weather</Text>
                             <Text style={{ fontSize: 16, color: '#666', marginTop: 4 }}>{weather.name}</Text>
-                            <Text style={{ fontSize: 48, fontWeight: '300', marginVertical: 10 }}>{Math.round(weather.main.temp)}°</Text>
-                            <Text style={{ fontSize: 16 }}>{weather.weather[0].main}</Text>
+                            <Text style={{ fontSize: 48, fontWeight: '300', marginVertical: 10, color: '#000' }}>{Math.round(weather.main.temp)}°</Text>
+                            <Text style={{ fontSize: 16, color: '#000' }}>{weather.weather[0].main}</Text>
                         </>
                     ) : null}
                 </View>
@@ -249,20 +313,23 @@ export default function Home() {
                         <Text style={{ marginLeft: 16, color: '#888' }}>No friends using the app yet.</Text>
                     ) : (
                         friendsWeather.map((friend, idx) => (
-                            <View key={friend.id || idx} style={styles.friendCard}>
+                            <View
+                                key={friend.id || idx}
+                                style={[styles.friendCard, { backgroundColor: getWeatherGradient(friend.weather_condition)[0] }]}
+                            >
+                                <Avatar name={friend.contact_name || 'Unknown'} />
                                 <View style={{ flex: 1 }}>
-                                    <Text style={{ fontSize: 16, fontWeight: '500' }}>{friend.contact_name || 'Unknown'}</Text>
+                                    <Text style={{ fontSize: 16, fontWeight: '500', color: '#000' }}>{friend.contact_name || 'Unknown'}</Text>
                                     <Text style={{ color: '#666', fontSize: 12 }}>
                                         {friend.weather_updated_at ? `Updated: ${new Date(friend.weather_updated_at).toLocaleTimeString()}` : 'No weather yet'}
                                     </Text>
                                 </View>
                                 {friend.weather_temp !== null && friend.weather_condition ? (
                                     <View style={{ alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 20 }}>{Math.round(friend.weather_temp)}°</Text>
-                                        <Text style={{ fontSize: 14 }}>{friend.weather_condition}</Text>
+                                        <Text style={{ fontSize: 20, color: '#000' }}>{Math.round(friend.weather_temp)}°</Text>
+                                        <Text style={{ fontSize: 14, color: '#000' }}>{friend.weather_condition}</Text>
                                         {friend.weather_icon && (
                                             <Text style={{ fontSize: 18 }}>{friend.weather_icon}</Text>
-                                            // You can use an <Image> here if you want to show the icon
                                         )}
                                     </View>
                                 ) : (
@@ -279,7 +346,6 @@ export default function Home() {
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: '#fff',
         padding: 20,
         margin: 16,
         borderRadius: 12,
@@ -292,7 +358,6 @@ const styles = StyleSheet.create({
     },
     friendCard: {
         flexDirection: 'row',
-        backgroundColor: '#fff',
         padding: 16,
         marginHorizontal: 16,
         marginVertical: 8,
