@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "fwf",
-    "slug": "fwf",
+    "name": "fwf-v2",
+    "slug": "fwf-v2",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -47,7 +47,7 @@
       "supabaseKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxZ2RldnR0aGh3ZWhtaWRkcHB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk5MTQyNTgsImV4cCI6MjA2NTQ5MDI1OH0.89y4pBIcjMUeeL3vuUHY3_65WiwpQLeuOQIXMfjvqbE",
       "router": {},
       "eas": {
-        "projectId": "e3363a4a-31f0-44b5-bcf4-cd4b5f5888a0"
+        "projectId": "2ae3974b-8c85-4eb7-b59c-c3fbad516939"
       }
     }
   }
