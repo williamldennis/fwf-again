@@ -89,6 +89,13 @@ export default function Home() {
                 console.log('Raw contacts from database (with pagination):', allContacts);
                 console.log('Total contacts retrieved:', allContacts.length);
 
+                // Create a mapping of cleaned phone numbers to contact names
+                const phoneToNameMap = new Map<string, string>();
+                allContacts.forEach((contact: any) => {
+                    const cleanedPhone = String(contact.contact_phone).replace(/[^0-9]/g, '');
+                    phoneToNameMap.set(cleanedPhone, contact.contact_name);
+                });
+
                 const contactPhones = (allContacts || []).map((c: any) => c.contact_phone);
                 // Force all numbers to be clean digit-only strings
                 const cleanedPhones = contactPhones.map(p => String(p).replace(/[^0-9]/g, ''));
@@ -182,8 +189,19 @@ export default function Home() {
                 console.log('All friends combined:', allFriends);
                 // Remove the current user from the results
                 const filteredFriends = allFriends.filter(f => f.id !== user.id);
-                console.log('Filtered friendsWeather:', filteredFriends);
-                setFriendsWeather(filteredFriends);
+
+                // Add contact names to the friends data
+                const friendsWithNames = filteredFriends.map(friend => {
+                    const cleanedPhone = String(friend.phone_number).replace(/[^0-9]/g, '');
+                    const contactName = phoneToNameMap.get(cleanedPhone);
+                    return {
+                        ...friend,
+                        contact_name: contactName || 'Unknown'
+                    };
+                });
+
+                console.log('Friends with names:', friendsWithNames);
+                setFriendsWeather(friendsWithNames);
             } catch (err) {
                 setError('Failed to fetch weather.');
             }
@@ -239,7 +257,7 @@ export default function Home() {
                                 alignItems: 'center',
                             }}>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={{ fontSize: 16, fontWeight: '500' }}>{friend.phone_number}</Text>
+                                    <Text style={{ fontSize: 16, fontWeight: '500' }}>{friend.contact_name || 'Unknown'}</Text>
                                     <Text style={{ color: '#666', fontSize: 12 }}>
                                         {friend.weather_updated_at ? `Updated: ${new Date(friend.weather_updated_at).toLocaleTimeString()}` : 'No weather yet'}
                                     </Text>
