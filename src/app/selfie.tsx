@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Dimensions } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../utils/supabase';
+
+const { width: screenWidth } = Dimensions.get('window');
+const CAMERA_SIZE = Math.min(screenWidth * 0.8, 300);
 
 const WEATHER_TYPES = [
     { key: 'sunny', label: 'How do you feel when it\'s sunny?', color: '#FFD700' },
@@ -78,7 +81,10 @@ export default function Selfie() {
         <View style={styles.container}>
             <Text style={styles.title}>{currentWeather.label}</Text>
 
-            <View style={[styles.cameraCircle, { backgroundColor: currentWeather.color }]}>
+            <TouchableOpacity
+                style={[styles.cameraCircle, { backgroundColor: currentWeather.color }]}
+                onPress={takeSelfie}
+            >
                 {selfies[currentWeather.key] ? (
                     <View style={styles.previewContainer}>
                         <Text style={styles.checkmark}>✓</Text>
@@ -90,7 +96,7 @@ export default function Selfie() {
                         <Text style={styles.tapText}>Tap to take photo</Text>
                     </View>
                 )}
-            </View>
+            </TouchableOpacity>
 
             <View style={styles.progressContainer}>
                 {WEATHER_TYPES.map((weather, index) => (
@@ -117,6 +123,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
+        backgroundColor: '#fff',
     },
     title: {
         fontSize: 24,
@@ -126,9 +133,9 @@ const styles = StyleSheet.create({
         color: '#333',
     },
     cameraCircle: {
-        width: 250,
-        height: 250,
-        borderRadius: 125,
+        width: CAMERA_SIZE,
+        height: CAMERA_SIZE,
+        borderRadius: CAMERA_SIZE / 2,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 40,
