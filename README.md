@@ -4,7 +4,12 @@ sign up
 phone number add 
 contacts approve
 location approve
+selfies
 home
+
+TO DO
+[] selfies
+[] styling for onboarding
 
 
 

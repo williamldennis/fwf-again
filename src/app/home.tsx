@@ -271,9 +271,6 @@ export default function Home() {
                                     <View style={{ alignItems: 'center' }}>
                                         <Text style={{ fontSize: 20, color: '#000' }}>{Math.round(friend.weather_temp)}°</Text>
                                         <Text style={{ fontSize: 14, color: '#000' }}>{friend.weather_condition}</Text>
-                                        {friend.weather_icon && (
-                                            <Text style={{ fontSize: 18 }}>{friend.weather_icon}</Text>
-                                        )}
                                     </View>
                                 ) : (
                                     <Text style={{ color: '#888' }}>No weather</Text>
