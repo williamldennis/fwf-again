@@ -249,13 +249,7 @@ export default function Home() {
                         <Text style={{ marginLeft: 16, color: '#888' }}>No friends using the app yet.</Text>
                     ) : (
                         friendsWeather.map((friend, idx) => (
-                            <View key={friend.id || idx} style={{
-                                flexDirection: 'row',
-                                padding: 16,
-                                borderBottomWidth: 1,
-                                borderBottomColor: '#eee',
-                                alignItems: 'center',
-                            }}>
+                            <View key={friend.id || idx} style={styles.friendCard}>
                                 <View style={{ flex: 1 }}>
                                     <Text style={{ fontSize: 16, fontWeight: '500' }}>{friend.contact_name || 'Unknown'}</Text>
                                     <Text style={{ color: '#666', fontSize: 12 }}>
@@ -294,6 +288,20 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
         elevation: 5,
+        alignItems: 'center',
+    },
+    friendCard: {
+        flexDirection: 'row',
+        backgroundColor: '#fff',
+        padding: 16,
+        marginHorizontal: 16,
+        marginVertical: 8,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
         alignItems: 'center',
     },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
