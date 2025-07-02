@@ -91,12 +91,12 @@ export default function Selfie() {
     if (!permission.granted) {
         return (
             <View className="flex-1 justify-center items-center px-5">
-                <Text className="text-xl font-bold text-center mb-8 text-gray-800">Camera permission is required to take selfies.</Text>
+                <Text className="mb-8 text-xl font-bold text-center text-gray-800">Camera permission is required to take selfies.</Text>
                 <TouchableOpacity 
-                    className="bg-blue-500 py-3 px-8 rounded-full mb-5" 
+                    className="px-8 py-3 mb-5 bg-blue-500 rounded-full" 
                     onPress={requestPermission}
                 >
-                    <Text className="text-white text-lg font-bold">Grant Permission</Text>
+                    <Text className="text-lg font-bold text-white">Grant Permission</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -105,9 +105,7 @@ export default function Selfie() {
     return (
         <View className="flex-1 bg-white">
             {/* Title at top */}
-            <View className="flex justify-center items-center px-5 pt-10">
-                <Text className="text-xl font-bold text-center text-gray-800">{currentWeather.label}</Text>
-            </View>
+
             
             {/* Camera view in center */}
             <View className="flex-1 justify-center items-center">
@@ -116,8 +114,8 @@ export default function Selfie() {
                 autoPlay
                 loop
                 style={{ 
-                    width: CAMERA_SIZE*4, 
-                    height: CAMERA_SIZE*4,
+                    width: CAMERA_SIZE*6, 
+                    height: CAMERA_SIZE*6,
                     position: 'absolute',
                     zIndex: 1,
                     opacity: 0.7,
@@ -127,7 +125,7 @@ export default function Selfie() {
                 {capturedPhoto ? (
                     <Image 
                         source={{ uri: capturedPhoto }} 
-                        className="rounded-full overflow-hidden"
+                        className="overflow-hidden rounded-full"
                         style={{ 
                             width: CAMERA_SIZE, 
                             height: CAMERA_SIZE,
@@ -136,7 +134,7 @@ export default function Selfie() {
                     />
                 ) : (
                     <View 
-                        className="rounded-full overflow-hidden"
+                        className="overflow-hidden rounded-full"
                         style={{ 
                             width: CAMERA_SIZE, 
                             height: CAMERA_SIZE,
@@ -155,8 +153,11 @@ export default function Selfie() {
                         />
                     </View>
                 )}
+                            <View className="flex justify-center items-center px-5 pt-10">
+                <Text className="text-xl font-bold text-center text-gray-800">{currentWeather.label}</Text>
             </View>
-            
+            </View>
+
             {/* Bottom section with progress and buttons */}
             <View className="px-5 pb-10">
                 {/* Progress dots and text */}
@@ -168,7 +169,7 @@ export default function Selfie() {
                                     source={weather.lottieSource}
                                     autoPlay={index <= currentIndex}
                                     loop={index <= currentIndex}
-                                    style={{ width: 24, height: 24 }}
+                                    style={{ width: 50, height: 50 }}
                                 />
                             </View>
                         ))}
@@ -181,24 +182,24 @@ export default function Selfie() {
                 {/* Buttons */}
                 {!capturedPhoto ? (
                     <TouchableOpacity 
-                        className="bg-blue-500 py-4 rounded-full w-full" 
+                        className="py-4 w-full bg-blue-500 rounded-full" 
                         onPress={handleCapture}
                     >
-                        <Text className="text-white text-lg font-bold text-center">Capture</Text>
+                        <Text className="text-lg font-bold text-center text-white">Take Photo</Text>
                     </TouchableOpacity>
                 ) : (
                     <View className="flex-row gap-4">
                         <TouchableOpacity 
-                            className="bg-gray-300 py-4 rounded-full flex-1" 
+                            className="flex-1 py-4 bg-gray-300 rounded-full" 
                             onPress={handleRetake}
                         >
-                            <Text className="text-gray-800 text-base font-bold text-center">Retake</Text>
+                            <Text className="text-base font-bold text-center text-gray-800">Retake</Text>
                         </TouchableOpacity>
                         <TouchableOpacity 
-                            className="bg-blue-500 py-4 rounded-full flex-1" 
+                            className="flex-1 py-4 bg-blue-500 rounded-full" 
                             onPress={handleNext}
                         >
-                            <Text className="text-white text-base font-bold text-center">
+                            <Text className="text-base font-bold text-center text-white">
                                 {currentIndex < WEATHER_TYPES.length - 1 ? 'Next' : 'Finish'}
                             </Text>
                         </TouchableOpacity>

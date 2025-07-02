@@ -1,11 +1,10 @@
-export const options = { headerShown: true };
-
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { Stack, router } from 'expo-router';
 import React from 'react';
 import LottieView from 'lottie-react-native';
 import { supabase } from '../utils/supabase';
+import { useHeaderHeight } from '@react-navigation/elements';
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 
@@ -113,12 +112,37 @@ const getWeatherLottie = (weatherCondition: string) => {
     }
 };
 
+function getWeatherDescription(condition: string) {
+    switch (condition.toLowerCase()) {
+        case 'clear':
+            return 'clear';
+        case 'clouds':
+            return 'cloudy';
+        case 'rain':
+            return 'rainy';
+        case 'snow':
+            return 'snowy';
+        case 'thunderstorm':
+            return 'stormy';
+        case 'drizzle':
+            return 'drizzly';
+        case 'mist':
+        case 'fog':
+            return 'foggy';
+        case 'haze':
+            return 'hazy';
+        default:
+            return condition.toLowerCase();
+    }
+}
+
 export default function Home() {
     const [weather, setWeather] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [friendsWeather, setFriendsWeather] = useState<any[]>([]);
     const [selfieUrls, setSelfieUrls] = useState<Record<string, string> | null>(null);
+    const headerHeight = useHeaderHeight();
 
     // Logout handler
     const handleLogout = async () => {
@@ -285,18 +309,15 @@ export default function Home() {
                 options={{
                     headerLeft: () => (
                         <Text
-                            className="ml-4 font-bold text-blue-500"
+                            className="ml-4 font-bold text-gray-500"
                             onPress={() => router.replace('/selfie')}
                         >
                             Retake Selfies
                         </Text>
                     ),
-                    headerTitle: () => (
-                        <Text className="text-lg font-bold text-center text-black">Weather</Text>
-                    ),
                     headerRight: () => (
                         <Text
-                            className="mr-4 font-bold text-blue-500"
+                            className="mr-4 font-bold text-gray-500"
                             onPress={handleLogout}
                         >
                             Logout
@@ -304,18 +325,10 @@ export default function Home() {
                     ),
                 }}
             />
-            <View className="flex-1">
+            <View className="flex-1" style={{ paddingTop: headerHeight -30 }}>
                 {/* Weather Card */}
                 <View
-                    className="items-center p-5 m-4 rounded-xl shadow-lg"
-                    style={{ 
-                        backgroundColor: weather ? getWeatherGradient(weather.weather[0].main)[0] : '#E8E8E8',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.25,
-                        shadowRadius: 3.84,
-                        elevation: 5,
-                    }}
+                    className="items-center p-5 m-4 rounded-xl"
                 >
                     {loading ? (
                         <View className="flex-1 justify-center items-center">
@@ -328,54 +341,75 @@ export default function Home() {
                         </View>
                     ) : weather ? (
                         <>
-                            <Text className="text-2xl font-bold text-black">Current Weather</Text>
-                            <Text className="mt-1 text-base text-gray-600">{weather.name}</Text>
-                        
-                            
-                            {/* Show user's selfie for current weather */}
-                            {selfieUrls && (() => {
-                                const selfieKey = mapWeatherToSelfieKey(weather.weather[0].main);
-                                const selfieData = selfieUrls[selfieKey];
-                                if (selfieData) {
-                                    return (
-                                        <View className="justify-center items-center my-2.5">
-                                            {/* Lottie animation overlaid */}
-                                            <LottieView
-                                                source={getWeatherLottie(weather.weather[0].main)}
-                                                autoPlay
-                                                loop
-                                                style={{ 
-                                                    width: 300, 
-                                                    height: 300,
-                                                    position: 'absolute',
-                                                    zIndex: 1,
-                                                    opacity: 0.7
-                                                }}
-                                            />
-                                            {/* User's selfie */}
-                                            <Image
-                                                source={{ uri: selfieData }}
-                                                style={{ 
-                                                    width: 100, 
-                                                    height: 100, 
-                                                    borderRadius: 50,
-                                                    resizeMode: "cover"
-                                                }}
-                                            />
-                                        </View>
-                                    );
-                                }
-                                return null;
-                            })()}
-                            
-                            <Text className="text-5xl font-light my-2.5 text-black">{Math.round(weather.main.temp)}°</Text>
-                            <Text className="text-base text-black">{weather.weather[0].main}</Text>
+                            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 24 }}>
+                                <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+                                    {/* Lottie animation (unchanged) */}
+                                    <LottieView
+                                        source={getWeatherLottie(weather.weather[0].main)}
+                                        autoPlay
+                                        loop
+                                        style={{
+                                            width: 800,
+                                            height: 800,
+                                            position: 'absolute',
+                                            zIndex: 4,
+                                            opacity: 0.8,
+                                            marginTop: 200,
+                                        }}
+                                    />
+                                    {/* Temperature in large white circle */}
+                                    <View
+                                        style={{
+                                            width: 140,
+                                            height: 140,
+                                            borderRadius: 70,
+                                            backgroundColor: '#fff',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            zIndex: 2,
+                                            shadowColor: '#000',
+                                            shadowOpacity: 0.1,
+                                            shadowRadius: 8,
+                                            elevation: 4,
+                                        }}
+                                    >
+                                        <Text style={{ fontSize: 56, fontWeight: 'bold', color: '#222' }}>
+                                            {Math.round(weather.main.temp)}°
+                                        </Text>
+                                    </View>
+                                    {/* User's selfie, smaller, bottom right, overlapping */}
+                                    <Image
+                                        source={{
+                                            uri:
+                                                selfieUrls && mapWeatherToSelfieKey(weather.weather[0].main)
+                                                    ? selfieUrls[mapWeatherToSelfieKey(weather.weather[0].main)]
+                                                    : undefined,
+                                        }}
+                                        style={{
+                                            width: 64,
+                                            height: 64,
+                                            borderRadius: 32,
+                                            resizeMode: 'cover',
+                                            position: 'absolute',
+                                            right: -20,
+                                            bottom: -20,
+                                            borderWidth: 4,
+                                            borderColor: '#fff',
+                                            zIndex: 3,
+                                            backgroundColor: '#eee',
+                                        }}
+                                    />
+                                </View>
+                            </View>
+                            <Text className="text-base text-black" style={{ marginTop: 44, textAlign: 'center', fontSize: 18 }}>
+                                It&apos;s {getWeatherDescription(weather.weather[0].main)} in {weather.name}
+                            </Text>
                         </>
                     ) : null}
                 </View>
 
                 {/* Friends List */}
-                <ScrollView className="flex-1">
+                <ScrollView className="z-10 flex-1">
                     <Text className="m-4 text-xl font-bold">Friends' Weather</Text>
                     {friendsWeather.length === 0 ? (
                         <Text className="ml-4 text-gray-500">No friends using the app yet.</Text>
@@ -391,6 +425,9 @@ export default function Home() {
                                     shadowOpacity: 0.1,
                                     shadowRadius: 3,
                                     elevation: 3,
+                                    zIndex: 5
+
+                    
                                 }}
                             >
                                 <View className="items-center mr-3">
@@ -408,7 +445,7 @@ export default function Home() {
                                                     position: 'absolute',
                                                     top: -10,
                                                     left: 0,
-                                                    zIndex: 2
+                                                    zIndex: 5
                                                 }}
                                             />
                                         </View>
