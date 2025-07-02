@@ -8,8 +8,10 @@ selfies
 home
 
 TO DO
-[] selfies
+[X] selfies
 [] styling for onboarding
+[] improve selfies so they are smaller / front facing / filters / have text overlay
+[] display selfies 
 
 
 

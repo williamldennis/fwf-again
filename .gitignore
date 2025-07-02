@@ -41,8 +41,11 @@ app-example
 # iOS
 ios/Pods/
 ios/Pods 2/
+ios/Pods 3/
 ios/build/
 ios/build 2/
+ios/fwf 2/
+ios/Podfile 2.lock
 *.xcworkspace
 *.xcuserdatad
 *.xcuserdata

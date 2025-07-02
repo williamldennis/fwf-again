@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
-import { View, TextInput, Button, Text, StyleSheet } from 'react-native';
+import { View, TextInput, Button, Text } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Contacts from 'expo-contacts';
@@ -65,16 +65,16 @@ export default function Login() {
     };
 
     return (
-        <View style={styles.container}>
+        <View className="flex-1 justify-center p-5">
             <TextInput
-                style={styles.input}
+                className="border-b border-gray-300 mb-5 p-2.5 text-base"
                 placeholder="email"
                 autoCapitalize="none"
                 onChangeText={setEmail}
                 value={email}
             />
             <TextInput
-                style={styles.input}
+                className="border-b border-gray-300 mb-5 p-2.5 text-base"
                 placeholder="password"
                 secureTextEntry
                 onChangeText={setPassword}
@@ -85,13 +85,3 @@ export default function Login() {
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, justifyContent: 'center', padding: 20 },
-    input: {
-        borderBottomWidth: 1,
-        marginBottom: 20,
-        padding: 10,
-        fontSize: 16,
-    },
-});
