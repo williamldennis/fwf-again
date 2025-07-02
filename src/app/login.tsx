@@ -1,9 +1,9 @@
 export const options = { headerShown: false };
 
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabase';
-import { View, TextInput, Button, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, TextInput, Button, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, StyleSheet, Keyboard, Animated, Easing } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Contacts from 'expo-contacts';
@@ -18,10 +18,59 @@ export const unstable_settings = {
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [logoImageMargin, setLogoImageMargin] = useState(16);
+    const logoScale = useRef(new Animated.Value(1)).current;
+    const logoMargin = useRef(new Animated.Value(16)).current;
+    const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+    const scrollViewRef = useRef<ScrollView>(null);
 
     useEffect(() => {
-        checkPermissionsAndRedirect();
-    }, []);
+        const keyboardWillShow = Keyboard.addListener('keyboardWillShow', () => {
+            setIsKeyboardOpen(true);
+            setLogoImageMargin(0);
+            Animated.parallel([
+                Animated.timing(logoScale, {
+                    toValue: 0.6,
+                    duration: 250,
+                    useNativeDriver: true,
+                    easing: Easing.out(Easing.ease),
+                }),
+                Animated.timing(logoMargin, {
+                    toValue: 0,
+                    duration: 250,
+                    useNativeDriver: false,
+                    easing: Easing.out(Easing.ease),
+                })
+            ]).start();
+            setTimeout(() => {
+                if (scrollViewRef.current) {
+                    scrollViewRef.current.scrollToEnd({ animated: true });
+                }
+            }, 300);
+        });
+        const keyboardWillHide = Keyboard.addListener('keyboardWillHide', () => {
+            setIsKeyboardOpen(false);
+            setLogoImageMargin(16);
+            Animated.parallel([
+                Animated.timing(logoScale, {
+                    toValue: 1,
+                    duration: 250,
+                    useNativeDriver: true,
+                    easing: Easing.out(Easing.ease),
+                }),
+                Animated.timing(logoMargin, {
+                    toValue: 16,
+                    duration: 250,
+                    useNativeDriver: false,
+                    easing: Easing.out(Easing.ease),
+                })
+            ]).start();
+        });
+        return () => {
+            keyboardWillShow.remove();
+            keyboardWillHide.remove();
+        };
+    }, [logoScale, logoMargin]);
 
     const checkPermissionsAndRedirect = async () => {
         const { data: { session } } = await supabase.auth.getSession();
@@ -88,30 +137,44 @@ export default function Login() {
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={64}
+                keyboardVerticalOffset={0}
             >
                 <ScrollView
-                    contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}
+                    ref={scrollViewRef}
+                    contentContainerStyle={{
+                        flexGrow: 1,
+                        justifyContent: isKeyboardOpen ? 'flex-start' : 'center',
+                        padding: 20,
+                        paddingBottom: 40,
+                    }}
                     keyboardShouldPersistTaps="handled"
                 >
                     <View>
-                        <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                            <Image
+                        <Animated.View style={{ alignItems: 'center', marginBottom: logoMargin }}>
+                            <Animated.Image
                                 source={require('../../assets/images/lock-up.png')}
-                                style={{ width: 260, height: 260, resizeMode: 'contain', marginBottom: 16 }}
+                                style={{
+                                    width: 260,
+                                    height: 260,
+                                    resizeMode: 'contain',
+                                    marginBottom: logoImageMargin,
+                                    transform: [{ scale: logoScale }],
+                                }}
                                 accessibilityLabel="Fair Weather Friends logo"
                             />
-                        </View>
+                        </Animated.View>
                         <TextInput
-                            className="p-5 mb-5 text-base rounded-xl border border-gray-300"
+                            className="p-5 mb-5 text-lg font-bold rounded-xl border border-gray-300"
                             placeholder="email"
+                            placeholderTextColor="#fff"
                             autoCapitalize="none"
                             onChangeText={setEmail}
                             value={email}
                         />
                         <TextInput
-                            className="p-5 mb-5 text-base rounded-xl border border-gray-300"
+                            className="p-5 mb-5 text-lg font-bold rounded-xl border border-gray-300"
                             placeholder="password"
+                            placeholderTextColor="#fff"
                             secureTextEntry
                             onChangeText={setPassword}
                             value={password}
