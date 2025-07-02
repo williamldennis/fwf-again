@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../utils/supabase';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -19,37 +19,35 @@ export default function Selfie() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selfies, setSelfies] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
+    const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+    const cameraRef = useRef<CameraView>(null);
+    const [permission, requestPermission] = useCameraPermissions();
 
     const currentWeather = WEATHER_TYPES[currentIndex];
 
-    const takeSelfie = async () => {
-        try {
-            // Request camera permissions
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert('Permission required', 'Camera permission is required to take a selfie.');
-                return;
-            }
-            const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: 'images',
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.7,
-                base64: true,
-            });
+    const handleCapture = async () => {
+        if (cameraRef.current) {
+            const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.7 });
+            setCapturedPhoto(photo.uri);
+            setSelfies(prev => ({ ...prev, [currentWeather.key]: `data:image/jpeg;base64,${photo.base64}` }));
+        }
+    };
 
-            if (!result.canceled && result.assets[0]) {
-                const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-                setSelfies(prev => ({ ...prev, [currentWeather.key]: base64Image }));
+    const handleRetake = () => {
+        setCapturedPhoto(null);
+        setSelfies(prev => {
+            const updated = { ...prev };
+            delete updated[currentWeather.key];
+            return updated;
+        });
+    };
 
-                if (currentIndex < WEATHER_TYPES.length - 1) {
-                    setCurrentIndex(prev => prev + 1);
-                } else {
-                    await saveSelfies();
-                }
-            }
-        } catch (error) {
-            Alert.alert('Error', 'Failed to take photo');
+    const handleNext = async () => {
+        if (currentIndex < WEATHER_TYPES.length - 1) {
+            setCurrentIndex(prev => prev + 1);
+            setCapturedPhoto(null);
+        } else {
+            await saveSelfies();
         }
     };
 
@@ -58,14 +56,11 @@ export default function Selfie() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('No user found');
-
             const { error } = await supabase
                 .from('profiles')
                 .update({ selfie_urls: selfies })
                 .eq('id', user.id);
-
             if (error) throw error;
-
             router.replace('/home');
         } catch (error) {
             Alert.alert('Error', 'Failed to save selfies');
@@ -83,27 +78,55 @@ export default function Selfie() {
         );
     }
 
+    if (!permission) {
+        return (
+            <View style={styles.container}>
+                <ActivityIndicator size="large" />
+                <Text>Loading camera permissions...</Text>
+            </View>
+        );
+    }
+
+    if (!permission.granted) {
+        return (
+            <View style={styles.container}>
+                <Text style={styles.title}>Camera permission is required to take selfies.</Text>
+                <TouchableOpacity style={styles.captureButton} onPress={requestPermission}>
+                    <Text style={styles.captureButtonText}>Grant Permission</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>{currentWeather.label}</Text>
-
-            <TouchableOpacity
-                style={[styles.cameraCircle, { backgroundColor: currentWeather.color }]}
-                onPress={takeSelfie}
-            >
-                {selfies[currentWeather.key] ? (
-                    <View style={styles.previewContainer}>
-                        <Text style={styles.checkmark}>✓</Text>
-                        <Text style={styles.completed}>Completed!</Text>
-                    </View>
+            <View style={styles.cameraCircleWrapper}>
+                {capturedPhoto ? (
+                    <Image source={{ uri: capturedPhoto }} style={styles.cameraCircle} />
                 ) : (
-                    <View style={styles.cameraPlaceholder}>
-                        <Text style={styles.cameraIcon}>📷</Text>
-                        <Text style={styles.tapText}>Tap to take photo</Text>
-                    </View>
+                    <CameraView
+                        ref={cameraRef}
+                        style={styles.cameraCircle}
+                        facing="front"
+                        ratio="1:1"
+                    />
                 )}
-            </TouchableOpacity>
-
+            </View>
+            {!capturedPhoto ? (
+                <TouchableOpacity style={styles.captureButton} onPress={handleCapture}>
+                    <Text style={styles.captureButtonText}>Capture</Text>
+                </TouchableOpacity>
+            ) : (
+                <View style={styles.buttonRow}>
+                    <TouchableOpacity style={styles.retakeButton} onPress={handleRetake}>
+                        <Text style={styles.retakeButtonText}>Retake</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+                        <Text style={styles.nextButtonText}>{currentIndex < WEATHER_TYPES.length - 1 ? 'Next' : 'Finish'}</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
             <View style={styles.progressContainer}>
                 {WEATHER_TYPES.map((weather, index) => (
                     <View
@@ -115,7 +138,6 @@ export default function Selfie() {
                     />
                 ))}
             </View>
-
             <Text style={styles.progressText}>
                 {currentIndex + 1} of {WEATHER_TYPES.length}
             </Text>
@@ -138,43 +160,57 @@ const styles = StyleSheet.create({
         marginBottom: 40,
         color: '#333',
     },
+    cameraCircleWrapper: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 40,
+    },
     cameraCircle: {
         width: CAMERA_SIZE,
         height: CAMERA_SIZE,
         borderRadius: CAMERA_SIZE / 2,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 40,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
+        overflow: 'hidden',
     },
-    cameraPlaceholder: {
-        alignItems: 'center',
+    captureButton: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 12,
+        paddingHorizontal: 32,
+        borderRadius: 24,
+        marginBottom: 20,
     },
-    cameraIcon: {
-        fontSize: 48,
-        marginBottom: 10,
-    },
-    tapText: {
-        fontSize: 16,
+    captureButtonText: {
         color: '#fff',
-        fontWeight: '600',
-    },
-    previewContainer: {
-        alignItems: 'center',
-    },
-    checkmark: {
-        fontSize: 48,
-        color: '#fff',
+        fontSize: 18,
         fontWeight: 'bold',
     },
-    completed: {
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    retakeButton: {
+        backgroundColor: '#ccc',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 24,
+        marginRight: 16,
+    },
+    retakeButtonText: {
+        color: '#333',
         fontSize: 16,
+        fontWeight: 'bold',
+    },
+    nextButton: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 24,
+    },
+    nextButtonText: {
         color: '#fff',
-        fontWeight: '600',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     progressContainer: {
         flexDirection: 'row',
