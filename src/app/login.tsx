@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
-import { View, TextInput, Button, Text } from 'react-native';
+import { View, TextInput, Button, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Contacts from 'expo-contacts';
@@ -65,23 +65,57 @@ export default function Login() {
     };
 
     return (
-        <View className="flex-1 justify-center p-5">
-            <TextInput
-                className="border-b border-gray-300 mb-5 p-2.5 text-base"
-                placeholder="email"
-                autoCapitalize="none"
-                onChangeText={setEmail}
-                value={email}
-            />
-            <TextInput
-                className="border-b border-gray-300 mb-5 p-2.5 text-base"
-                placeholder="password"
-                secureTextEntry
-                onChangeText={setPassword}
-                value={password}
-            />
-            <Button title="Sign In" onPress={signIn} />
-            <Button title="Sign Up" onPress={signUp} />
-        </View>
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={64}
+        >
+            <ScrollView
+                contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}
+                keyboardShouldPersistTaps="handled"
+            >
+                <View>
+                    <TextInput
+                        className="p-5 mb-5 text-base rounded-xl border border-gray-300"
+                        placeholder="email"
+                        autoCapitalize="none"
+                        onChangeText={setEmail}
+                        value={email}
+                    />
+                    <TextInput
+                        className="p-5 mb-5 text-base rounded-xl border border-gray-300"
+                        placeholder="password"
+                        secureTextEntry
+                        onChangeText={setPassword}
+                        value={password}
+                    />
+                    <View style={{ width: '100%' }}>
+                        <TouchableOpacity
+                            style={{
+                                backgroundColor: '#2563eb', // Tailwind blue-600
+                                paddingVertical: 16,
+                                borderRadius: 8,
+                                marginBottom: 12,
+                                alignItems: 'center',
+                            }}
+                            onPress={signIn}
+                        >
+                            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sign In</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{
+                                backgroundColor: '#10b981', // Tailwind green-500
+                                paddingVertical: 16,
+                                borderRadius: 8,
+                                alignItems: 'center',
+                            }}
+                            onPress={signUp}
+                        >
+                            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sign Up</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
