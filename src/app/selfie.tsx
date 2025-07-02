@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Dimensions, Image } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, Alert, ActivityIndicator, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { router } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../utils/supabase';
@@ -71,159 +71,107 @@ export default function Selfie() {
 
     if (loading) {
         return (
-            <View style={styles.container}>
+            <View className="flex-1 justify-center items-center">
                 <ActivityIndicator size="large" />
-                <Text>Saving your selfies...</Text>
+                <Text className="mt-4">Saving your selfies...</Text>
             </View>
         );
     }
 
     if (!permission) {
         return (
-            <View style={styles.container}>
+            <View className="flex-1 justify-center items-center">
                 <ActivityIndicator size="large" />
-                <Text>Loading camera permissions...</Text>
+                <Text className="mt-4">Loading camera permissions...</Text>
             </View>
         );
     }
 
     if (!permission.granted) {
         return (
-            <View style={styles.container}>
-                <Text style={styles.title}>Camera permission is required to take selfies.</Text>
-                <TouchableOpacity style={styles.captureButton} onPress={requestPermission}>
-                    <Text style={styles.captureButtonText}>Grant Permission</Text>
+            <View className="flex-1 justify-center items-center px-5">
+                <Text className="text-xl font-bold text-center mb-8 text-gray-800">Camera permission is required to take selfies.</Text>
+                <TouchableOpacity 
+                    className="bg-blue-500 py-3 px-8 rounded-full mb-5" 
+                    onPress={requestPermission}
+                >
+                    <Text className="text-white text-lg font-bold">Grant Permission</Text>
                 </TouchableOpacity>
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>{currentWeather.label}</Text>
-            <View style={styles.cameraCircleWrapper}>
+        <View className="flex-1 bg-white">
+            {/* Title at top */}
+            <View className="flex-1 justify-center items-center px-5 pt-10">
+                <Text className="text-xl font-bold text-center text-gray-800">{currentWeather.label}</Text>
+            </View>
+            
+            {/* Camera view in center */}
+            <View className="flex-1 justify-center items-center">
                 {capturedPhoto ? (
-                    <Image source={{ uri: capturedPhoto }} style={styles.cameraCircle} />
+                    <Image 
+                        source={{ uri: capturedPhoto }} 
+                        className="rounded-full overflow-hidden"
+                        style={{ width: CAMERA_SIZE, height: CAMERA_SIZE }}
+                    />
                 ) : (
                     <CameraView
                         ref={cameraRef}
-                        style={styles.cameraCircle}
+                        className="rounded-full overflow-hidden"
+                        style={{ width: CAMERA_SIZE, height: CAMERA_SIZE }}
                         facing="front"
                         ratio="1:1"
                     />
                 )}
             </View>
-            {!capturedPhoto ? (
-                <TouchableOpacity style={styles.captureButton} onPress={handleCapture}>
-                    <Text style={styles.captureButtonText}>Capture</Text>
-                </TouchableOpacity>
-            ) : (
-                <View style={styles.buttonRow}>
-                    <TouchableOpacity style={styles.retakeButton} onPress={handleRetake}>
-                        <Text style={styles.retakeButtonText}>Retake</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-                        <Text style={styles.nextButtonText}>{currentIndex < WEATHER_TYPES.length - 1 ? 'Next' : 'Finish'}</Text>
-                    </TouchableOpacity>
+            
+            {/* Bottom section with progress and buttons */}
+            <View className="px-5 pb-10">
+                {/* Progress dots and text */}
+                <View className="items-center mb-6">
+                    <View className="flex-row mb-3">
+                        {WEATHER_TYPES.map((weather, index) => (
+                            <View
+                                key={weather.key}
+                                className="w-3 h-3 rounded-full mx-1"
+                                style={{ backgroundColor: index <= currentIndex ? weather.color : '#ddd' }}
+                            />
+                        ))}
+                    </View>
+                    <Text className="text-base text-gray-600">
+                        {currentIndex + 1} of {WEATHER_TYPES.length}
+                    </Text>
                 </View>
-            )}
-            <View style={styles.progressContainer}>
-                {WEATHER_TYPES.map((weather, index) => (
-                    <View
-                        key={weather.key}
-                        style={[
-                            styles.progressDot,
-                            { backgroundColor: index <= currentIndex ? weather.color : '#ddd' }
-                        ]}
-                    />
-                ))}
+                
+                {/* Buttons */}
+                {!capturedPhoto ? (
+                    <TouchableOpacity 
+                        className="bg-blue-500 py-4 rounded-full w-full" 
+                        onPress={handleCapture}
+                    >
+                        <Text className="text-white text-lg font-bold text-center">Capture</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View className="flex-row space-x-4">
+                        <TouchableOpacity 
+                            className="bg-gray-300 py-4 rounded-full flex-1" 
+                            onPress={handleRetake}
+                        >
+                            <Text className="text-gray-800 text-base font-bold text-center">Retake</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                            className="bg-blue-500 py-4 rounded-full flex-1" 
+                            onPress={handleNext}
+                        >
+                            <Text className="text-white text-base font-bold text-center">
+                                {currentIndex < WEATHER_TYPES.length - 1 ? 'Next' : 'Finish'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
-            <Text style={styles.progressText}>
-                {currentIndex + 1} of {WEATHER_TYPES.length}
-            </Text>
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-        backgroundColor: '#fff',
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: 40,
-        color: '#333',
-    },
-    cameraCircleWrapper: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 40,
-    },
-    cameraCircle: {
-        width: CAMERA_SIZE,
-        height: CAMERA_SIZE,
-        borderRadius: CAMERA_SIZE / 2,
-        overflow: 'hidden',
-    },
-    captureButton: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 12,
-        paddingHorizontal: 32,
-        borderRadius: 24,
-        marginBottom: 20,
-    },
-    captureButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    buttonRow: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    retakeButton: {
-        backgroundColor: '#ccc',
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 24,
-        marginRight: 16,
-    },
-    retakeButtonText: {
-        color: '#333',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    nextButton: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 24,
-    },
-    nextButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    progressContainer: {
-        flexDirection: 'row',
-        marginBottom: 20,
-    },
-    progressDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        marginHorizontal: 4,
-    },
-    progressText: {
-        fontSize: 16,
-        color: '#666',
-    },
-});
