@@ -2,8 +2,8 @@ import 'dotenv/config';
 
 export default ({ config }) => ({
     ...config,
-    name: "fwf-v2",
-    slug: "fwf-v2",
+    name: "fwf",
+    slug: "fwf",
     version: '1.0.0',
     extra: {
         supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,

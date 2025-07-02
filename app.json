@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "fwf-v2",
-    "slug": "fwf-v2",
+    "name": "fwf",
+    "slug": "fwf",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
