@@ -341,51 +341,62 @@ export default function Home() {
                         </View>
                     ) : weather ? (
                         <>
-                        
-                            
-                            {/* Show user's selfie for current weather */}
-                            {selfieUrls && (() => {
-                                const selfieKey = mapWeatherToSelfieKey(weather.weather[0].main);
-                                const selfieData = selfieUrls[selfieKey];
-                                if (selfieData) {
-                                    return (
-                                        <View className="justify-center items-center my-2.5">
-                                            {/* Lottie animation overlaid */}
-                                            <LottieView
-                                                source={getWeatherLottie(weather.weather[0].main)}
-                                                autoPlay
-                                                loop
-                                                style={{ 
-                                                    width: 800, 
-                                                    height: 800,
-                                                    position: 'absolute',
-                                                    zIndex: 1,
-                                                    opacity: 0.8,
-                                                    marginTop: 200,
-                                                }}
-                                            />
-                                            {/* User's selfie */}
-                                            <Image
-                                                source={{ uri: selfieData }}
-                                                style={{ 
-                                                    width: 100, 
-                                                    height: 100, 
-                                                    borderRadius: 50,
-                                                    resizeMode: "cover",
-                                                    marginTop: 80,
-                                                }}
-                                            />
-                                        </View>
-                                    );
-                                }
-                                return null;
-                            })()}
-                            
-                            <Text className="text-5xl font-light my-2.5 text-black">{Math.round(weather.main.temp)}°</Text>
-                            <Text className="text-base text-black">
+                            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: -20 }}>
+                                <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+                                    {/* Lottie animation (unchanged) */}
+                                    <LottieView
+                                        source={getWeatherLottie(weather.weather[0].main)}
+                                        autoPlay
+                                        loop
+                                        style={{
+                                            width: 800,
+                                            height: 800,
+                                            position: 'absolute',
+                                            zIndex: 4,
+                                            opacity: 0.8,
+                                            marginTop: 200,
+                                        }}
+                                    />
+                                    {/* User's selfie */}
+                                    <Image
+                                        source={{ uri: selfieUrls && mapWeatherToSelfieKey(weather.weather[0].main) ? selfieUrls[mapWeatherToSelfieKey(weather.weather[0].main)] : undefined }}
+                                        style={{
+                                            width: 140,
+                                            height: 140,
+                                            borderRadius: 70,
+                                            resizeMode: 'cover',
+                                            marginTop: 40,
+                                            zIndex: 2,
+                                        }}
+                                    />
+                                    {/* Degrees in white circle, bottom left */}
+                                    <View
+                                        style={{
+                                            position: 'absolute',
+                                            left: -24,
+                                            bottom: 0,
+                                            backgroundColor: '#fff',
+                                            borderRadius: 48,
+                                            width: 80,
+                                            height: 80,
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            shadowColor: '#000',
+                                            shadowOpacity: 0.1,
+                                            shadowRadius: 8,
+                                            elevation: 4,
+                                            zIndex: 3,
+                                        }}
+                                    >
+                                        <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#222' }}>
+                                            {Math.round(weather.main.temp)}°
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                            <Text className="text-base text-black" style={{ marginTop: 44, textAlign: 'center', fontSize: 18 }}>
                                 It&apos;s {getWeatherDescription(weather.weather[0].main)} in {weather.name}
                             </Text>
-
                         </>
                     ) : null}
                 </View>
