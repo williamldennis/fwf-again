@@ -309,7 +309,7 @@ export default function Home() {
                 options={{
                     headerLeft: () => (
                         <Text
-                            className="ml-4 font-bold text-blue-500"
+                            className="ml-4 font-bold text-gray-500"
                             onPress={() => router.replace('/selfie')}
                         >
                             Retake Selfies
@@ -317,7 +317,7 @@ export default function Home() {
                     ),
                     headerRight: () => (
                         <Text
-                            className="mr-4 font-bold text-blue-500"
+                            className="mr-4 font-bold text-gray-500"
                             onPress={handleLogout}
                         >
                             Logout
@@ -341,7 +341,7 @@ export default function Home() {
                         </View>
                     ) : weather ? (
                         <>
-                            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: -20 }}>
+                            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 24 }}>
                                 <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
                                     {/* Lottie animation (unchanged) */}
                                     <LottieView
@@ -352,42 +352,53 @@ export default function Home() {
                                             width: 800,
                                             height: 800,
                                             position: 'absolute',
-                                            zIndex: 2,
+                                            zIndex: 4,
                                             opacity: 0.8,
                                             marginTop: 200,
                                         }}
                                     />
-                                    {/* User's selfie */}
-                                    <Image
-                                        source={{ uri: selfieUrls && mapWeatherToSelfieKey(weather.weather[0].main) ? selfieUrls[mapWeatherToSelfieKey(weather.weather[0].main)] : undefined }}
-                                        style={{
-                                            width: 120,
-                                            height: 120,
-                                            borderRadius: 70,
-                                            resizeMode: 'cover',
-                                            marginTop: 40,
-                                            zIndex: 0,
-                                        }}
-                                    />
-                                    {/* Degrees in white circle, bottom left */}
+                                    {/* Temperature in large white circle */}
                                     <View
                                         style={{
-                                            position: 'absolute',
-                                            left: -24,
-                                            bottom: 0,
+                                            width: 140,
+                                            height: 140,
+                                            borderRadius: 70,
                                             backgroundColor: '#fff',
-                                            borderRadius: 48,
-                                            width: 60,
-                                            height: 60,
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            zIndex: 1,
+                                            zIndex: 2,
+                                            shadowColor: '#000',
+                                            shadowOpacity: 0.1,
+                                            shadowRadius: 8,
+                                            elevation: 4,
                                         }}
                                     >
-                                        <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#222' }}>
+                                        <Text style={{ fontSize: 56, fontWeight: 'bold', color: '#222' }}>
                                             {Math.round(weather.main.temp)}°
                                         </Text>
                                     </View>
+                                    {/* User's selfie, smaller, bottom right, overlapping */}
+                                    <Image
+                                        source={{
+                                            uri:
+                                                selfieUrls && mapWeatherToSelfieKey(weather.weather[0].main)
+                                                    ? selfieUrls[mapWeatherToSelfieKey(weather.weather[0].main)]
+                                                    : undefined,
+                                        }}
+                                        style={{
+                                            width: 64,
+                                            height: 64,
+                                            borderRadius: 32,
+                                            resizeMode: 'cover',
+                                            position: 'absolute',
+                                            right: -20,
+                                            bottom: -20,
+                                            borderWidth: 4,
+                                            borderColor: '#fff',
+                                            zIndex: 3,
+                                            backgroundColor: '#eee',
+                                        }}
+                                    />
                                 </View>
                             </View>
                             <Text className="text-base text-black" style={{ marginTop: 44, textAlign: 'center', fontSize: 18 }}>
