@@ -5,7 +5,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../utils/supabase';
 
 const { width: screenWidth } = Dimensions.get('window');
-const CAMERA_SIZE = Math.min(screenWidth * 0.4, 300);
+const CAMERA_SIZE = Math.min(screenWidth * 0.3, 300);
 
 const WEATHER_TYPES = [
     { key: 'sunny', label: 'How do you feel when it\'s sunny?', color: '#FFD700' },
@@ -104,7 +104,7 @@ export default function Selfie() {
     return (
         <View className="flex-1 bg-white">
             {/* Title at top */}
-            <View className="flex-1 justify-center items-center px-5 pt-10">
+            <View className="flex justify-center items-center px-5 pt-10">
                 <Text className="text-xl font-bold text-center text-gray-800">{currentWeather.label}</Text>
             </View>
             
@@ -170,7 +170,7 @@ export default function Selfie() {
                         <Text className="text-white text-lg font-bold text-center">Capture</Text>
                     </TouchableOpacity>
                 ) : (
-                    <View className="flex-row space-x-4">
+                    <View className="flex-row gap-4">
                         <TouchableOpacity 
                             className="bg-gray-300 py-4 rounded-full flex-1" 
                             onPress={handleRetake}
