@@ -360,8 +360,8 @@ export default function Home() {
                                                     height: 800,
                                                     position: 'absolute',
                                                     zIndex: 1,
-                                                    opacity: 0.7,
-                                                    marginTop: 250,
+                                                    opacity: 0.8,
+                                                    marginTop: 200,
                                                 }}
                                             />
                                             {/* User's selfie */}
@@ -371,7 +371,8 @@ export default function Home() {
                                                     width: 100, 
                                                     height: 100, 
                                                     borderRadius: 50,
-                                                    resizeMode: "cover"
+                                                    resizeMode: "cover",
+                                                    marginTop: 80,
                                                 }}
                                             />
                                         </View>
