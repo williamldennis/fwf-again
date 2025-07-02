@@ -164,17 +164,21 @@ export default function Login() {
                             />
                         </Animated.View>
                         <TextInput
-                            className="p-5 mb-5 text-lg font-bold rounded-xl border border-gray-300"
+                            className="p-5 mb-5 h-20 text-lg font-bold text-white rounded-xl border border-gray-300"
                             placeholder="email"
                             placeholderTextColor="#fff"
                             autoCapitalize="none"
+                            textContentType="username"
+                            autoComplete="email"
                             onChangeText={setEmail}
                             value={email}
                         />
                         <TextInput
-                            className="p-5 mb-5 text-lg font-bold rounded-xl border border-gray-300"
+                            className="p-5 mb-5 h-20 text-lg font-bold text-white rounded-xl border border-gray-300"
                             placeholder="password"
                             placeholderTextColor="#fff"
+                            textContentType="password"
+                            autoComplete="password"
                             secureTextEntry
                             onChangeText={setPassword}
                             value={password}
