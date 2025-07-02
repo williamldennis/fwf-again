@@ -15,6 +15,7 @@ export default function RootLayout() {
                     ),
                     headerTitleStyle: { color: '#fff' },
                     headerTintColor: '#fff',
+                    headerTitle: ""
                 }}
             />
         </Stack>
