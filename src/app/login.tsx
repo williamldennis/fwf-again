@@ -27,7 +27,7 @@ export default function Login() {
     useEffect(() => {
         const keyboardWillShow = Keyboard.addListener('keyboardWillShow', () => {
             setIsKeyboardOpen(true);
-            setLogoImageMargin(0);
+            setLogoImageMargin(-50);
             Animated.parallel([
                 Animated.timing(logoScale, {
                     toValue: 0.6,
@@ -137,7 +137,7 @@ export default function Login() {
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={0}
+                keyboardVerticalOffset={-30}
             >
                 <ScrollView
                     ref={scrollViewRef}
