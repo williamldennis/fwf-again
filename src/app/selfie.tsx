@@ -3,16 +3,17 @@ import { View, Text, Alert, ActivityIndicator, TouchableOpacity, Dimensions, Ima
 import { router } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../utils/supabase';
+import LottieView from 'lottie-react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CAMERA_SIZE = Math.min(screenWidth * 0.3, 300);
 
 const WEATHER_TYPES = [
-    { key: 'sunny', label: 'How do you feel when it\'s sunny?', color: '#FFD700' },
-    { key: 'cloudy', label: 'How do you feel when it\'s cloudy?', color: '#B0B0B0' },
-    { key: 'rainy', label: 'How do you feel when it\'s rainy?', color: '#4A90E2' },
-    { key: 'snowy', label: 'How do you feel when it\'s snowy?', color: '#F0F8FF' },
-    { key: 'thunderstorm', label: 'How do you feel during a thunderstorm?', color: '#2C3E50' }
+    { key: 'sunny', label: 'How do you feel when it\'s sunny?', color: '#FFD700', lottieSource: require('../../assets/lottie/sunny.json') },
+    { key: 'cloudy', label: 'How do you feel when it\'s cloudy?', color: '#B0B0B0', lottieSource: require('../../assets/lottie/cloudy.json') },
+    { key: 'rainy', label: 'How do you feel when it\'s rainy?', color: '#4A90E2', lottieSource: require('../../assets/lottie/rainy.json') },
+    { key: 'snowy', label: 'How do you feel when it\'s snowy?', color: '#F0F8FF', lottieSource: require('../../assets/lottie/snowy.json') },
+    { key: 'thunderstorm', label: 'How do you feel during a thunderstorm?', color: '#2C3E50', lottieSource: require('../../assets/lottie/thunderstorm.json') }
 ];
 
 export default function Selfie() {
@@ -108,6 +109,16 @@ export default function Selfie() {
                 <Text className="text-xl font-bold text-center text-gray-800">{currentWeather.label}</Text>
             </View>
             
+            {/* Weather animation above camera */}
+            <View className="items-center mb-4">
+                <LottieView
+                    source={currentWeather.lottieSource}
+                    autoPlay
+                    loop
+                    style={{ width: 120, height: 120 }}
+                />
+            </View>
+            
             {/* Camera view in center */}
             <View className="flex-1 justify-center items-center">
                 {capturedPhoto ? (
@@ -149,11 +160,14 @@ export default function Selfie() {
                 <View className="items-center mb-6">
                     <View className="flex-row mb-3">
                         {WEATHER_TYPES.map((weather, index) => (
-                            <View
-                                key={weather.key}
-                                className="w-3 h-3 rounded-full mx-1"
-                                style={{ backgroundColor: index <= currentIndex ? weather.color : '#ddd' }}
-                            />
+                            <View key={weather.key} className="mx-1">
+                                <LottieView
+                                    source={weather.lottieSource}
+                                    autoPlay={index <= currentIndex}
+                                    loop={index <= currentIndex}
+                                    style={{ width: 24, height: 24 }}
+                                />
+                            </View>
                         ))}
                     </View>
                     <Text className="text-base text-gray-600">
