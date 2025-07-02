@@ -1,9 +1,19 @@
+export const options = { headerShown: false };
+
+
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
-import { View, TextInput, Button, Text, StyleSheet } from 'react-native';
+import { View, TextInput, Button, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Contacts from 'expo-contacts';
+import { Stack } from 'expo-router';
+import { Video, ResizeMode } from 'expo-av';
+
+export const unstable_settings = {
+    initialRouteName: 'login',
+};
+
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -65,33 +75,77 @@ export default function Login() {
     };
 
     return (
-        <View style={styles.container}>
-            <TextInput
-                style={styles.input}
-                placeholder="email"
-                autoCapitalize="none"
-                onChangeText={setEmail}
-                value={email}
+        <>
+        <Stack screenOptions={{ headerShown: false }} />
+        <View style={{ flex: 1 }}>
+            <Video
+                source={require('../../assets/videos/login-bg.mp4')}
+                style={StyleSheet.absoluteFill}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay
+                isLooping
+                isMuted
             />
-            <TextInput
-                style={styles.input}
-                placeholder="password"
-                secureTextEntry
-                onChangeText={setPassword}
-                value={password}
-            />
-            <Button title="Sign In" onPress={signIn} />
-            <Button title="Sign Up" onPress={signUp} />
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={64}
+            >
+                <ScrollView
+                    contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <View>
+                        <View style={{ alignItems: 'center', marginBottom: 32 }}>
+                            <Image
+                                source={require('../../assets/images/sun-cloud-trans.png')}
+                                style={{ width: 160, height: 160, resizeMode: 'contain' }}
+                                accessibilityLabel="Sun hugging cloud"
+                            />
+                        </View>
+                        <TextInput
+                            className="p-5 mb-5 text-base rounded-xl border border-gray-300"
+                            placeholder="email"
+                            autoCapitalize="none"
+                            onChangeText={setEmail}
+                            value={email}
+                        />
+                        <TextInput
+                            className="p-5 mb-5 text-base rounded-xl border border-gray-300"
+                            placeholder="password"
+                            secureTextEntry
+                            onChangeText={setPassword}
+                            value={password}
+                        />
+                        <View style={{ width: '100%' }}>
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: '#10b981', // Tailwind green-500
+                                    paddingVertical: 16,
+                                    borderRadius: 8,
+                                    marginBottom: 12,
+                                    alignItems: 'center',
+                                }}
+                                onPress={signUp}
+                            >
+                                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sign Up</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: 'gray', // Tailwind blue-600
+                                    paddingVertical: 16,
+                                    borderRadius: 8,
+                                    alignItems: 'center',
+                                }}
+                                onPress={signIn}
+                            >
+                                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sign In</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </View>
+        </>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, justifyContent: 'center', padding: 20 },
-    input: {
-        borderBottomWidth: 1,
-        marginBottom: 20,
-        padding: 10,
-        fontSize: 16,
-    },
-});

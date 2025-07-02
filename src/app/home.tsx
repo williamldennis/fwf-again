@@ -1,3 +1,5 @@
+export const options = { headerShown: true };
+
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { Stack, router } from 'expo-router';
@@ -56,7 +58,7 @@ const Avatar = ({ name, size = 40 }: { name: string; size?: number }) => {
             }}
         >
             <Text 
-                className="text-white font-bold"
+                className="font-bold text-white"
                 style={{
                     fontSize: size * 0.4,
                 }}
@@ -132,31 +134,54 @@ export default function Home() {
         const fetchProfileAndWeather = async () => {
             setLoading(true);
             setError(null);
-            // Get user
-            const { data: { session } } = await supabase.auth.getSession();
-            const user = session?.user;
-            if (!user) {
-                setError('User not found.');
-                setLoading(false);
-                return;
-            }
-            // Get profile (add selfie_urls to select)
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('latitude,longitude,selfie_urls')
-                .eq('id', user.id)
-                .single();
-            if (profileError || !profile?.latitude || !profile?.longitude) {
-                setError('Location not found.');
-                setLoading(false);
-                return;
-            }
-            setSelfieUrls(profile.selfie_urls || null);
-            // Fetch weather
             try {
+                console.log('Starting fetchProfileAndWeather...');
+                // Get user
+                const { data: { session } } = await supabase.auth.getSession();
+                const user = session?.user;
+                console.log('User session:', user ? 'Found' : 'Not found');
+                if (!user) {
+                    setError('User not found.');
+                    setLoading(false);
+                    return;
+                }
+                // Get profile (add selfie_urls to select)
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('latitude,longitude,selfie_urls')
+                    .eq('id', user.id)
+                    .single();
+                console.log('Profile fetch result:', { profile, error: profileError });
+                if (profileError) {
+                    console.error('Profile error:', profileError);
+                    setError(`Profile error: ${profileError.message}`);
+                    setLoading(false);
+                    return;
+                }
+                if (!profile?.latitude || !profile?.longitude) {
+                    console.log('Missing location data:', { latitude: profile?.latitude, longitude: profile?.longitude });
+                    setError('Location not found.');
+                    setLoading(false);
+                    return;
+                }
+                setSelfieUrls(profile.selfie_urls || null);
+                // Check if OpenWeather API key is available
+                if (!OPENWEATHER_API_KEY) {
+                    console.error('OpenWeather API key is missing');
+                    setError('Weather API key not configured.');
+                    setLoading(false);
+                    return;
+                }
+                // Fetch weather
+                console.log('Fetching weather data...');
                 const url = `https://api.openweathermap.org/data/2.5/weather?lat=${profile.latitude}&lon=${profile.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
+                console.log('Weather API URL:', url);
                 const response = await fetch(url);
                 const data = await response.json();
+                console.log('Weather API response:', data);
+                if (data.cod && data.cod !== 200) {
+                    throw new Error(`Weather API error: ${data.message}`);
+                }
                 setWeather(data);
                 // Update user's weather in Supabase
                 await supabase.from('profiles').update({
@@ -165,52 +190,43 @@ export default function Home() {
                     weather_icon: data.weather[0].icon,
                     weather_updated_at: new Date().toISOString(),
                 }).eq('id', user.id);
-
                 // Fetch user's contacts with pagination
                 let allContacts: any[] = [];
                 let from = 0;
                 const pageSize = 1000;
-
                 while (true) {
                     const { data: contacts, error: contactsError } = await supabase
                         .from('user_contacts')
                         .select('contact_phone, contact_name')
                         .eq('user_id', user.id)
                         .range(from, from + pageSize - 1);
-
                     if (contactsError) {
+                        console.error('Contacts fetch error:', contactsError);
                         setError('Failed to fetch contacts.');
                         setLoading(false);
                         return;
                     }
-
                     if (!contacts || contacts.length === 0) {
                         break; // No more data
                     }
-
                     allContacts = allContacts.concat(contacts);
                     from += pageSize;
-
                     // If we got less than pageSize, we're done
                     if (contacts.length < pageSize) {
                         break;
                     }
                 }
-
                 console.log('Total contacts retrieved:', allContacts.length);
-
                 // Create a mapping of cleaned phone numbers to contact names
                 const phoneToNameMap = new Map<string, string>();
                 allContacts.forEach((contact: any) => {
                     const cleanedPhone = String(contact.contact_phone).replace(/[^0-9]/g, '');
                     phoneToNameMap.set(cleanedPhone, contact.contact_name);
                 });
-
                 const contactPhones = (allContacts || []).map((c: any) => c.contact_phone);
                 // Force all numbers to be clean digit-only strings
                 const cleanedPhones = contactPhones.map(p => String(p).replace(/[^0-9]/g, ''));
                 const uniquePhones = Array.from(new Set(cleanedPhones));
-
                 // Batch into chunks of 500
                 function chunkArray<T>(array: T[], size: number): T[][] {
                     const result: T[][] = [];
@@ -221,7 +237,6 @@ export default function Home() {
                 }
                 const BATCH_SIZE = 500;
                 const phoneChunks = chunkArray<string>(uniquePhones, BATCH_SIZE);
-
                 // Parallelize the queries
                 const friendResults = await Promise.all(
                     phoneChunks.map((chunk, idx) => {
@@ -243,7 +258,6 @@ export default function Home() {
                 console.log('All friends combined:', allFriends);
                 // Remove the current user from the results
                 const filteredFriends = allFriends.filter(f => f.id !== user.id);
-
                 // Add contact names to the friends data
                 const friendsWithNames = filteredFriends.map(friend => {
                     const cleanedPhone = String(friend.phone_number).replace(/[^0-9]/g, '');
@@ -253,13 +267,14 @@ export default function Home() {
                         contact_name: contactName || 'Unknown'
                     };
                 });
-
                 console.log('Friends with names:', friendsWithNames);
                 setFriendsWeather(friendsWithNames);
             } catch (err) {
-                setError('Failed to fetch weather.');
+                console.error('Weather fetch error:', err);
+                setError(`Failed to fetch weather: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
         fetchProfileAndWeather();
     }, []);
@@ -270,18 +285,18 @@ export default function Home() {
                 options={{
                     headerLeft: () => (
                         <Text
-                            className="ml-4 text-blue-500 font-bold"
+                            className="ml-4 font-bold text-blue-500"
                             onPress={() => router.replace('/selfie')}
                         >
                             Retake Selfies
                         </Text>
                     ),
                     headerTitle: () => (
-                        <Text className="text-lg font-bold text-black text-center">Weather</Text>
+                        <Text className="text-lg font-bold text-center text-black">Weather</Text>
                     ),
                     headerRight: () => (
                         <Text
-                            className="mr-4 text-blue-500 font-bold"
+                            className="mr-4 font-bold text-blue-500"
                             onPress={handleLogout}
                         >
                             Logout
@@ -292,7 +307,7 @@ export default function Home() {
             <View className="flex-1">
                 {/* Weather Card */}
                 <View
-                    className="p-5 m-4 rounded-xl shadow-lg items-center"
+                    className="items-center p-5 m-4 rounded-xl shadow-lg"
                     style={{ 
                         backgroundColor: weather ? getWeatherGradient(weather.weather[0].main)[0] : '#E8E8E8',
                         shadowColor: '#000',
@@ -314,7 +329,7 @@ export default function Home() {
                     ) : weather ? (
                         <>
                             <Text className="text-2xl font-bold text-black">Current Weather</Text>
-                            <Text className="text-base text-gray-600 mt-1">{weather.name}</Text>
+                            <Text className="mt-1 text-base text-gray-600">{weather.name}</Text>
                         
                             
                             {/* Show user's selfie for current weather */}
@@ -361,14 +376,14 @@ export default function Home() {
 
                 {/* Friends List */}
                 <ScrollView className="flex-1">
-                    <Text className="text-xl font-bold m-4">Friends' Weather</Text>
+                    <Text className="m-4 text-xl font-bold">Friends' Weather</Text>
                     {friendsWeather.length === 0 ? (
                         <Text className="ml-4 text-gray-500">No friends using the app yet.</Text>
                     ) : (
                         friendsWeather.map((friend, idx) => (
                             <View
                                 key={friend.id || idx}
-                                className="flex-row p-4 mx-4 my-2 rounded-xl shadow-sm items-center"
+                                className="flex-row items-center p-4 mx-4 my-2 rounded-xl shadow-sm"
                                 style={{ 
                                     backgroundColor: getWeatherGradient(friend.weather_condition)[0],
                                     shadowColor: '#000',
@@ -403,7 +418,7 @@ export default function Home() {
                                 </View>
                                 <View className="flex-1">
                                     <Text className="text-base font-medium text-black">{friend.contact_name || 'Unknown'}</Text>
-                                    <Text className="text-gray-600 text-xs">
+                                    <Text className="text-xs text-gray-600">
                                         {friend.weather_updated_at ? `Updated: ${new Date(friend.weather_updated_at).toLocaleTimeString()}` : 'No weather yet'}
                                     </Text>
                                 </View>
