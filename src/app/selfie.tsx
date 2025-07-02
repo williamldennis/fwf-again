@@ -24,8 +24,14 @@ export default function Selfie() {
 
     const takeSelfie = async () => {
         try {
+            // Request camera permissions
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission required', 'Camera permission is required to take a selfie.');
+                return;
+            }
             const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                mediaTypes: 'images',
                 allowsEditing: true,
                 aspect: [1, 1],
                 quality: 0.7,
