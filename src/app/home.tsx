@@ -1,4 +1,3 @@
-export const options = { headerShown: true };
 
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
@@ -345,11 +344,12 @@ export default function Home() {
                                                 autoPlay
                                                 loop
                                                 style={{ 
-                                                    width: 300, 
-                                                    height: 300,
+                                                    width: 800, 
+                                                    height: 800,
                                                     position: 'absolute',
                                                     zIndex: 1,
-                                                    opacity: 0.7
+                                                    opacity: 0.7,
+                                                    marginTop: 100,
                                                 }}
                                             />
                                             {/* User's selfie */}
