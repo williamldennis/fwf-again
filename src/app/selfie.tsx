@@ -5,7 +5,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../utils/supabase';
 
 const { width: screenWidth } = Dimensions.get('window');
-const CAMERA_SIZE = Math.min(screenWidth * 0.8, 300);
+const CAMERA_SIZE = Math.min(screenWidth * 0.4, 300);
 
 const WEATHER_TYPES = [
     { key: 'sunny', label: 'How do you feel when it\'s sunny?', color: '#FFD700' },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
     },
     title: {
-        fontSize: 24,
+        fontSize: 20,
         fontWeight: 'bold',
         textAlign: 'center',
         marginBottom: 40,
