@@ -1,3 +1,5 @@
+export const options = { headerShown: true };
+
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { Stack, router } from 'expo-router';
