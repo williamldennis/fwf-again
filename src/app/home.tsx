@@ -1,10 +1,10 @@
-
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { Stack, router } from 'expo-router';
 import React from 'react';
 import LottieView from 'lottie-react-native';
 import { supabase } from '../utils/supabase';
+import { useHeaderHeight } from '@react-navigation/elements';
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 
@@ -118,6 +118,7 @@ export default function Home() {
     const [error, setError] = useState<string | null>(null);
     const [friendsWeather, setFriendsWeather] = useState<any[]>([]);
     const [selfieUrls, setSelfieUrls] = useState<Record<string, string> | null>(null);
+    const headerHeight = useHeaderHeight();
 
     // Logout handler
     const handleLogout = async () => {
@@ -290,9 +291,6 @@ export default function Home() {
                             Retake Selfies
                         </Text>
                     ),
-                    headerTitle: () => (
-                        <Text className="text-lg font-bold text-center text-black">Weather</Text>
-                    ),
                     headerRight: () => (
                         <Text
                             className="mr-4 font-bold text-blue-500"
@@ -303,18 +301,10 @@ export default function Home() {
                     ),
                 }}
             />
-            <View className="flex-1">
+            <View className="flex-1" style={{ paddingTop: headerHeight }}>
                 {/* Weather Card */}
                 <View
                     className="items-center p-5 m-4 rounded-xl shadow-lg"
-                    style={{ 
-                        backgroundColor: weather ? getWeatherGradient(weather.weather[0].main)[0] : '#E8E8E8',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.25,
-                        shadowRadius: 3.84,
-                        elevation: 5,
-                    }}
                 >
                     {loading ? (
                         <View className="flex-1 justify-center items-center">
@@ -327,7 +317,6 @@ export default function Home() {
                         </View>
                     ) : weather ? (
                         <>
-                            <Text className="text-2xl font-bold text-black">Current Weather</Text>
                             <Text className="mt-1 text-base text-gray-600">{weather.name}</Text>
                         
                             
