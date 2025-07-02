@@ -5,6 +5,8 @@ import React from 'react';
 import LottieView from 'lottie-react-native';
 import { supabase } from '../utils/supabase';
 import { useHeaderHeight } from '@react-navigation/elements';
+import tzlookup from 'tz-lookup';
+import { DateTime } from 'luxon';
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 
@@ -136,12 +138,36 @@ function getWeatherDescription(condition: string) {
     }
 }
 
+async function getCityFromCoords(lat: number, lon: number): Promise<string> {
+    try {
+        const response = await fetch(
+            `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${OPENWEATHER_API_KEY}`
+        );
+        const data = await response.json();
+        if (data && data[0]) {
+            return data[0].name;
+        }
+        return 'Unknown';
+    } catch (error) {
+        console.error('Error fetching city name:', error);
+        return 'Unknown';
+    }
+}
+
+function getBackgroundColor(hour: number) {
+    if (hour >= 6 && hour < 9) return '#FFA500'; // Sunrise orange
+    if (hour >= 9 && hour < 18) return '#87CEEB'; // Day blue
+    if (hour >= 18 && hour < 21) return '#FF8C00'; // Sunset orange
+    return '#191970'; // Night blue
+}
+
 export default function Home() {
     const [weather, setWeather] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [friendsWeather, setFriendsWeather] = useState<any[]>([]);
     const [selfieUrls, setSelfieUrls] = useState<Record<string, string> | null>(null);
+    const [bgColor, setBgColor] = useState('#87CEEB');
     const headerHeight = useHeaderHeight();
 
     // Logout handler
@@ -189,6 +215,16 @@ export default function Home() {
                     return;
                 }
                 setSelfieUrls(profile.selfie_urls || null);
+                // Get user's timezone and local hour
+                let localHour = 12;
+                try {
+                    const timezone = tzlookup(profile.latitude, profile.longitude);
+                    const localTime = DateTime.now().setZone(timezone);
+                    localHour = localTime.hour;
+                } catch (e) {
+                    console.warn('Could not determine timezone from lat/lon', e);
+                }
+                setBgColor(getBackgroundColor(localHour));
                 // Check if OpenWeather API key is available
                 if (!OPENWEATHER_API_KEY) {
                     console.error('OpenWeather API key is missing');
@@ -267,7 +303,7 @@ export default function Home() {
                         console.log(`Querying chunk ${idx + 1}/${phoneChunks.length}:`, chunk);
                         return supabase
                             .from('profiles')
-                            .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at')
+                            .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude')
                             .in('phone_number', chunk)
                             .then(result => {
                                 console.log(`Result for chunk ${idx + 1}:`, result.data);
@@ -282,17 +318,24 @@ export default function Home() {
                 console.log('All friends combined:', allFriends);
                 // Remove the current user from the results
                 const filteredFriends = allFriends.filter(f => f.id !== user.id);
-                // Add contact names to the friends data
-                const friendsWithNames = filteredFriends.map(friend => {
-                    const cleanedPhone = String(friend.phone_number).replace(/[^0-9]/g, '');
-                    const contactName = phoneToNameMap.get(cleanedPhone);
-                    return {
-                        ...friend,
-                        contact_name: contactName || 'Unknown'
-                    };
-                });
-                console.log('Friends with names:', friendsWithNames);
-                setFriendsWeather(friendsWithNames);
+                // Add contact names and city names to the friends data
+                const friendsWithNamesAndCities = await Promise.all(
+                    filteredFriends.map(async (friend) => {
+                        const cleanedPhone = String(friend.phone_number).replace(/[^0-9]/g, '');
+                        const contactName = phoneToNameMap.get(cleanedPhone);
+                        let cityName = 'Unknown';
+                        if (friend.latitude && friend.longitude) {
+                            cityName = await getCityFromCoords(friend.latitude, friend.longitude);
+                        }
+                        return {
+                            ...friend,
+                            contact_name: contactName || 'Unknown',
+                            city_name: cityName
+                        };
+                    })
+                );
+                console.log('Friends with names and cities:', friendsWithNamesAndCities);
+                setFriendsWeather(friendsWithNamesAndCities);
             } catch (err) {
                 console.error('Weather fetch error:', err);
                 setError(`Failed to fetch weather: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -325,7 +368,7 @@ export default function Home() {
                     ),
                 }}
             />
-            <View className="flex-1" style={{ paddingTop: headerHeight -30 }}>
+            <View className="flex-1" style={{ paddingTop: headerHeight - 30, backgroundColor: bgColor }}>
                 {/* Weather Card */}
                 <View
                     className="items-center p-5 m-4 rounded-xl"
@@ -393,7 +436,7 @@ export default function Home() {
                                             position: 'absolute',
                                             right: -20,
                                             bottom: -20,
-                                            borderWidth: 4,
+                                            borderWidth: 0,
                                             borderColor: '#fff',
                                             zIndex: 3,
                                             backgroundColor: '#eee',
@@ -455,14 +498,19 @@ export default function Home() {
                                 </View>
                                 <View className="flex-1">
                                     <Text className="text-base font-medium text-black">{friend.contact_name || 'Unknown'}</Text>
-                                    <Text className="text-xs text-gray-600">
-                                        {friend.weather_updated_at ? `Updated: ${new Date(friend.weather_updated_at).toLocaleTimeString()}` : 'No weather yet'}
-                                    </Text>
+                                    {friend.weather_temp !== null && friend.weather_condition ? (
+                                        <Text className="text-sm text-black">
+                                            It&apos;s {getWeatherDescription(friend.weather_condition)} in {friend.city_name}
+                                        </Text>
+                                    ) : (
+                                        <Text className="text-xs text-gray-600">
+                                            {friend.weather_updated_at ? `Updated: ${new Date(friend.weather_updated_at).toLocaleTimeString()}` : 'No weather yet'}
+                                        </Text>
+                                    )}
                                 </View>
                                 {friend.weather_temp !== null && friend.weather_condition ? (
                                     <View className="items-center">
                                         <Text className="text-xl text-black">{Math.round(friend.weather_temp)}°</Text>
-                                        <Text className="text-sm text-black">{friend.weather_condition}</Text>
                                     </View>
                                 ) : (
                                     <Text className="text-gray-500">No weather</Text>
