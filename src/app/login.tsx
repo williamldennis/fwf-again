@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
-import { View, TextInput, Button, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { View, TextInput, Button, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Contacts from 'expo-contacts';
+import { Stack } from 'expo-router';
+
+export const options = { headerShown: false };
+
+export const unstable_settings = {
+    initialRouteName: 'login',
+};
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -75,6 +82,13 @@ export default function Login() {
                 keyboardShouldPersistTaps="handled"
             >
                 <View>
+                    <View style={{ alignItems: 'center', marginBottom: 32 }}>
+                        <Image
+                            source={require('../../assets/images/sun-cloud-trans.png')}
+                            style={{ width: 160, height: 160, resizeMode: 'contain' }}
+                            accessibilityLabel="Sun hugging cloud"
+                        />
+                    </View>
                     <TextInput
                         className="p-5 mb-5 text-base rounded-xl border border-gray-300"
                         placeholder="email"
@@ -90,29 +104,30 @@ export default function Login() {
                         value={password}
                     />
                     <View style={{ width: '100%' }}>
-                        <TouchableOpacity
-                            style={{
-                                backgroundColor: '#2563eb', // Tailwind blue-600
-                                paddingVertical: 16,
-                                borderRadius: 8,
-                                marginBottom: 12,
-                                alignItems: 'center',
-                            }}
-                            onPress={signIn}
-                        >
-                            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sign In</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
+                    <TouchableOpacity
                             style={{
                                 backgroundColor: '#10b981', // Tailwind green-500
                                 paddingVertical: 16,
                                 borderRadius: 8,
+                                marginBottom: 12,
                                 alignItems: 'center',
                             }}
                             onPress={signUp}
                         >
                             <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sign Up</Text>
                         </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{
+                                backgroundColor: 'gray', // Tailwind blue-600
+                                paddingVertical: 16,
+                                borderRadius: 8,
+                                alignItems: 'center',
+                            }}
+                            onPress={signIn}
+                        >
+                            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sign In</Text>
+                        </TouchableOpacity>
+
                     </View>
                 </View>
             </ScrollView>
