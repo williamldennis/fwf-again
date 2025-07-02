@@ -117,29 +117,60 @@ export default function Login() {
                             value={password}
                         />
                         <View style={{ width: '100%' }}>
-                            <TouchableOpacity
-                                style={{
-                                    backgroundColor: '#10b981', // Tailwind green-500
-                                    paddingVertical: 16,
-                                    borderRadius: 8,
-                                    marginBottom: 12,
-                                    alignItems: 'center',
-                                }}
-                                onPress={signUp}
-                            >
-                                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sign Up</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={{
-                                    backgroundColor: 'gray', // Tailwind blue-600
-                                    paddingVertical: 16,
-                                    borderRadius: 8,
-                                    alignItems: 'center',
-                                }}
-                                onPress={signIn}
-                            >
-                                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sign In</Text>
-                            </TouchableOpacity>
+                            {/* Sign Up Button: Gold, 50% opacity, blur */}
+                            <View style={{
+                                marginBottom: 12,
+                                borderRadius: 8,
+                                overflow: 'hidden',
+                            }}>
+                                <View style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    backgroundColor: '#FFD700', // Gold
+                                    opacity: 0.5,
+                                }} />
+                                {/* If expo-blur is available, wrap in BlurView for extra blur effect */}
+                                {/* <BlurView intensity={30} style={StyleSheet.absoluteFill} /> */}
+                                <TouchableOpacity
+                                    style={{
+                                        paddingVertical: 16,
+                                        borderRadius: 8,
+                                        alignItems: 'center',
+                                    }}
+                                    onPress={signUp}
+                                >
+                                    <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sign Up</Text>
+                                </TouchableOpacity>
+                            </View>
+                            {/* Sign In Button: White, 50% opacity, blur */}
+                            <View style={{
+                                borderRadius: 8,
+                                overflow: 'hidden',
+                            }}>
+                                <View style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    backgroundColor: '#fff',
+                                    opacity: 0.5,
+                                }} />
+                                {/* <BlurView intensity={30} style={StyleSheet.absoluteFill} /> */}
+                                <TouchableOpacity
+                                    style={{
+                                        paddingVertical: 16,
+                                        borderRadius: 8,
+                                        alignItems: 'center',
+                                    }}
+                                    onPress={signIn}
+                                >
+                                    <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>Sign In</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
                 </ScrollView>
