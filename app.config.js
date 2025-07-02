@@ -16,6 +16,7 @@ export default ({ config }) => ({
         infoPlist: {
             NSContactsUsageDescription: "This app needs access to your contacts to help you connect with friends.",
             NSLocationWhenInUseUsageDescription: "This app needs your location to show you the weather.",
+            NSCameraUsageDescription: "This app needs your camera to take selfies.",
         },
     },
     android: {

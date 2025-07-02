@@ -109,18 +109,21 @@ export default function Selfie() {
                 <Text className="text-xl font-bold text-center text-gray-800">{currentWeather.label}</Text>
             </View>
             
-            {/* Weather animation above camera */}
-            <View className="items-center mb-4">
-                <LottieView
-                    source={currentWeather.lottieSource}
-                    autoPlay
-                    loop
-                    style={{ width: 120, height: 120 }}
-                />
-            </View>
-            
             {/* Camera view in center */}
             <View className="flex-1 justify-center items-center">
+            <LottieView
+                source={currentWeather.lottieSource}
+                autoPlay
+                loop
+                style={{ 
+                    width: CAMERA_SIZE*4, 
+                    height: CAMERA_SIZE*4,
+                    position: 'absolute',
+                    zIndex: 1,
+                    opacity: 0.7,
+                    marginBottom: 60
+                }}
+            />
                 {capturedPhoto ? (
                     <Image 
                         source={{ uri: capturedPhoto }} 
@@ -128,7 +131,7 @@ export default function Selfie() {
                         style={{ 
                             width: CAMERA_SIZE, 
                             height: CAMERA_SIZE,
-                            borderRadius: CAMERA_SIZE / 2
+                            borderRadius: CAMERA_SIZE
                         }}
                     />
                 ) : (
