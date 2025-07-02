@@ -1,49 +1,54 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, Alert, ActivityIndicator, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../utils/supabase';
+import LottieView from 'lottie-react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
-const CAMERA_SIZE = Math.min(screenWidth * 0.8, 300);
+const CAMERA_SIZE = Math.min(screenWidth * 0.3, 300);
 
 const WEATHER_TYPES = [
-    { key: 'sunny', label: 'How do you feel when it\'s sunny?', color: '#FFD700' },
-    { key: 'cloudy', label: 'How do you feel when it\'s cloudy?', color: '#B0B0B0' },
-    { key: 'rainy', label: 'How do you feel when it\'s rainy?', color: '#4A90E2' },
-    { key: 'snowy', label: 'How do you feel when it\'s snowy?', color: '#F0F8FF' },
-    { key: 'thunderstorm', label: 'How do you feel during a thunderstorm?', color: '#2C3E50' }
+    { key: 'sunny', label: 'How do you feel when it\'s sunny?', color: '#FFD700', lottieSource: require('../../assets/lottie/sunny.json') },
+    { key: 'cloudy', label: 'How do you feel when it\'s cloudy?', color: '#B0B0B0', lottieSource: require('../../assets/lottie/cloudy.json') },
+    { key: 'rainy', label: 'How do you feel when it\'s rainy?', color: '#4A90E2', lottieSource: require('../../assets/lottie/rainy.json') },
+    { key: 'snowy', label: 'How do you feel when it\'s snowy?', color: '#F0F8FF', lottieSource: require('../../assets/lottie/snowy.json') },
+    { key: 'thunderstorm', label: 'How do you feel during a thunderstorm?', color: '#2C3E50', lottieSource: require('../../assets/lottie/thunderstorm.json') }
 ];
 
 export default function Selfie() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selfies, setSelfies] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
+    const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+    const cameraRef = useRef<CameraView>(null);
+    const [permission, requestPermission] = useCameraPermissions();
 
     const currentWeather = WEATHER_TYPES[currentIndex];
 
-    const takeSelfie = async () => {
-        try {
-            const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.7,
-                base64: true,
-            });
+    const handleCapture = async () => {
+        if (cameraRef.current) {
+            const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.7 });
+            setCapturedPhoto(photo.uri);
+            setSelfies(prev => ({ ...prev, [currentWeather.key]: `data:image/jpeg;base64,${photo.base64}` }));
+        }
+    };
 
-            if (!result.canceled && result.assets[0]) {
-                const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-                setSelfies(prev => ({ ...prev, [currentWeather.key]: base64Image }));
+    const handleRetake = () => {
+        setCapturedPhoto(null);
+        setSelfies(prev => {
+            const updated = { ...prev };
+            delete updated[currentWeather.key];
+            return updated;
+        });
+    };
 
-                if (currentIndex < WEATHER_TYPES.length - 1) {
-                    setCurrentIndex(prev => prev + 1);
-                } else {
-                    await saveSelfies();
-                }
-            }
-        } catch (error) {
-            Alert.alert('Error', 'Failed to take photo');
+    const handleNext = async () => {
+        if (currentIndex < WEATHER_TYPES.length - 1) {
+            setCurrentIndex(prev => prev + 1);
+            setCapturedPhoto(null);
+        } else {
+            await saveSelfies();
         }
     };
 
@@ -52,14 +57,11 @@ export default function Selfie() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('No user found');
-
             const { error } = await supabase
                 .from('profiles')
                 .update({ selfie_urls: selfies })
                 .eq('id', user.id);
-
             if (error) throw error;
-
             router.replace('/home');
         } catch (error) {
             Alert.alert('Error', 'Failed to save selfies');
@@ -70,118 +72,139 @@ export default function Selfie() {
 
     if (loading) {
         return (
-            <View style={styles.container}>
+            <View className="flex-1 justify-center items-center">
                 <ActivityIndicator size="large" />
-                <Text>Saving your selfies...</Text>
+                <Text className="mt-4">Saving your selfies...</Text>
+            </View>
+        );
+    }
+
+    if (!permission) {
+        return (
+            <View className="flex-1 justify-center items-center">
+                <ActivityIndicator size="large" />
+                <Text className="mt-4">Loading camera permissions...</Text>
+            </View>
+        );
+    }
+
+    if (!permission.granted) {
+        return (
+            <View className="flex-1 justify-center items-center px-5">
+                <Text className="text-xl font-bold text-center mb-8 text-gray-800">Camera permission is required to take selfies.</Text>
+                <TouchableOpacity 
+                    className="bg-blue-500 py-3 px-8 rounded-full mb-5" 
+                    onPress={requestPermission}
+                >
+                    <Text className="text-white text-lg font-bold">Grant Permission</Text>
+                </TouchableOpacity>
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>{currentWeather.label}</Text>
-
-            <TouchableOpacity
-                style={[styles.cameraCircle, { backgroundColor: currentWeather.color }]}
-                onPress={takeSelfie}
-            >
-                {selfies[currentWeather.key] ? (
-                    <View style={styles.previewContainer}>
-                        <Text style={styles.checkmark}>✓</Text>
-                        <Text style={styles.completed}>Completed!</Text>
-                    </View>
+        <View className="flex-1 bg-white">
+            {/* Title at top */}
+            <View className="flex justify-center items-center px-5 pt-10">
+                <Text className="text-xl font-bold text-center text-gray-800">{currentWeather.label}</Text>
+            </View>
+            
+            {/* Camera view in center */}
+            <View className="flex-1 justify-center items-center">
+            <LottieView
+                source={currentWeather.lottieSource}
+                autoPlay
+                loop
+                style={{ 
+                    width: CAMERA_SIZE*4, 
+                    height: CAMERA_SIZE*4,
+                    position: 'absolute',
+                    zIndex: 1,
+                    opacity: 0.7,
+                    marginBottom: 60
+                }}
+            />
+                {capturedPhoto ? (
+                    <Image 
+                        source={{ uri: capturedPhoto }} 
+                        className="rounded-full overflow-hidden"
+                        style={{ 
+                            width: CAMERA_SIZE, 
+                            height: CAMERA_SIZE,
+                            borderRadius: CAMERA_SIZE
+                        }}
+                    />
                 ) : (
-                    <View style={styles.cameraPlaceholder}>
-                        <Text style={styles.cameraIcon}>📷</Text>
-                        <Text style={styles.tapText}>Tap to take photo</Text>
+                    <View 
+                        className="rounded-full overflow-hidden"
+                        style={{ 
+                            width: CAMERA_SIZE, 
+                            height: CAMERA_SIZE,
+                            borderRadius: CAMERA_SIZE / 2
+                        }}
+                    >
+                        <CameraView
+                            ref={cameraRef}
+                            style={{ 
+                                width: CAMERA_SIZE, 
+                                height: CAMERA_SIZE,
+                                borderRadius: CAMERA_SIZE / 2
+                            }}
+                            facing="front"
+                            ratio="1:1"
+                        />
                     </View>
                 )}
-            </TouchableOpacity>
-
-            <View style={styles.progressContainer}>
-                {WEATHER_TYPES.map((weather, index) => (
-                    <View
-                        key={weather.key}
-                        style={[
-                            styles.progressDot,
-                            { backgroundColor: index <= currentIndex ? weather.color : '#ddd' }
-                        ]}
-                    />
-                ))}
             </View>
-
-            <Text style={styles.progressText}>
-                {currentIndex + 1} of {WEATHER_TYPES.length}
-            </Text>
+            
+            {/* Bottom section with progress and buttons */}
+            <View className="px-5 pb-10">
+                {/* Progress dots and text */}
+                <View className="items-center mb-6">
+                    <View className="flex-row mb-3">
+                        {WEATHER_TYPES.map((weather, index) => (
+                            <View key={weather.key} className="mx-1">
+                                <LottieView
+                                    source={weather.lottieSource}
+                                    autoPlay={index <= currentIndex}
+                                    loop={index <= currentIndex}
+                                    style={{ width: 24, height: 24 }}
+                                />
+                            </View>
+                        ))}
+                    </View>
+                    <Text className="text-base text-gray-600">
+                        {currentIndex + 1} of {WEATHER_TYPES.length}
+                    </Text>
+                </View>
+                
+                {/* Buttons */}
+                {!capturedPhoto ? (
+                    <TouchableOpacity 
+                        className="bg-blue-500 py-4 rounded-full w-full" 
+                        onPress={handleCapture}
+                    >
+                        <Text className="text-white text-lg font-bold text-center">Capture</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View className="flex-row gap-4">
+                        <TouchableOpacity 
+                            className="bg-gray-300 py-4 rounded-full flex-1" 
+                            onPress={handleRetake}
+                        >
+                            <Text className="text-gray-800 text-base font-bold text-center">Retake</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                            className="bg-blue-500 py-4 rounded-full flex-1" 
+                            onPress={handleNext}
+                        >
+                            <Text className="text-white text-base font-bold text-center">
+                                {currentIndex < WEATHER_TYPES.length - 1 ? 'Next' : 'Finish'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-        backgroundColor: '#fff',
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: 40,
-        color: '#333',
-    },
-    cameraCircle: {
-        width: CAMERA_SIZE,
-        height: CAMERA_SIZE,
-        borderRadius: CAMERA_SIZE / 2,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 40,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-    cameraPlaceholder: {
-        alignItems: 'center',
-    },
-    cameraIcon: {
-        fontSize: 48,
-        marginBottom: 10,
-    },
-    tapText: {
-        fontSize: 16,
-        color: '#fff',
-        fontWeight: '600',
-    },
-    previewContainer: {
-        alignItems: 'center',
-    },
-    checkmark: {
-        fontSize: 48,
-        color: '#fff',
-        fontWeight: 'bold',
-    },
-    completed: {
-        fontSize: 16,
-        color: '#fff',
-        fontWeight: '600',
-    },
-    progressContainer: {
-        flexDirection: 'row',
-        marginBottom: 20,
-    },
-    progressDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        marginHorizontal: 4,
-    },
-    progressText: {
-        fontSize: 16,
-        color: '#666',
-    },
-});
