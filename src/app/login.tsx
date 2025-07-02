@@ -32,11 +32,15 @@ export default function Login() {
                 router.replace('/contacts-permission');
             } else if (!profile.location_approved) {
                 router.replace('/location-permission');
-            } else if (!profile.selfie_urls || Object.keys(profile.selfie_urls).length < 5) {
-                // Check if user has taken all 5 weather selfies
-                router.replace('/selfie');
             } else {
-                router.replace('/home');
+                const requiredSelfies = ['sunny', 'cloudy', 'rainy', 'snowy', 'thunderstorm'];
+                const selfies = profile.selfie_urls || {};
+                const hasAllSelfies = requiredSelfies.every(key => selfies[key]);
+                if (!hasAllSelfies) {
+                    router.replace('/selfie');
+                } else {
+                    router.replace('/home');
+                }
             }
         }
     };

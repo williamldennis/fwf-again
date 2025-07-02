@@ -244,7 +244,17 @@ export default function Home() {
         <>
             <Stack.Screen
                 options={{
-                    title: 'Weather',
+                    headerLeft: () => (
+                        <Text
+                            style={{ marginLeft: 16, color: '#007AFF', fontWeight: 'bold' }}
+                            onPress={() => router.replace('/selfie')}
+                        >
+                            Retake Selfies
+                        </Text>
+                    ),
+                    headerTitle: () => (
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000', textAlign: 'center' }}>Weather</Text>
+                    ),
                     headerRight: () => (
                         <Text
                             style={{ marginRight: 16, color: '#007AFF', fontWeight: 'bold' }}
