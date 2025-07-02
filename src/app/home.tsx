@@ -112,6 +112,30 @@ const getWeatherLottie = (weatherCondition: string) => {
     }
 };
 
+function getWeatherDescription(condition: string) {
+    switch (condition.toLowerCase()) {
+        case 'clear':
+            return 'clear';
+        case 'clouds':
+            return 'cloudy';
+        case 'rain':
+            return 'rainy';
+        case 'snow':
+            return 'snowy';
+        case 'thunderstorm':
+            return 'stormy';
+        case 'drizzle':
+            return 'drizzly';
+        case 'mist':
+        case 'fog':
+            return 'foggy';
+        case 'haze':
+            return 'hazy';
+        default:
+            return condition.toLowerCase();
+    }
+}
+
 export default function Home() {
     const [weather, setWeather] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -301,7 +325,7 @@ export default function Home() {
                     ),
                 }}
             />
-            <View className="flex-1" style={{ paddingTop: headerHeight }}>
+            <View className="flex-1" style={{ paddingTop: headerHeight -30 }}>
                 {/* Weather Card */}
                 <View
                     className="items-center p-5 m-4 rounded-xl shadow-lg"
@@ -317,7 +341,6 @@ export default function Home() {
                         </View>
                     ) : weather ? (
                         <>
-                            <Text className="mt-1 text-base text-gray-600">{weather.name}</Text>
                         
                             
                             {/* Show user's selfie for current weather */}
@@ -338,7 +361,7 @@ export default function Home() {
                                                     position: 'absolute',
                                                     zIndex: 1,
                                                     opacity: 0.7,
-                                                    marginTop: 100,
+                                                    marginTop: 250,
                                                 }}
                                             />
                                             {/* User's selfie */}
@@ -358,7 +381,10 @@ export default function Home() {
                             })()}
                             
                             <Text className="text-5xl font-light my-2.5 text-black">{Math.round(weather.main.temp)}°</Text>
-                            <Text className="text-base text-black">{weather.weather[0].main}</Text>
+                            <Text className="text-base text-black">
+                                It&apos;s {getWeatherDescription(weather.weather[0].main)} in {weather.name}
+                            </Text>
+
                         </>
                     ) : null}
                 </View>
