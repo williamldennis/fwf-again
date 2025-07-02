@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Alert, ActivityIndicator, StyleSheet, Image } from 'react-native';
 import { Stack, router } from 'expo-router';
 import React from 'react';
 import { supabase } from '../utils/supabase';
@@ -65,11 +65,34 @@ const Avatar = ({ name, size = 40 }: { name: string; size?: number }) => {
     );
 };
 
+// Add this function to map weather to selfie key
+const mapWeatherToSelfieKey = (weather: string) => {
+    switch (weather?.toLowerCase()) {
+        case 'clear':
+            return 'sunny';
+        case 'clouds':
+            return 'cloudy';
+        case 'rain':
+        case 'drizzle':
+        case 'mist':
+        case 'fog':
+        case 'haze':
+            return 'rainy';
+        case 'snow':
+            return 'snowy';
+        case 'thunderstorm':
+            return 'thunderstorm';
+        default:
+            return 'sunny';
+    }
+};
+
 export default function Home() {
     const [weather, setWeather] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [friendsWeather, setFriendsWeather] = useState<any[]>([]);
+    const [selfieUrls, setSelfieUrls] = useState<Record<string, string> | null>(null);
 
     // Logout handler
     const handleLogout = async () => {
@@ -93,13 +116,18 @@ export default function Home() {
                 setLoading(false);
                 return;
             }
-            // Get profile
-            const { data: profile, error: profileError } = await supabase.from('profiles').select('latitude,longitude').eq('id', user.id).single();
+            // Get profile (add selfie_urls to select)
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('latitude,longitude,selfie_urls')
+                .eq('id', user.id)
+                .single();
             if (profileError || !profile?.latitude || !profile?.longitude) {
                 setError('Location not found.');
                 setLoading(false);
                 return;
             }
+            setSelfieUrls(profile.selfie_urls || null);
             // Fetch weather
             try {
                 const url = `https://api.openweathermap.org/data/2.5/weather?lat=${profile.latitude}&lon=${profile.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
@@ -243,6 +271,21 @@ export default function Home() {
                         <>
                             <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#000' }}>Current Weather</Text>
                             <Text style={{ fontSize: 16, color: '#666', marginTop: 4 }}>{weather.name}</Text>
+                            {/* Show user's selfie for current weather */}
+                            {selfieUrls && (() => {
+                                const selfieKey = mapWeatherToSelfieKey(weather.weather[0].main);
+                                const selfieData = selfieUrls[selfieKey];
+                                if (selfieData) {
+                                    return (
+                                        <Image
+                                            source={{ uri: selfieData }}
+                                            style={{ width: 100, height: 100, borderRadius: 50, marginVertical: 10 }}
+                                            resizeMode="cover"
+                                        />
+                                    );
+                                }
+                                return null;
+                            })()}
                             <Text style={{ fontSize: 48, fontWeight: '300', marginVertical: 10, color: '#000' }}>{Math.round(weather.main.temp)}°</Text>
                             <Text style={{ fontSize: 16, color: '#000' }}>{weather.weather[0].main}</Text>
                         </>
