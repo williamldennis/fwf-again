@@ -114,16 +114,32 @@ export default function Selfie() {
                     <Image 
                         source={{ uri: capturedPhoto }} 
                         className="rounded-full overflow-hidden"
-                        style={{ width: CAMERA_SIZE, height: CAMERA_SIZE }}
+                        style={{ 
+                            width: CAMERA_SIZE, 
+                            height: CAMERA_SIZE,
+                            borderRadius: CAMERA_SIZE / 2
+                        }}
                     />
                 ) : (
-                    <CameraView
-                        ref={cameraRef}
+                    <View 
                         className="rounded-full overflow-hidden"
-                        style={{ width: CAMERA_SIZE, height: CAMERA_SIZE }}
-                        facing="front"
-                        ratio="1:1"
-                    />
+                        style={{ 
+                            width: CAMERA_SIZE, 
+                            height: CAMERA_SIZE,
+                            borderRadius: CAMERA_SIZE / 2
+                        }}
+                    >
+                        <CameraView
+                            ref={cameraRef}
+                            style={{ 
+                                width: CAMERA_SIZE, 
+                                height: CAMERA_SIZE,
+                                borderRadius: CAMERA_SIZE / 2
+                            }}
+                            facing="front"
+                            ratio="1:1"
+                        />
+                    </View>
                 )}
             </View>
             
