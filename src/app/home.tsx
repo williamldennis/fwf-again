@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, ScrollView, Alert, ActivityIndicator, Image, TouchableOpacity, Modal } from 'react-native';
 import { Stack, router } from 'expo-router';
 import React from 'react';
 import LottieView from 'lottie-react-native';
@@ -168,6 +168,7 @@ export default function Home() {
     const [friendsWeather, setFriendsWeather] = useState<any[]>([]);
     const [selfieUrls, setSelfieUrls] = useState<Record<string, string> | null>(null);
     const [bgColor, setBgColor] = useState('#87CEEB');
+    const [showMenu, setShowMenu] = useState(false);
     const headerHeight = useHeaderHeight();
 
     // Logout handler
@@ -351,20 +352,12 @@ export default function Home() {
             <Stack.Screen
                 options={{
                     headerLeft: () => (
-                        <Text
-                            className="ml-4 font-bold text-gray-500"
-                            onPress={() => router.replace('/selfie')}
+                        <TouchableOpacity
+                            onPress={() => setShowMenu(true)}
+                            className="p-2 ml-4"
                         >
-                            Retake Selfies
-                        </Text>
-                    ),
-                    headerRight: () => (
-                        <Text
-                            className="mr-4 font-bold text-gray-500"
-                            onPress={handleLogout}
-                        >
-                            Logout
-                        </Text>
+                            <Text style={{ fontSize: 24, opacity: 0.5 }}>☰</Text>
+                        </TouchableOpacity>
                     ),
                 }}
             />
@@ -520,6 +513,66 @@ export default function Home() {
                     )}
                 </ScrollView>
             </View>
+            
+            {/* Dropdown Menu Modal */}
+            <Modal
+                visible={showMenu}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowMenu(false)}
+            >
+                <TouchableOpacity
+                    style={{
+                        flex: 1,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                    }}
+                    activeOpacity={1}
+                    onPress={() => setShowMenu(false)}
+                >
+                    <View style={{ flex: 1, justifyContent: 'flex-start', alignItems: 'flex-start', paddingTop: 100, paddingLeft: 20 }}>
+                        <View
+                            style={{
+                                backgroundColor: 'white',
+                                borderRadius: 8,
+                                padding: 16,
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.25,
+                                shadowRadius: 3.84,
+                                elevation: 5,
+                                minWidth: 150,
+                            }}
+                        >
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setShowMenu(false);
+                                    router.replace('/selfie');
+                                }}
+                                style={{
+                                    paddingVertical: 12,
+                                    paddingHorizontal: 16,
+                                    borderBottomWidth: 1,
+                                    borderBottomColor: '#f0f0f0',
+                                }}
+                            >
+                                <Text style={{ fontSize: 16, color: '#333' }}>Retake Selfies</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setShowMenu(false);
+                                    handleLogout();
+                                }}
+                                style={{
+                                    paddingVertical: 12,
+                                    paddingHorizontal: 16,
+                                }}
+                            >
+                                <Text style={{ fontSize: 16, color: '#ff4444' }}>Logout</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </>
     );
 }
