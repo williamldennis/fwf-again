@@ -328,7 +328,7 @@ export default function Home() {
             <View className="flex-1" style={{ paddingTop: headerHeight -30 }}>
                 {/* Weather Card */}
                 <View
-                    className="items-center p-5 m-4 rounded-xl shadow-lg"
+                    className="items-center p-5 m-4 rounded-xl"
                 >
                     {loading ? (
                         <View className="flex-1 justify-center items-center">
@@ -352,7 +352,7 @@ export default function Home() {
                                             width: 800,
                                             height: 800,
                                             position: 'absolute',
-                                            zIndex: 4,
+                                            zIndex: 2,
                                             opacity: 0.8,
                                             marginTop: 200,
                                         }}
@@ -361,12 +361,12 @@ export default function Home() {
                                     <Image
                                         source={{ uri: selfieUrls && mapWeatherToSelfieKey(weather.weather[0].main) ? selfieUrls[mapWeatherToSelfieKey(weather.weather[0].main)] : undefined }}
                                         style={{
-                                            width: 140,
-                                            height: 140,
+                                            width: 120,
+                                            height: 120,
                                             borderRadius: 70,
                                             resizeMode: 'cover',
                                             marginTop: 40,
-                                            zIndex: 2,
+                                            zIndex: 0,
                                         }}
                                     />
                                     {/* Degrees in white circle, bottom left */}
@@ -377,18 +377,14 @@ export default function Home() {
                                             bottom: 0,
                                             backgroundColor: '#fff',
                                             borderRadius: 48,
-                                            width: 80,
-                                            height: 80,
+                                            width: 60,
+                                            height: 60,
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            shadowColor: '#000',
-                                            shadowOpacity: 0.1,
-                                            shadowRadius: 8,
-                                            elevation: 4,
-                                            zIndex: 3,
+                                            zIndex: 1,
                                         }}
                                     >
-                                        <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#222' }}>
+                                        <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#222' }}>
                                             {Math.round(weather.main.temp)}°
                                         </Text>
                                     </View>
@@ -402,7 +398,7 @@ export default function Home() {
                 </View>
 
                 {/* Friends List */}
-                <ScrollView className="flex-1">
+                <ScrollView className="z-10 flex-1">
                     <Text className="m-4 text-xl font-bold">Friends' Weather</Text>
                     {friendsWeather.length === 0 ? (
                         <Text className="ml-4 text-gray-500">No friends using the app yet.</Text>
@@ -418,6 +414,9 @@ export default function Home() {
                                     shadowOpacity: 0.1,
                                     shadowRadius: 3,
                                     elevation: 3,
+                                    zIndex: 5
+
+                    
                                 }}
                             >
                                 <View className="items-center mr-3">
@@ -435,7 +434,7 @@ export default function Home() {
                                                     position: 'absolute',
                                                     top: -10,
                                                     left: 0,
-                                                    zIndex: 2
+                                                    zIndex: 5
                                                 }}
                                             />
                                         </View>
