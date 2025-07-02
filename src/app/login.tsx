@@ -76,7 +76,6 @@ export default function Login() {
 
     return (
         <>
-        <Stack screenOptions={{ headerShown: false }} />
         <View style={{ flex: 1 }}>
             <Video
                 source={require('../../assets/videos/login-bg.mp4')}
@@ -96,11 +95,11 @@ export default function Login() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View>
-                        <View style={{ alignItems: 'center', marginBottom: 32 }}>
+                        <View style={{ alignItems: 'center', marginBottom: 16 }}>
                             <Image
-                                source={require('../../assets/images/sun-cloud-trans.png')}
-                                style={{ width: 160, height: 160, resizeMode: 'contain' }}
-                                accessibilityLabel="Sun hugging cloud"
+                                source={require('../../assets/images/lock-up.png')}
+                                style={{ width: 260, height: 260, resizeMode: 'contain', marginBottom: 16 }}
+                                accessibilityLabel="Fair Weather Friends logo"
                             />
                         </View>
                         <TextInput
