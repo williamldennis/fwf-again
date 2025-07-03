@@ -376,8 +376,8 @@ export default function Home() {
     function ForecastSection() {
         if (!forecast || forecast.length === 0) return null;
         return (
-            <View style={{ marginTop: 4, marginHorizontal: 5 }}>
-                <View style={{ backgroundColor: '#4A90E2', borderRadius: 16, padding: 16, paddingRight: 0, opacity: 0.8 }}>
+            <View style={{ marginTop: 4, marginHorizontal: 5, marginBottom: 10 }}>
+                <View style={{ backgroundColor: '#4A90E2', borderRadius: 16, padding: 20, paddingRight: 0, opacity: 0.8 }}>
                     {/* Optionally add a summary here if you want */}
                     <FlatList
                         data={[{ now: true, ...weather, dt_txt: new Date().toISOString(), main: weather?.main, weather: weather?.weather }].concat(forecast)}
@@ -548,9 +548,8 @@ export default function Home() {
                                         shadowOpacity: 0.08,
                                         shadowRadius: 4,
                                         elevation: 2,
-                                        borderWidth: 2,
-                                        borderColor: '#FFD700',
                                         justifyContent: 'center',
+                                        overflow: 'visible',
                                     }}
                                 >
                                     <Image
@@ -558,9 +557,9 @@ export default function Home() {
                                         style={{ width: 80, height: 80, marginBottom: 16 }}
                                         resizeMode="contain"
                                     />
-                                    <Text style={{ fontWeight: 'bold', fontSize: 20, color: '#222', marginBottom: 8 }}>
+                                    {/* <Text style={{ fontWeight: 'bold', fontSize: 20, color: '#222', marginBottom: 8 }}>
                                         Add Friends
-                                    </Text>
+                                    </Text> */}
                                     <Text style={{ color: '#666', textAlign: 'center', fontSize: 14, marginBottom: 12 }}>
                                         Invite your friends to see their weather
                                     </Text>
@@ -570,9 +569,9 @@ export default function Home() {
                                         borderWidth: 2,
                                         borderColor: '#FFD700',
                                         paddingVertical: 8,
-                                        paddingHorizontal: 24,
+                                        paddingHorizontal: 20,
                                     }}>
-                                        <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 16, }}>Share App</Text>
+                                        <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 16, }}>Add Friends</Text>
                                     </View>
                                 </TouchableOpacity>
                             );
@@ -592,12 +591,10 @@ export default function Home() {
                                     shadowOpacity: 0.08,
                                     shadowRadius: 4,
                                     elevation: 2,
-                                    borderWidth: 2,
-                                    borderColor: '#FFD700',
-                                    overflow: 'hidden',
+                                    overflow: 'visible',
                                 }}
                             >
-                                {/* Lottie animation full card, foreground */}
+                                {/* Lottie animation FRIEND'S full card, foreground */}
                                 {friend.weather_condition && (
                                     <LottieView
                                         source={getWeatherLottie(friend.weather_condition)}
@@ -605,10 +602,10 @@ export default function Home() {
                                         loop
                                         style={{
                                             position: 'absolute',
-                                            top: -40,
-                                            left: -110,
-                                            width: 400,
-                                            height: 300,
+                                            top: -70,
+                                            left: -160,
+                                            width: 500,
+                                            height: 400,
                                             zIndex: 10,
                                             opacity: 0.7,
                                         }}
