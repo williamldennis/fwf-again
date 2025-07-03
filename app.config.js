@@ -4,7 +4,7 @@ export default ({ config }) => ({
     ...config,
     name: "fwf",
     slug: "fwf",
-    version: "1.0.0",
+    version: "1.0.1",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "fwf",
@@ -18,6 +18,7 @@ export default ({ config }) => ({
             NSContactsUsageDescription: "This app needs access to your contacts to help you connect with friends.",
             NSLocationWhenInUseUsageDescription: "This app needs your location to show you the weather.",
             NSCameraUsageDescription: "This app needs your camera to take selfies.",
+            ITSAppUsesNonExemptEncryption: false
         },
     },
     android: {
