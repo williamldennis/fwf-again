@@ -493,7 +493,7 @@ export default function Home() {
                                     loop
                                     style={{
                                         position: 'absolute',
-                                        top: -30,
+                                        top: -40,
                                         left: -120,
                                         width: 400,
                                         height: 300,
@@ -505,7 +505,7 @@ export default function Home() {
                             {/* Card content above Lottie */}
                             <View style={{ width: '100%', alignItems: 'center', zIndex: 0 }}>
                                 {/* Name */}
-                                <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 30, textAlign: 'center', zIndex: 0 }}>
+                                <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 20, textAlign: 'center', zIndex: 0 }}>
                                     {friend.contact_name || 'Unknown'}
                                 </Text>
                                 {/* Photo + Temp */}
@@ -546,10 +546,7 @@ export default function Home() {
                                 {/* Weather and city at bottom */}
                                 <View style={{ alignItems: 'center', marginTop: 'auto', zIndex: 20 }}>
                                     <Text style={{ fontSize: 15, color: '#333', marginBottom: 2 }}>
-                                        {getWeatherDescription(friend.weather_condition || '')}
-                                    </Text>
-                                    <Text style={{ fontSize: 15, color: '#333' }}>
-                                        {friend.city_name}
+                                        It's {getWeatherDescription(friend.weather_condition || '')} in {friend.city_name}
                                     </Text>
                                 </View>
                             </View>
