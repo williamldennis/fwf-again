@@ -376,8 +376,8 @@ export default function Home() {
     function ForecastSection() {
         if (!forecast || forecast.length === 0) return null;
         return (
-            <View style={{ marginTop: 4, marginHorizontal: 5, marginBottom: 10 }}>
-                <View style={{ backgroundColor: '#4A90E2', borderRadius: 16, padding: 20, paddingRight: 0, opacity: 0.8 }}>
+            <View style={{ marginTop: 10, marginHorizontal: 5, marginBottom: 10 }}>
+                <View style={{ backgroundColor: '#4A90E2', borderRadius: 16, padding: 20, paddingRight: 0, opacity: 1 }}>
                     {/* Optionally add a summary here if you want */}
                     <FlatList
                         data={[{ now: true, ...weather, dt_txt: new Date().toISOString(), main: weather?.main, weather: weather?.weather }].concat(forecast)}

@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { View, Text, Button, Alert } from 'react-native';
+import { View, Text, Button, Alert, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import * as Contacts from 'expo-contacts';
 import { supabase } from '../utils/supabase';
+import { parsePhoneNumberFromString, CountryCode } from 'libphonenumber-js';
+import contactsImg from '../../assets/images/contacts.png';
 
 const BATCH_SIZE = 200;
 
@@ -29,35 +31,39 @@ export default function ContactsPermission() {
                 return;
             }
 
+            // Fetch user's country code from profile (default to 'US')
+            let userCountryCode: CountryCode = 'US' as CountryCode;
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('country_code')
+                .eq('id', user.id)
+                .single();
+            if (profile && profile.country_code) {
+                userCountryCode = profile.country_code as CountryCode;
+            }
+
             // Prepare rows for bulk insert
             const rows: ContactRow[] = [];
             data.forEach(contact => {
                 (contact.phoneNumbers || []).forEach(pn => {
                     if (pn.number) {
-                        // More comprehensive phone number normalization
-                        let normalizedNumber = pn.number;
-
-                        // Remove all non-digit characters
-                        normalizedNumber = normalizedNumber.replace(/\D/g, '');
-
-                        // Handle US numbers: if it starts with 1 and has 11 digits, keep it
-                        // If it has 10 digits, assume it's a US number and add 1
-                        if (normalizedNumber.length === 10) {
-                            normalizedNumber = '1' + normalizedNumber;
+                        // Normalize to E.164 using libphonenumber-js
+                        let e164 = null;
+                        try {
+                            // Use user's country code as default
+                            const phoneNumber = parsePhoneNumberFromString(pn.number, userCountryCode);
+                            if (phoneNumber && phoneNumber.isValid()) {
+                                e164 = phoneNumber.number; // E.164 format
+                            }
+                        } catch (e) {
+                            // Ignore invalid numbers
                         }
-
-                        // Only keep numbers that are at least 10 digits
-                        if (normalizedNumber.length >= 10) {
+                        if (e164) {
                             rows.push({
                                 user_id: user.id,
-                                contact_phone: normalizedNumber,
+                                contact_phone: e164,
                                 contact_name: contact.name,
                             });
-
-                            // Debug logging for specific numbers
-                            if (contact.name && (contact.name.toLowerCase().includes('john') || normalizedNumber.includes('13032224444'))) {
-                                console.log(`Found John's contact: ${contact.name}, Original: ${pn.number}, Normalized: ${normalizedNumber}`);
-                            }
                         }
                     }
                 });
@@ -92,9 +98,63 @@ export default function ContactsPermission() {
     };
 
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text>We need access to your contacts to continue.</Text>
-            <Button title={loading ? `Uploading... ${progress}%` : 'Approve'} onPress={handleApprove} disabled={loading} />
+        <View style={styles.container}>
+            <Image source={contactsImg} style={styles.emojiImg} resizeMode="contain" />
+            <Text style={styles.label}>Access your contacts</Text>
+            <Text style={styles.subtext}>This is how we connect you with friends.</Text>
+            <TouchableOpacity
+                style={[styles.button, loading && { opacity: 0.2 }]}
+                onPress={handleApprove}
+                disabled={loading}
+                activeOpacity={0.8}
+            >
+                <Text style={styles.buttonText}>{loading ? `Uploading... ${progress}%` : 'Approve'}</Text>
+            </TouchableOpacity>
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#F3F6FB',
+    },
+    emojiImg: {
+        width: 200,
+        height: 200,
+        marginBottom: 12,
+    },
+    label: {
+        fontSize: 22,
+        fontWeight: '600',
+        marginBottom: 8,
+        color: '#222',
+    },
+    subtext: {
+        fontSize: 15,
+        color: '#555',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    button: {
+        backgroundColor: '#007AFF',
+        borderRadius: 24,
+        paddingVertical: 14,
+        alignItems: 'center',
+        width: '100%',
+        maxWidth: 340,
+        shadowColor: '#007AFF',
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        marginBottom: 24,
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+});

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, Alert, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { supabase } from '../utils/supabase';
+import locationImg from '../../assets/images/location.png';
 
 export default function LocationPermission() {
     const [loading, setLoading] = useState(false);
@@ -42,7 +43,7 @@ export default function LocationPermission() {
             backgroundColor: '#F3F6FB',
             padding: 24,
         }}>
-            <Text style={{ fontSize: 64, marginBottom: 24 }}>📍</Text>
+            <Image source={locationImg} style={{ width: 200, height: 200, marginBottom: 12 }} resizeMode="contain" />
             <Text style={{
                 fontSize: 22,
                 fontWeight: '600',

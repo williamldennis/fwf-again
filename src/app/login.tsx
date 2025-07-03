@@ -79,7 +79,7 @@ export default function Login() {
             const user = session.user;
             const { data: profile, error } = await supabase
                 .from('profiles')
-                .select('contacts_approved, location_approved, selfie_urls')
+                .select('phone_number, contacts_approved, location_approved, selfie_urls')
                 .eq('id', user.id)
                 .single();
             if (error || !profile) {
@@ -87,7 +87,10 @@ export default function Login() {
                 return;
             }
 
-            if (!profile.contacts_approved) {
+            // Check phone number first
+            if (!profile.phone_number) {
+                router.replace('/phone-number-add');
+            } else if (!profile.contacts_approved) {
                 router.replace('/contacts-permission');
             } else if (!profile.location_approved) {
                 router.replace('/location-permission');
