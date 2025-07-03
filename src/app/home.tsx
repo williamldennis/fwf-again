@@ -307,7 +307,7 @@ export default function Home() {
                         console.log(`Querying chunk ${idx + 1}/${phoneChunks.length}:`, chunk);
                         return supabase
                             .from('profiles')
-                            .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude')
+                            .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude, selfie_urls')
                             .in('phone_number', chunk)
                             .then(result => {
                                 console.log(`Result for chunk ${idx + 1}:`, result.data);
@@ -512,7 +512,12 @@ export default function Home() {
                                 <View style={{ width: 90, height: 90, marginBottom: 20, position: 'relative', alignItems: 'center', justifyContent: 'center', zIndex: 0 }}>
                                     {/* Friend's photo */}
                                     <Image
-                                        source={{ uri: friend.selfie_url }}
+                                        source={{
+                                            uri:
+                                                friend.selfie_urls && mapWeatherToSelfieKey(friend.weather_condition)
+                                                    ? friend.selfie_urls[mapWeatherToSelfieKey(friend.weather_condition)]
+                                                    : undefined,
+                                        }}
                                         style={{
                                             width: 90,
                                             height: 90,
@@ -546,7 +551,7 @@ export default function Home() {
                                 {/* Weather and city at bottom */}
                                 <View style={{ alignItems: 'center', marginTop: 'auto', zIndex: 20 }}>
                                     <Text style={{ fontSize: 15, color: '#333', marginBottom: 2 }}>
-                                        It's {getWeatherDescription(friend.weather_condition || '')} in {friend.city_name}
+                                        It&apos;s {getWeatherDescription(friend.weather_condition || '')} in {friend.city_name}
                                     </Text>
                                 </View>
                             </View>
