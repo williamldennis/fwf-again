@@ -161,7 +161,7 @@ function getBackgroundColor(hour: number) {
     return '#191970'; // Night blue
 }
 
-const WEATHER_CARD_HEIGHT = 320; // adjust as needed for your weather card height
+const WEATHER_CARD_HEIGHT = 420; // adjust as needed for your weather card height
 
 export default function Home() {
     const [weather, setWeather] = useState<any>(null);
@@ -172,7 +172,9 @@ export default function Home() {
     const [bgColor, setBgColor] = useState('#87CEEB');
     const [showMenu, setShowMenu] = useState(false);
     const headerHeight = useHeaderHeight();
-    const cardWidth = (Dimensions.get('window').width - 48) / 2; // 16px margin on each side, 16px between cards
+    const cardWidth = (Dimensions.get('window').width - 36) / 2; // 16px margin on each side, 16px between cards
+    const [forecast, setForecast] = useState<any[]>([]);
+    const [forecastSummary, setForecastSummary] = useState<string>('');
 
     // Logout handler
     const handleLogout = async () => {
@@ -193,7 +195,6 @@ export default function Home() {
                 // Get user
                 const { data: { session } } = await supabase.auth.getSession();
                 const user = session?.user;
-                console.log('User session:', user ? 'Found' : 'Not found');
                 if (!user) {
                     setError('User not found.');
                     setLoading(false);
@@ -205,7 +206,6 @@ export default function Home() {
                     .select('latitude,longitude,selfie_urls')
                     .eq('id', user.id)
                     .single();
-                console.log('Profile fetch result:', { profile, error: profileError });
                 if (profileError) {
                     console.error('Profile error:', profileError);
                     setError(`Profile error: ${profileError.message}`);
@@ -213,7 +213,6 @@ export default function Home() {
                     return;
                 }
                 if (!profile?.latitude || !profile?.longitude) {
-                    console.log('Missing location data:', { latitude: profile?.latitude, longitude: profile?.longitude });
                     setError('Location not found.');
                     setLoading(false);
                     return;
@@ -237,16 +236,30 @@ export default function Home() {
                     return;
                 }
                 // Fetch weather
-                console.log('Fetching weather data...');
                 const url = `https://api.openweathermap.org/data/2.5/weather?lat=${profile.latitude}&lon=${profile.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
-                console.log('Weather API URL:', url);
                 const response = await fetch(url);
                 const data = await response.json();
-                console.log('Weather API response:', data);
                 if (data.cod && data.cod !== 200) {
                     throw new Error(`Weather API error: ${data.message}`);
                 }
                 setWeather(data);
+                // Fetch 3-hourly forecast
+                try {
+                    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${profile.latitude}&lon=${profile.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
+                    const forecastRes = await fetch(forecastUrl);
+                    const forecastData = await forecastRes.json();
+                    if (forecastData.list && Array.isArray(forecastData.list)) {
+                        // Next 8 intervals (24 hours)
+                        const next8 = forecastData.list.slice(0, 8);
+                        setForecast(next8);
+                        // Simple summary from first entry
+                        setForecastSummary(forecastData.list[0]?.weather?.[0]?.description
+                            ? forecastData.list[0].weather[0].description.charAt(0).toUpperCase() + forecastData.list[0].weather[0].description.slice(1)
+                            : '');
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch forecast', e);
+                }
                 // Update user's weather in Supabase
                 await supabase.from('profiles').update({
                     weather_temp: data.main.temp,
@@ -280,7 +293,7 @@ export default function Home() {
                         break;
                     }
                 }
-                console.log('Total contacts retrieved:', allContacts.length);
+                console.log(`Total contacts retrieved: ${allContacts.length}`);
                 // Create a mapping of cleaned phone numbers to contact names
                 const phoneToNameMap = new Map<string, string>();
                 allContacts.forEach((contact: any) => {
@@ -304,22 +317,18 @@ export default function Home() {
                 // Parallelize the queries
                 const friendResults = await Promise.all(
                     phoneChunks.map((chunk, idx) => {
-                        console.log(`Querying chunk ${idx + 1}/${phoneChunks.length}:`, chunk);
                         return supabase
                             .from('profiles')
                             .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude, selfie_urls')
                             .in('phone_number', chunk)
-                            .then(result => {
-                                console.log(`Result for chunk ${idx + 1}:`, result.data);
-                                return result;
-                            });
+                            .then(result => result);
                     })
                 );
                 let allFriends: any[] = [];
                 for (const result of friendResults) {
                     if (result.data) allFriends = allFriends.concat(result.data);
                 }
-                console.log('All friends combined:', allFriends);
+                console.log(`Total friends found: ${allFriends.length}`);
                 // Remove the current user from the results
                 const filteredFriends = allFriends.filter(f => f.id !== user.id);
                 // Add contact names and city names to the friends data
@@ -338,7 +347,6 @@ export default function Home() {
                         };
                     })
                 );
-                console.log('Friends with names and cities:', friendsWithNamesAndCities);
                 setFriendsWeather(friendsWithNamesAndCities);
             } catch (err) {
                 console.error('Weather fetch error:', err);
@@ -349,6 +357,17 @@ export default function Home() {
         };
         fetchProfileAndWeather();
     }, []);
+
+    // Helper to format hour label
+    function getHourLabel(dtTxt: string, idx: number) {
+        if (idx === 0) return 'Now';
+        const date = new Date(dtTxt);
+        let hour = date.getHours();
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        hour = hour % 12;
+        if (hour === 0) hour = 12;
+        return `${hour}${ampm}`;
+    }
 
     return (
         <>
@@ -381,7 +400,7 @@ export default function Home() {
                             </View>
                         ) : weather ? (
                             <>
-                                <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 54 }}>
+                                <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 40 }}>
                                     <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
                                         {/* Lottie animation (unchanged) */}
                                         <LottieView
@@ -400,8 +419,8 @@ export default function Home() {
                                         {/* Temperature in large white circle */}
                                         <View
                                             style={{
-                                                width: 140,
-                                                height: 140,
+                                                width: 120,
+                                                height: 120,
                                                 borderRadius: 70,
                                                 backgroundColor: '#fff',
                                                 alignItems: 'center',
@@ -426,13 +445,13 @@ export default function Home() {
                                                         : undefined,
                                             }}
                                             style={{
-                                                width: 64,
-                                                height: 64,
+                                                width: 50,
+                                                height: 50,
                                                 borderRadius: 32,
                                                 resizeMode: 'cover',
                                                 position: 'absolute',
-                                                right: -20,
-                                                bottom: -20,
+                                                right: -5,
+                                                bottom: -5,
                                                 borderWidth: 0,
                                                 borderColor: '#fff',
                                                 zIndex: 3,
@@ -551,7 +570,10 @@ export default function Home() {
                                 {/* Weather and city at bottom */}
                                 <View style={{ alignItems: 'center', marginTop: 'auto', zIndex: 20 }}>
                                     <Text style={{ fontSize: 15, color: '#333', marginBottom: 2 }}>
-                                        It&apos;s {getWeatherDescription(friend.weather_condition || '')} in {friend.city_name}
+                                        It&apos;s {getWeatherDescription(friend.weather_condition || '')} in
+                                    </Text>
+                                    <Text style={{ fontSize: 15, color: '#333', marginBottom: 2 }}>
+                                        {friend.city_name}
                                     </Text>
                                 </View>
                             </View>
@@ -560,6 +582,35 @@ export default function Home() {
                     ListEmptyComponent={<Text className="ml-4 text-gray-500">No friends using the app yet.</Text>}
                     showsVerticalScrollIndicator={false}
                 />
+                {/* Forecast Section */}
+                {forecast && forecast.length > 0 && (
+                    <View style={{ marginTop: 4, marginHorizontal: 16 }}>
+                        <View style={{ backgroundColor: '#4A90E2', borderRadius: 16, padding: 16 }}>
+                            <FlatList
+                                data={[{ now: true, ...weather, dt_txt: new Date().toISOString(), main: weather?.main, weather: weather?.weather }].concat(forecast)}
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                keyExtractor={(item, idx) => item.dt_txt || idx.toString()}
+                                renderItem={({ item, index }) => {
+                                    const temp = item.main?.temp ? Math.round(item.main.temp) : '--';
+                                    const icon = item.weather?.[0]?.icon;
+                                    const iconUrl = icon ? `https://openweathermap.org/img/wn/${icon}@2x.png` : undefined;
+                                    return (
+                                        <View style={{ alignItems: 'center', marginRight: 20, minWidth: 60 }}>
+                                            <Text style={{ color: '#fff', fontWeight: 'bold', marginBottom: 4 }}>
+                                                {getHourLabel(item.dt_txt, index)}
+                                            </Text>
+                                            {iconUrl && (
+                                                <Image source={{ uri: iconUrl }} style={{ width: 40, height: 40, marginBottom: 2 }} />
+                                            )}
+                                            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{temp}°</Text>
+                                        </View>
+                                    );
+                                }}
+                            />
+                        </View>
+                    </View>
+                )}
             </View>
             
             {/* Dropdown Menu Modal */}
