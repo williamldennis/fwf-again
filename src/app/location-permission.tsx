@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Button, Alert } from 'react-native';
+import { View, Text, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { supabase } from '../utils/supabase';
@@ -9,45 +9,79 @@ export default function LocationPermission() {
 
     const handleApprove = async () => {
         setLoading(true);
-        console.log('Requesting location permissions...');
         const { status } = await Location.requestForegroundPermissionsAsync();
-        console.log('Location permission status:', status);
         if (status === 'granted') {
-            console.log('Getting current position...');
             const location = await Location.getCurrentPositionAsync({});
-            console.log('Location received:', location);
             const { data: { user } } = await supabase.auth.getUser();
-            console.log('Supabase user:', user);
             if (!user) {
-                console.log('Could not get user info.');
                 Alert.alert('Could not get user info.');
                 setLoading(false);
                 return;
             }
-            console.log('Updating profile in Supabase...');
             const { error } = await supabase.from('profiles').update({
                 location_approved: true,
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude,
             }).eq('id', user.id);
             if (error) {
-                console.log('Failed to save location:', error.message);
                 Alert.alert('Failed to save location:', error.message);
             } else {
-                console.log('Location saved, redirecting to selfie step.');
                 router.replace('/selfie');
             }
         } else {
-            console.log('Permission denied');
             Alert.alert('Permission denied', 'You need to allow location access to continue.');
         }
         setLoading(false);
     };
 
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text>We need access to your location to continue.</Text>
-            <Button title={loading ? 'Saving...' : 'Approve'} onPress={handleApprove} disabled={loading} />
+        <View style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#F3F6FB',
+            padding: 24,
+        }}>
+            <Text style={{ fontSize: 64, marginBottom: 24 }}>📍</Text>
+            <Text style={{
+                fontSize: 22,
+                fontWeight: '600',
+                textAlign: 'center',
+                marginBottom: 16,
+                color: '#222',
+            }}>
+                We need access to your location
+            </Text>
+            <Text style={{
+                fontSize: 16,
+                textAlign: 'center',
+                color: '#555',
+                marginBottom: 32,
+            }}>
+                This helps us show your local weather.
+            </Text>
+            <TouchableOpacity
+                onPress={handleApprove}
+                disabled={loading}
+                style={{
+                    backgroundColor: '#007AFF',
+                    borderRadius: 24,
+                    paddingVertical: 14,
+                    paddingHorizontal: 48,
+                    alignItems: 'center',
+                    width: '100%',
+                    maxWidth: 320,
+                    shadowColor: '#007AFF',
+                    shadowOpacity: 0.15,
+                    shadowRadius: 8,
+                    shadowOffset: { width: 0, height: 2 },
+                }}
+            >
+                {loading
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>Allow Location</Text>
+                }
+            </TouchableOpacity>
         </View>
     );
 }

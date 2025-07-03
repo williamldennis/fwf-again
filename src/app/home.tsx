@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Alert, ActivityIndicator, Image, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, ScrollView, Alert, ActivityIndicator, Image, TouchableOpacity, Modal, FlatList, Dimensions } from 'react-native';
 import { Stack, router } from 'expo-router';
 import React from 'react';
 import LottieView from 'lottie-react-native';
@@ -161,6 +161,8 @@ function getBackgroundColor(hour: number) {
     return '#191970'; // Night blue
 }
 
+const WEATHER_CARD_HEIGHT = 260; // adjust as needed for your weather card height
+
 export default function Home() {
     const [weather, setWeather] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -170,6 +172,9 @@ export default function Home() {
     const [bgColor, setBgColor] = useState('#87CEEB');
     const [showMenu, setShowMenu] = useState(false);
     const headerHeight = useHeaderHeight();
+    const cardWidth = (Dimensions.get('window').width - 36) / 2; // 16px margin on each side, 16px between cards
+    const [forecast, setForecast] = useState<any[]>([]);
+    const [forecastSummary, setForecastSummary] = useState<string>('');
 
     // Logout handler
     const handleLogout = async () => {
@@ -190,7 +195,6 @@ export default function Home() {
                 // Get user
                 const { data: { session } } = await supabase.auth.getSession();
                 const user = session?.user;
-                console.log('User session:', user ? 'Found' : 'Not found');
                 if (!user) {
                     setError('User not found.');
                     setLoading(false);
@@ -202,7 +206,6 @@ export default function Home() {
                     .select('latitude,longitude,selfie_urls')
                     .eq('id', user.id)
                     .single();
-                console.log('Profile fetch result:', { profile, error: profileError });
                 if (profileError) {
                     console.error('Profile error:', profileError);
                     setError(`Profile error: ${profileError.message}`);
@@ -210,7 +213,6 @@ export default function Home() {
                     return;
                 }
                 if (!profile?.latitude || !profile?.longitude) {
-                    console.log('Missing location data:', { latitude: profile?.latitude, longitude: profile?.longitude });
                     setError('Location not found.');
                     setLoading(false);
                     return;
@@ -234,16 +236,30 @@ export default function Home() {
                     return;
                 }
                 // Fetch weather
-                console.log('Fetching weather data...');
                 const url = `https://api.openweathermap.org/data/2.5/weather?lat=${profile.latitude}&lon=${profile.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
-                console.log('Weather API URL:', url);
                 const response = await fetch(url);
                 const data = await response.json();
-                console.log('Weather API response:', data);
                 if (data.cod && data.cod !== 200) {
                     throw new Error(`Weather API error: ${data.message}`);
                 }
                 setWeather(data);
+                // Fetch 3-hourly forecast
+                try {
+                    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${profile.latitude}&lon=${profile.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
+                    const forecastRes = await fetch(forecastUrl);
+                    const forecastData = await forecastRes.json();
+                    if (forecastData.list && Array.isArray(forecastData.list)) {
+                        // Next 8 intervals (24 hours)
+                        const next8 = forecastData.list.slice(0, 8);
+                        setForecast(next8);
+                        // Simple summary from first entry
+                        setForecastSummary(forecastData.list[0]?.weather?.[0]?.description
+                            ? forecastData.list[0].weather[0].description.charAt(0).toUpperCase() + forecastData.list[0].weather[0].description.slice(1)
+                            : '');
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch forecast', e);
+                }
                 // Update user's weather in Supabase
                 await supabase.from('profiles').update({
                     weather_temp: data.main.temp,
@@ -277,7 +293,7 @@ export default function Home() {
                         break;
                     }
                 }
-                console.log('Total contacts retrieved:', allContacts.length);
+                console.log(`Total contacts retrieved: ${allContacts.length}`);
                 // Create a mapping of cleaned phone numbers to contact names
                 const phoneToNameMap = new Map<string, string>();
                 allContacts.forEach((contact: any) => {
@@ -301,22 +317,18 @@ export default function Home() {
                 // Parallelize the queries
                 const friendResults = await Promise.all(
                     phoneChunks.map((chunk, idx) => {
-                        console.log(`Querying chunk ${idx + 1}/${phoneChunks.length}:`, chunk);
                         return supabase
                             .from('profiles')
-                            .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude')
+                            .select('id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude, selfie_urls')
                             .in('phone_number', chunk)
-                            .then(result => {
-                                console.log(`Result for chunk ${idx + 1}:`, result.data);
-                                return result;
-                            });
+                            .then(result => result);
                     })
                 );
                 let allFriends: any[] = [];
                 for (const result of friendResults) {
                     if (result.data) allFriends = allFriends.concat(result.data);
                 }
-                console.log('All friends combined:', allFriends);
+                console.log(`Total friends found: ${allFriends.length}`);
                 // Remove the current user from the results
                 const filteredFriends = allFriends.filter(f => f.id !== user.id);
                 // Add contact names and city names to the friends data
@@ -335,7 +347,6 @@ export default function Home() {
                         };
                     })
                 );
-                console.log('Friends with names and cities:', friendsWithNamesAndCities);
                 setFriendsWeather(friendsWithNamesAndCities);
             } catch (err) {
                 console.error('Weather fetch error:', err);
@@ -346,6 +357,51 @@ export default function Home() {
         };
         fetchProfileAndWeather();
     }, []);
+
+    // Helper to format hour label
+    function getHourLabel(dtTxt: string, idx: number) {
+        if (idx === 0) return 'Now';
+        const date = new Date(dtTxt);
+        let hour = date.getHours();
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        hour = hour % 12;
+        if (hour === 0) hour = 12;
+        return `${hour}${ampm}`;
+    }
+
+    // Forecast Section as a component
+    function ForecastSection() {
+        if (!forecast || forecast.length === 0) return null;
+        return (
+            <View style={{ marginTop: 4, marginHorizontal: 16 }}>
+                <View style={{ backgroundColor: '#4A90E2', borderRadius: 16, padding: 16, opacity: 0.8 }}>
+                    {/* Optionally add a summary here if you want */}
+                    <FlatList
+                        data={[{ now: true, ...weather, dt_txt: new Date().toISOString(), main: weather?.main, weather: weather?.weather }].concat(forecast)}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(item, idx) => item.dt_txt || idx.toString()}
+                        renderItem={({ item, index }) => {
+                            const temp = item.main?.temp ? Math.round(item.main.temp) : '--';
+                            const icon = item.weather?.[0]?.icon;
+                            const iconUrl = icon ? `https://openweathermap.org/img/wn/${icon}@2x.png` : undefined;
+                            return (
+                                <View style={{ alignItems: 'center', marginRight: 20, minWidth: 60 }}>
+                                    <Text style={{ color: '#fff', fontWeight: 'bold', marginBottom: 4 }}>
+                                        {getHourLabel(item.dt_txt, index)}
+                                    </Text>
+                                    {iconUrl && (
+                                        <Image source={{ uri: iconUrl }} style={{ width: 40, height: 40, marginBottom: 2 }} />
+                                    )}
+                                    <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{temp}°</Text>
+                                </View>
+                            );
+                        }}
+                    />
+                </View>
+            </View>
+        );
+    }
 
     return (
         <>
@@ -361,157 +417,206 @@ export default function Home() {
                     ),
                 }}
             />
-            <View className="flex-1" style={{ paddingTop: headerHeight - 30, backgroundColor: bgColor }}>
-                {/* Weather Card */}
-                <View
-                    className="items-center p-5 m-4 rounded-xl"
-                >
-                    {loading ? (
-                        <View className="flex-1 justify-center items-center">
-                            <ActivityIndicator size="large" />
-                            <Text className="text-black">Loading weather...</Text>
-                        </View>
-                    ) : error ? (
-                        <View className="flex-1 justify-center items-center">
-                            <Text className="text-black">{error}</Text>
-                        </View>
-                    ) : weather ? (
-                        <>
-                            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 24 }}>
-                                <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-                                    {/* Lottie animation (unchanged) */}
-                                    <LottieView
-                                        source={getWeatherLottie(weather.weather[0].main)}
-                                        autoPlay
-                                        loop
-                                        style={{
-                                            width: 800,
-                                            height: 800,
-                                            position: 'absolute',
-                                            zIndex: 4,
-                                            opacity: 0.8,
-                                            marginTop: 200,
-                                        }}
-                                    />
-                                    {/* Temperature in large white circle */}
-                                    <View
-                                        style={{
-                                            width: 140,
-                                            height: 140,
-                                            borderRadius: 70,
-                                            backgroundColor: '#fff',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            zIndex: 2,
-                                            shadowColor: '#000',
-                                            shadowOpacity: 0.1,
-                                            shadowRadius: 8,
-                                            elevation: 4,
-                                        }}
-                                    >
-                                        <Text style={{ fontSize: 56, fontWeight: 'bold', color: '#222' }}>
-                                            {Math.round(weather.main.temp)}°
-                                        </Text>
+            <View style={{ flex: 1, backgroundColor: bgColor }}>
+                {/* Weather Card (main user) */}
+                <View style={{ zIndex: 1 }}>
+                    <View
+                        className="items-center p-5 m-4 rounded-xl"
+                    >
+                        {loading ? (
+                            <View className="flex-1 justify-center items-center">
+                                <ActivityIndicator size="large" />
+                                <Text className="text-black">Loading weather...</Text>
+                            </View>
+                        ) : error ? (
+                            <View className="flex-1 justify-center items-center">
+                                <Text className="text-black">{error}</Text>
+                            </View>
+                        ) : weather ? (
+                            <>
+                                <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 40 }}>
+                                    <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+                                        {/* Lottie animation (unchanged) */}
+                                        <LottieView
+                                            source={getWeatherLottie(weather.weather[0].main)}
+                                            autoPlay
+                                            loop
+                                            style={{
+                                                width: 800,
+                                                height: 800,
+                                                position: 'absolute',
+                                                zIndex: 4,
+                                                opacity: 0.8,
+                                                marginTop: 200,
+                                            }}
+                                        />
+                                        {/* Temperature in large white circle */}
+                                        <View
+                                            style={{
+                                                width: 120,
+                                                height: 120,
+                                                borderRadius: 70,
+                                                backgroundColor: '#fff',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                zIndex: 2,
+                                                shadowColor: '#000',
+                                                shadowOpacity: 0.1,
+                                                shadowRadius: 8,
+                                                elevation: 4,
+                                            }}
+                                        >
+                                            <Text style={{ fontSize: 56, fontWeight: 'bold', color: '#222' }}>
+                                                {Math.round(weather.main.temp)}°
+                                            </Text>
+                                        </View>
+                                        {/* User's selfie, smaller, bottom right, overlapping */}
+                                        <Image
+                                            source={{
+                                                uri:
+                                                    selfieUrls && mapWeatherToSelfieKey(weather.weather[0].main)
+                                                        ? selfieUrls[mapWeatherToSelfieKey(weather.weather[0].main)]
+                                                        : undefined,
+                                            }}
+                                            style={{
+                                                width: 50,
+                                                height: 50,
+                                                borderRadius: 32,
+                                                resizeMode: 'cover',
+                                                position: 'absolute',
+                                                right: -5,
+                                                bottom: -5,
+                                                borderWidth: 0,
+                                                borderColor: '#fff',
+                                                zIndex: 3,
+                                                backgroundColor: '#eee',
+                                            }}
+                                        />
                                     </View>
-                                    {/* User's selfie, smaller, bottom right, overlapping */}
+                                </View>
+                                <Text className="text-base text-black" style={{ marginTop: 0, textAlign: 'center', fontSize: 16}}>
+                                    It&apos;s {getWeatherDescription(weather.weather[0].main)} in {weather.name}
+                                </Text>
+                            </>
+                        ) : null}
+                    </View>
+                </View>
+                {/* Friends List with forecast as header */}
+                <FlatList
+                    data={friendsWeather}
+                    keyExtractor={(item, idx) => item.id || idx.toString()}
+                    numColumns={2}
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 100,
+                    }}
+                    contentContainerStyle={{
+                        paddingTop: WEATHER_CARD_HEIGHT,
+                        paddingHorizontal: 8,
+                        paddingBottom: 16,
+                    }}
+                    columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 16 }}
+                    renderItem={({ item: friend }) => (
+                        <View
+                            style={{
+                                width: cardWidth,
+                                backgroundColor: '#e5e5e5',
+                                borderRadius: 16,
+                                padding: 20,
+                                alignItems: 'center',
+                                marginHorizontal: 4,
+                                minHeight: 240,
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.08,
+                                shadowRadius: 4,
+                                elevation: 2,
+                                overflow: 'hidden',
+                            }}
+                        >
+                            {/* Lottie animation full card, foreground */}
+                            {friend.weather_condition && (
+                                <LottieView
+                                    source={getWeatherLottie(friend.weather_condition)}
+                                    autoPlay
+                                    loop
+                                    style={{
+                                        position: 'absolute',
+                                        top: -40,
+                                        left: -120,
+                                        width: 400,
+                                        height: 300,
+                                        zIndex: 10,
+                                        opacity: 0.7,
+                                    }}
+                                />
+                            )}
+                            {/* Card content above Lottie */}
+                            <View style={{ width: '100%', alignItems: 'center', zIndex: 0 }}>
+                                {/* Name */}
+                                <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 20, textAlign: 'center', zIndex: 0 }}>
+                                    {friend.contact_name || 'Unknown'}
+                                </Text>
+                                {/* Photo + Temp */}
+                                <View style={{ width: 90, height: 90, marginBottom: 20, position: 'relative', alignItems: 'center', justifyContent: 'center', zIndex: 0 }}>
+                                    {/* Friend's photo */}
                                     <Image
                                         source={{
                                             uri:
-                                                selfieUrls && mapWeatherToSelfieKey(weather.weather[0].main)
-                                                    ? selfieUrls[mapWeatherToSelfieKey(weather.weather[0].main)]
+                                                friend.selfie_urls && mapWeatherToSelfieKey(friend.weather_condition)
+                                                    ? friend.selfie_urls[mapWeatherToSelfieKey(friend.weather_condition)]
                                                     : undefined,
                                         }}
                                         style={{
-                                            width: 64,
-                                            height: 64,
-                                            borderRadius: 32,
+                                            width: 90,
+                                            height: 90,
+                                            borderRadius: 45,
                                             resizeMode: 'cover',
-                                            position: 'absolute',
-                                            right: -20,
-                                            bottom: -20,
-                                            borderWidth: 0,
+                                            zIndex: 0,
+                                            borderWidth: 2,
                                             borderColor: '#fff',
-                                            zIndex: 3,
-                                            backgroundColor: '#eee',
                                         }}
                                     />
-                                </View>
-                            </View>
-                            <Text className="text-base text-black" style={{ marginTop: 44, textAlign: 'center', fontSize: 18 }}>
-                                It&apos;s {getWeatherDescription(weather.weather[0].main)} in {weather.name}
-                            </Text>
-                        </>
-                    ) : null}
-                </View>
-
-                {/* Friends List */}
-                <ScrollView className="z-10 flex-1">
-                    <Text className="m-4 text-xl font-bold">Friends' Weather</Text>
-                    {friendsWeather.length === 0 ? (
-                        <Text className="ml-4 text-gray-500">No friends using the app yet.</Text>
-                    ) : (
-                        friendsWeather.map((friend, idx) => (
-                            <View
-                                key={friend.id || idx}
-                                className="flex-row items-center p-4 mx-4 my-2 rounded-xl shadow-sm"
-                                style={{ 
-                                    backgroundColor: getWeatherGradient(friend.weather_condition)[0],
-                                    shadowColor: '#000',
-                                    shadowOffset: { width: 0, height: 2 },
-                                    shadowOpacity: 0.1,
-                                    shadowRadius: 3,
-                                    elevation: 3,
-                                    zIndex: 5
-
-                    
-                                }}
-                            >
-                                <View className="items-center mr-3">
-                                    {/* Friend's weather animation positioned absolutely over avatar */}
-                                    {friend.weather_temp !== null && friend.weather_condition ? (
-                                        <View style={{ position: 'relative' }}>
-                                            <Avatar name={friend.contact_name || 'Unknown'} />
-                                            <LottieView
-                                                source={getWeatherLottie(friend.weather_condition)}
-                                                autoPlay
-                                                loop
-                                                style={{ 
-                                                    width: 40, 
-                                                    height: 40, 
-                                                    position: 'absolute',
-                                                    top: -10,
-                                                    left: 0,
-                                                    zIndex: 5
-                                                }}
-                                            />
+                                    {/* Temp circle */}
+                                    {friend.weather_temp !== null && (
+                                        <View
+                                            style={{
+                                                position: 'absolute',
+                                                right: -12,
+                                                top: 50,
+                                                backgroundColor: '#fff',
+                                                borderRadius: 20,
+                                                width: 40,
+                                                height: 40,
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                zIndex: 0,
+                                            }}
+                                        >
+                                            <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>{Math.round(friend.weather_temp)}°</Text>
                                         </View>
-                                    ) : (
-                                        <Avatar name={friend.contact_name || 'Unknown'} />
                                     )}
                                 </View>
-                                <View className="flex-1">
-                                    <Text className="text-base font-medium text-black">{friend.contact_name || 'Unknown'}</Text>
-                                    {friend.weather_temp !== null && friend.weather_condition ? (
-                                        <Text className="text-sm text-black">
-                                            It&apos;s {getWeatherDescription(friend.weather_condition)} in {friend.city_name}
-                                        </Text>
-                                    ) : (
-                                        <Text className="text-xs text-gray-600">
-                                            {friend.weather_updated_at ? `Updated: ${new Date(friend.weather_updated_at).toLocaleTimeString()}` : 'No weather yet'}
-                                        </Text>
-                                    )}
+                                {/* Weather and city at bottom */}
+                                <View style={{ alignItems: 'center', marginTop: 'auto', zIndex: 20 }}>
+                                    <Text style={{ fontSize: 15, color: '#333', marginBottom: 2 }}>
+                                        It&apos;s {getWeatherDescription(friend.weather_condition || '')} in
+                                    </Text>
+                                    <Text style={{ fontSize: 15, color: '#333', marginBottom: 2 }}>
+                                        {friend.city_name}
+                                    </Text>
                                 </View>
-                                {friend.weather_temp !== null && friend.weather_condition ? (
-                                    <View className="items-center">
-                                        <Text className="text-xl text-black">{Math.round(friend.weather_temp)}°</Text>
-                                    </View>
-                                ) : (
-                                    <Text className="text-gray-500">No weather</Text>
-                                )}
                             </View>
-                        ))
+                        </View>
                     )}
-                </ScrollView>
+                    ListHeaderComponent={<View className='mb-4'><ForecastSection /></View>}
+                    ListEmptyComponent={<Text className="ml-4 text-gray-500">No friends using the app yet.</Text>}
+                    showsVerticalScrollIndicator={false}
+                />
             </View>
             
             {/* Dropdown Menu Modal */}
