@@ -493,23 +493,23 @@ export default function Home() {
                                     loop
                                     style={{
                                         position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        width: '100%',
-                                        height: '100%',
+                                        top: -30,
+                                        left: -120,
+                                        width: 400,
+                                        height: 300,
                                         zIndex: 10,
                                         opacity: 0.7,
                                     }}
                                 />
                             )}
                             {/* Card content above Lottie */}
-                            <View style={{ width: '100%', alignItems: 'center', zIndex: 20 }}>
+                            <View style={{ width: '100%', alignItems: 'center', zIndex: 0 }}>
                                 {/* Name */}
-                                <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8, textAlign: 'center', zIndex: 20 }}>
+                                <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 30, textAlign: 'center', zIndex: 0 }}>
                                     {friend.contact_name || 'Unknown'}
                                 </Text>
                                 {/* Photo + Temp */}
-                                <View style={{ width: 90, height: 90, marginBottom: 12, position: 'relative', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}>
+                                <View style={{ width: 90, height: 90, marginBottom: 20, position: 'relative', alignItems: 'center', justifyContent: 'center', zIndex: 0 }}>
                                     {/* Friend's photo */}
                                     <Image
                                         source={{ uri: friend.selfie_url }}
@@ -518,7 +518,7 @@ export default function Home() {
                                             height: 90,
                                             borderRadius: 45,
                                             resizeMode: 'cover',
-                                            zIndex: 21,
+                                            zIndex: 0,
                                             borderWidth: 2,
                                             borderColor: '#fff',
                                         }}
@@ -528,19 +528,15 @@ export default function Home() {
                                         <View
                                             style={{
                                                 position: 'absolute',
-                                                right: -18,
-                                                top: 10,
+                                                right: -12,
+                                                top: 50,
                                                 backgroundColor: '#fff',
                                                 borderRadius: 20,
                                                 width: 40,
                                                 height: 40,
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
-                                                zIndex: 22,
-                                                shadowColor: '#000',
-                                                shadowOpacity: 0.08,
-                                                shadowRadius: 2,
-                                                elevation: 2,
+                                                zIndex: 0,
                                             }}
                                         >
                                             <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>{Math.round(friend.weather_temp)}°</Text>
