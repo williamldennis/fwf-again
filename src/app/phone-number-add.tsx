@@ -42,7 +42,7 @@ export default function PhoneNumberAdd() {
         <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
             <View style={styles.container}>
                 <Image source={phoneImg} style={styles.emojiImg} resizeMode="contain" />
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     emojiImg: {
         width: 200,
         height: 200,
-        marginBottom: 16,
+        marginBottom: 12,
     },
     label: {
         fontSize: 22,
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
         maxWidth: 340,
         borderRadius: 16,
         backgroundColor: '#fff',
-        marginBottom: 8,
+        marginBottom: 12,
         borderWidth: 1,
         borderColor: '#ddd',
     },
