@@ -51,7 +51,6 @@ export default function PhoneNumberAdd() {
                 {/* @ts-ignore - Library has incompatible constructor signature */}
                 <PhoneInput
                     ref={phoneInput}
-                    defaultValue={phone}
                     defaultCode="US"
                     layout="second"
                     autoFocus={true}
@@ -62,7 +61,10 @@ export default function PhoneNumberAdd() {
                     }}
                     containerStyle={styles.phoneInputContainer}
                     textContainerStyle={styles.phoneInputTextContainer}
-                    textInputProps={{ placeholder: 'Phone number' }}
+                    textInputProps={{ 
+                        placeholder: 'Phone number',
+                        keyboardType: 'phone-pad'
+                    }}
                     textInputStyle={{ fontSize: 17, color: '#222' }}
                     codeTextStyle={{ fontSize: 17, color: '#222' }}
                     flagButtonStyle={{ borderRadius: 12 }}
