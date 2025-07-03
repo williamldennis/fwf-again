@@ -161,7 +161,7 @@ function getBackgroundColor(hour: number) {
     return '#191970'; // Night blue
 }
 
-const WEATHER_CARD_HEIGHT = 420; // adjust as needed for your weather card height
+const WEATHER_CARD_HEIGHT = 260; // adjust as needed for your weather card height
 
 export default function Home() {
     const [weather, setWeather] = useState<any>(null);
@@ -369,6 +369,40 @@ export default function Home() {
         return `${hour}${ampm}`;
     }
 
+    // Forecast Section as a component
+    function ForecastSection() {
+        if (!forecast || forecast.length === 0) return null;
+        return (
+            <View style={{ marginTop: 4, marginHorizontal: 16 }}>
+                <View style={{ backgroundColor: '#4A90E2', borderRadius: 16, padding: 16, opacity: 0.8 }}>
+                    {/* Optionally add a summary here if you want */}
+                    <FlatList
+                        data={[{ now: true, ...weather, dt_txt: new Date().toISOString(), main: weather?.main, weather: weather?.weather }].concat(forecast)}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(item, idx) => item.dt_txt || idx.toString()}
+                        renderItem={({ item, index }) => {
+                            const temp = item.main?.temp ? Math.round(item.main.temp) : '--';
+                            const icon = item.weather?.[0]?.icon;
+                            const iconUrl = icon ? `https://openweathermap.org/img/wn/${icon}@2x.png` : undefined;
+                            return (
+                                <View style={{ alignItems: 'center', marginRight: 20, minWidth: 60 }}>
+                                    <Text style={{ color: '#fff', fontWeight: 'bold', marginBottom: 4 }}>
+                                        {getHourLabel(item.dt_txt, index)}
+                                    </Text>
+                                    {iconUrl && (
+                                        <Image source={{ uri: iconUrl }} style={{ width: 40, height: 40, marginBottom: 2 }} />
+                                    )}
+                                    <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{temp}°</Text>
+                                </View>
+                            );
+                        }}
+                    />
+                </View>
+            </View>
+        );
+    }
+
     return (
         <>
             <Stack.Screen
@@ -467,7 +501,7 @@ export default function Home() {
                         ) : null}
                     </View>
                 </View>
-                {/* Friends List absolutely positioned, scrolls over weather card */}
+                {/* Friends List with forecast as header */}
                 <FlatList
                     data={friendsWeather}
                     keyExtractor={(item, idx) => item.id || idx.toString()}
@@ -579,38 +613,10 @@ export default function Home() {
                             </View>
                         </View>
                     )}
+                    ListHeaderComponent={<View className='mb-4'><ForecastSection /></View>}
                     ListEmptyComponent={<Text className="ml-4 text-gray-500">No friends using the app yet.</Text>}
                     showsVerticalScrollIndicator={false}
                 />
-                {/* Forecast Section */}
-                {forecast && forecast.length > 0 && (
-                    <View style={{ marginTop: 4, marginHorizontal: 16 }}>
-                        <View style={{ backgroundColor: '#4A90E2', borderRadius: 16, padding: 16 }}>
-                            <FlatList
-                                data={[{ now: true, ...weather, dt_txt: new Date().toISOString(), main: weather?.main, weather: weather?.weather }].concat(forecast)}
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                keyExtractor={(item, idx) => item.dt_txt || idx.toString()}
-                                renderItem={({ item, index }) => {
-                                    const temp = item.main?.temp ? Math.round(item.main.temp) : '--';
-                                    const icon = item.weather?.[0]?.icon;
-                                    const iconUrl = icon ? `https://openweathermap.org/img/wn/${icon}@2x.png` : undefined;
-                                    return (
-                                        <View style={{ alignItems: 'center', marginRight: 20, minWidth: 60 }}>
-                                            <Text style={{ color: '#fff', fontWeight: 'bold', marginBottom: 4 }}>
-                                                {getHourLabel(item.dt_txt, index)}
-                                            </Text>
-                                            {iconUrl && (
-                                                <Image source={{ uri: iconUrl }} style={{ width: 40, height: 40, marginBottom: 2 }} />
-                                            )}
-                                            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{temp}°</Text>
-                                        </View>
-                                    );
-                                }}
-                            />
-                        </View>
-                    </View>
-                )}
             </View>
             
             {/* Dropdown Menu Modal */}
