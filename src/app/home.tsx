@@ -373,8 +373,8 @@ export default function Home() {
     function ForecastSection() {
         if (!forecast || forecast.length === 0) return null;
         return (
-            <View style={{ marginTop: 4, marginHorizontal: 16 }}>
-                <View style={{ backgroundColor: '#4A90E2', borderRadius: 16, padding: 16, opacity: 0.8 }}>
+            <View style={{ marginTop: 4, marginHorizontal: 5 }}>
+                <View style={{ backgroundColor: '#4A90E2', borderRadius: 16, padding: 16, paddingRight: 0, opacity: 0.8 }}>
                     {/* Optionally add a summary here if you want */}
                     <FlatList
                         data={[{ now: true, ...weather, dt_txt: new Date().toISOString(), main: weather?.main, weather: weather?.weather }].concat(forecast)}
@@ -386,7 +386,7 @@ export default function Home() {
                             const icon = item.weather?.[0]?.icon;
                             const iconUrl = icon ? `https://openweathermap.org/img/wn/${icon}@2x.png` : undefined;
                             return (
-                                <View style={{ alignItems: 'center', marginRight: 20, minWidth: 60 }}>
+                                <View style={{ alignItems: 'center', marginRight: 16, minWidth: 60 }}>
                                     <Text style={{ color: '#fff', fontWeight: 'bold', marginBottom: 4 }}>
                                         {getHourLabel(item.dt_txt, index)}
                                     </Text>
