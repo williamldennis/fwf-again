@@ -297,16 +297,15 @@ export default function Home() {
                     }
                 }
                 console.log(`Total contacts retrieved: ${allContacts.length}`);
-                // Create a mapping of cleaned phone numbers to contact names
+                // Create a mapping of E.164 phone numbers to contact names
                 const phoneToNameMap = new Map<string, string>();
                 allContacts.forEach((contact: any) => {
-                    const cleanedPhone = String(contact.contact_phone).replace(/[^0-9]/g, '');
-                    phoneToNameMap.set(cleanedPhone, contact.contact_name);
+                    // Use the full E.164 phone number (with +)
+                    phoneToNameMap.set(contact.contact_phone, contact.contact_name);
                 });
                 const contactPhones = (allContacts || []).map((c: any) => c.contact_phone);
-                // Force all numbers to be clean digit-only strings
-                const cleanedPhones = contactPhones.map(p => String(p).replace(/[^0-9]/g, ''));
-                const uniquePhones = Array.from(new Set(cleanedPhones));
+                // Use the full E.164 numbers for matching
+                const uniquePhones = Array.from(new Set(contactPhones));
                 // Batch into chunks of 500
                 function chunkArray<T>(array: T[], size: number): T[][] {
                     const result: T[][] = [];
@@ -337,8 +336,7 @@ export default function Home() {
                 // Add contact names and city names to the friends data
                 const friendsWithNamesAndCities = await Promise.all(
                     filteredFriends.map(async (friend) => {
-                        const cleanedPhone = String(friend.phone_number).replace(/[^0-9]/g, '');
-                        const contactName = phoneToNameMap.get(cleanedPhone);
+                        const contactName = phoneToNameMap.get(friend.phone_number);
                         let cityName = 'Unknown';
                         if (friend.latitude && friend.longitude) {
                             cityName = await getCityFromCoords(friend.latitude, friend.longitude);
