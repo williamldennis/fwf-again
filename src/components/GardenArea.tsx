@@ -80,7 +80,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 borderRadius: 8,
                 height: 60,
                 padding: 0,
-                marginTop: 20,
+                marginTop: 60,
                 marginBottom: 0,
             }}
         >
@@ -126,6 +126,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 fontWeight: "bold",
                                 color: "#333",
                                 marginTop: 2,
+                                paddingBottom: 10,
                             }}
                         >
                             {plantName}
