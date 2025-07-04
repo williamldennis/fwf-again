@@ -884,7 +884,7 @@ export default function Home() {
                                         elevation: 2,
                                         justifyContent: "center",
                                         overflow: "visible",
-                                        height: 280, // Match the height of friend cards
+                                        height: 240, // Match the height of friend cards
                                     }}
                                 >
                                     <Image
