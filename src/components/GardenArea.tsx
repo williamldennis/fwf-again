@@ -69,7 +69,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
     // Handler for planted plant tap
     const handlePlantPress = (plant: any) => {
         if (onPlantDetailsPress) {
-            onPlantDetailsPress(plant);
+            onPlantDetailsPress(plant, weatherCondition);
         }
     };
 

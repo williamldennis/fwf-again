@@ -12,6 +12,7 @@ import {
 // @ts-ignore
 import { DateTime } from "luxon";
 import { supabase } from "../utils/supabase";
+import { GrowthService } from "../services/growthService";
 
 interface PlantDetailsModalProps {
     visible: boolean;
@@ -19,6 +20,7 @@ interface PlantDetailsModalProps {
     plant: any; // The planted plant data with joined plant info
     onHarvest?: () => void; // Callback to refresh plants after harvest
     currentUserId?: string; // Current user's ID to check if they can harvest
+    friendWeather?: string; // Friend's current weather for accurate growth calculation
 }
 
 export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
@@ -27,6 +29,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     plant,
     onHarvest,
     currentUserId,
+    friendWeather = "clear", // Default to clear if not provided
 }) => {
     if (!plant) return null;
 
@@ -41,15 +44,50 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     const now = DateTime.now();
     const timeSincePlanted = now.diff(plantedAt, ["hours", "minutes"]);
 
-    // Calculate time to maturity (rough estimate)
-    const timeToMaturity = Math.max(
-        0,
-        growthTimeHours - timeSincePlanted.hours
+    // Use GrowthService for accurate calculations (includes weather effects)
+    const growthCalculation = GrowthService.calculateGrowthStage(
+        plant,
+        plant.plant || {
+            id: plant.plant_id,
+            name: plantName,
+            growth_time_hours: growthTimeHours,
+            weather_bonus: weatherBonus,
+            image_path: plant.image_path || "",
+            created_at: plant.planted_at,
+        },
+        friendWeather
     );
 
-    // Check if plant is mature
-    const isMature =
-        plant.is_mature || (plant.current_stage === 5 && timeToMaturity <= 0);
+    // Calculate time to maturity using GrowthService logic
+    const weatherBonusMultiplier = GrowthService.getWeatherBonus(
+        plant.plant || {
+            id: plant.plant_id,
+            name: plantName,
+            growth_time_hours: growthTimeHours,
+            weather_bonus: weatherBonus,
+            image_path: plant.image_path || "",
+            created_at: plant.planted_at,
+        },
+        friendWeather
+    );
+
+    const adjustedHoursElapsed =
+        timeSincePlanted.hours * weatherBonusMultiplier;
+    const timeToMaturity = Math.max(0, growthTimeHours - adjustedHoursElapsed);
+
+    // Check if plant is mature using GrowthService
+    const isMature = GrowthService.isPlantMature(
+        plant,
+        plant.plant || {
+            id: plant.plant_id,
+            name: plantName,
+            growth_time_hours: growthTimeHours,
+            weather_bonus: weatherBonus,
+            image_path: plant.image_path || "",
+            created_at: plant.planted_at,
+        },
+        friendWeather
+    );
 
     // Check if current user can harvest (anyone can harvest now)
     const canHarvest = currentUserId && !plant.harvested_at;
@@ -333,15 +371,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     Growth Progress:
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {Math.min(
-                                        100,
-                                        Math.floor(
-                                            (timeSincePlanted.hours /
-                                                growthTimeHours) *
-                                                100
-                                        )
-                                    )}
-                                    %
+                                    {growthCalculation.progress}%
                                 </Text>
                             </View>
                         </View>

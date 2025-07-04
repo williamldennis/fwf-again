@@ -921,8 +921,8 @@ export default function Home() {
             setShowPlantPicker(false);
         }
     };
-    const handlePlantDetailsPress = (plant: any) => {
-        setSelectedPlant(plant);
+    const handlePlantDetailsPress = (plant: any, friendWeather: string) => {
+        setSelectedPlant({ ...plant, friendWeather });
         setShowPlantDetails(true);
     };
 
@@ -1474,6 +1474,7 @@ export default function Home() {
                 plant={selectedPlant}
                 onHarvest={handlePlantHarvested}
                 currentUserId={currentUserId || undefined}
+                friendWeather={selectedPlant?.friendWeather}
             />
         </>
     );
