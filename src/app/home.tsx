@@ -195,7 +195,7 @@ export default function Home() {
     const [showMenu, setShowMenu] = useState(false);
     const [refreshingContacts, setRefreshingContacts] = useState(false);
     const headerHeight = useHeaderHeight();
-    const cardWidth = (Dimensions.get("window").width - 24) / 2; // 24px margin on each side, 24px between cards
+    const cardWidth = Dimensions.get("window").width - 32; // 16px margin on each side
     const [forecast, setForecast] = useState<any[]>([]);
     const [forecastSummary, setForecastSummary] = useState<string>("");
     const [showPlantPicker, setShowPlantPicker] = useState(false);
@@ -945,7 +945,6 @@ export default function Home() {
                     keyExtractor={(item, idx) =>
                         item.id || item.type || idx.toString()
                     }
-                    numColumns={2}
                     style={{
                         position: "absolute",
                         top: 0,
@@ -956,12 +955,8 @@ export default function Home() {
                     }}
                     contentContainerStyle={{
                         paddingTop: WEATHER_CARD_HEIGHT,
-                        paddingHorizontal: 8,
+                        paddingHorizontal: 16,
                         paddingBottom: 16,
-                    }}
-                    columnWrapperStyle={{
-                        justifyContent: "space-between",
-                        marginBottom: 16,
                     }}
                     renderItem={({ item: friend }) => {
                         if (friend.type === "add-friends") {
@@ -979,7 +974,6 @@ export default function Home() {
                                         borderRadius: 16,
                                         padding: 16,
                                         alignItems: "center",
-                                        marginHorizontal: 4,
                                         shadowColor: "#000",
                                         shadowOffset: { width: 0, height: 2 },
                                         shadowOpacity: 0.08,
@@ -1043,8 +1037,7 @@ export default function Home() {
                                     shadowOpacity: 0.08,
                                     shadowRadius: 8,
                                     elevation: 3,
-                                    marginHorizontal: 0,
-                                    marginBottom: 14,
+                                    marginBottom: 16,
                                     alignItems: "center",
                                     overflow: "visible",
                                     borderWidth: 0.5,
