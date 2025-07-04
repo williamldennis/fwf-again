@@ -22,6 +22,7 @@ interface PlantDetailsModalProps {
     onHarvest?: () => void; // Callback to refresh plants after harvest
     currentUserId?: string; // Current user's ID to check if they can harvest
     friendWeather?: string; // Friend's current weather for accurate growth calculation
+    planterName: string; // Name of the person who planted the plant
 }
 
 export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
@@ -31,6 +32,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     onHarvest,
     currentUserId,
     friendWeather = "clear", // Default to clear if not provided
+    planterName,
 }) => {
     if (!plant) return null;
 
@@ -50,12 +52,15 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         created_at: plant.planted_at,
     };
 
-    // Use GrowthService for accurate calculations (includes weather effects)
+    // Use GrowthService for all stage calculations (includes weather effects)
     const growthCalculation = GrowthService.calculateGrowthStage(
         plant,
         plantObject,
         friendWeather
     );
+
+    // Use the calculated stage for accurate display
+    const currentStage = growthCalculation.stage;
 
     // Use TimeCalculationService for consistent time calculations
     const timeToMaturity = TimeCalculationService.getTimeToMaturity(
@@ -84,18 +89,67 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     // Check if current user can harvest (anyone can harvest now)
     const canHarvest = currentUserId && !plant.harvested_at;
 
+    // Debug logging for harvest state
+    console.log("PlantDetailsModal harvest state:", {
+        plantName,
+        currentStage,
+        isMature,
+        canHarvest,
+        harvested_at: plant.harvested_at,
+        currentUserId,
+        plantId: plant.id,
+        plantData: {
+            id: plant.id,
+            garden_owner_id: plant.garden_owner_id,
+            planter_id: plant.planter_id,
+            plant_id: plant.plant_id,
+            planted_at: plant.planted_at,
+            current_stage: plant.current_stage,
+            is_mature: plant.is_mature,
+            harvested_at: plant.harvested_at,
+            harvester_id: plant.harvester_id,
+        },
+        growthCalculation: {
+            stage: growthCalculation.stage,
+            progress: growthCalculation.progress,
+        },
+    });
+
     // Handle harvest
     const handleHarvest = async () => {
-        if (!canHarvest || !isMature) return;
+        console.log("Harvest attempt:", {
+            canHarvest,
+            isMature,
+            plantId: plant.id,
+            currentUserId,
+            plantName,
+        });
+
+        if (!canHarvest || !isMature) {
+            console.log("Harvest blocked:", { canHarvest, isMature });
+            return;
+        }
 
         try {
-            const { error } = await supabase
+            console.log("Updating database for harvest...");
+            console.log("Plant ID to update:", plant.id);
+            console.log("Current user ID:", currentUserId);
+            console.log("Current plant data:", {
+                id: plant.id,
+                harvested_at: plant.harvested_at,
+                harvester_id: plant.harvester_id,
+            });
+
+            const { data, error } = await supabase
                 .from("planted_plants")
                 .update({
                     harvested_at: new Date().toISOString(),
                     harvester_id: currentUserId,
                 })
-                .eq("id", plant.id);
+                .eq("id", plant.id)
+                .select("*");
+
+            console.log("Supabase response:", { data, error });
 
             if (error) {
                 console.error("Error harvesting plant:", error);
@@ -106,10 +160,73 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 return;
             }
 
+            console.log("Harvest successful:", data);
+
+            // Since Supabase update with select is returning empty array,
+            // let's verify the update actually worked by fetching the updated record
+            if (!data || data.length === 0) {
+                console.log(
+                    "Update returned empty array, checking if update actually worked..."
+                );
+
+                // Fetch the updated plant to see if the harvest was successful
+                const { data: fetchData, error: fetchError } = await supabase
+                    .from("planted_plants")
+                    .select("*")
+                    .eq("id", plant.id)
+                    .single();
+
+                console.log("Fetch after update result:", {
+                    fetchData,
+                    fetchError,
+                });
+
+                if (fetchError) {
+                    console.error("Error fetching updated plant:", fetchError);
+                    Alert.alert(
+                        "Error",
+                        "Failed to verify harvest. Please try again."
+                    );
+                    return;
+                }
+
+                // Check if the harvest actually worked
+                if (fetchData && fetchData.harvested_at) {
+                    console.log(
+                        "Harvest was successful! Updated plant:",
+                        fetchData
+                    );
+
+                    Alert.alert("Harvested!", `You harvested ${plantName}!`);
+
+                    // Call the callback to refresh plants
+                    if (onHarvest) {
+                        console.log("Calling onHarvest callback...");
+                        onHarvest();
+                    }
+
+                    onClose();
+                    return;
+                } else {
+                    console.error(
+                        "Update did not work - harvested_at is still null"
+                    );
+                    Alert.alert(
+                        "Error",
+                        "Plant was not found or could not be updated."
+                    );
+                    return;
+                }
+            }
+
+            const updatedPlant = data[0];
+            console.log("Updated plant data:", updatedPlant);
+
             Alert.alert("Harvested!", `You harvested ${plantName}!`);
 
             // Call the callback to refresh plants
             if (onHarvest) {
+                console.log("Calling onHarvest callback...");
                 onHarvest();
             }
 
@@ -162,8 +279,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
     // Get plant image for current stage
     const getPlantImage = (plantName: string, stage: number) => {
-        if (stage === 1)
-            return require("../../assets/images/plants/empty_pot.png");
         if (stage === 2) return require("../../assets/images/plants/dirt.png");
 
         const plantNameLower = plantName.toLowerCase();
@@ -202,7 +317,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
         return (
             plantStageImages[plantNameLower]?.[stage] ||
-            require("../../assets/images/plants/empty_pot.png")
+            require("../../assets/images/plants/dirt.png")
         );
     };
 
@@ -215,33 +330,36 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         >
             <View style={styles.overlay}>
                 <View style={styles.container}>
+                    {/* Close (X) button in upper right */}
+                    <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={onClose}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                        <Text style={styles.closeButtonText}>✕</Text>
+                    </TouchableOpacity>
                     <ScrollView showsVerticalScrollIndicator={false}>
-                        {/* Header */}
-                        <View style={styles.header}>
-                            <Text style={styles.title}>{plantName}</Text>
-                            <TouchableOpacity
-                                onPress={onClose}
-                                style={styles.closeButton}
-                            >
-                                <Text style={styles.closeButtonText}>✕</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Plant Image */}
-                        <View style={styles.imageContainer}>
-                            <Image
-                                source={getPlantImage(
-                                    plantName,
-                                    plant.current_stage
-                                )}
-                                style={styles.plantImage}
-                                resizeMode="contain"
-                            />
-                        </View>
-
-                        {/* Harvest Button */}
-                        {canHarvest && (
-                            <View style={styles.section}>
+                        {/* TOP SECTION */}
+                        <View style={styles.topSection}>
+                            {/* 1. Plant Title */}
+                            <Text style={styles.plantTitle}>{plantName}</Text>
+                            {/* 2. Planted X hours ago by {planterName} */}
+                            <Text style={styles.plantedInfo}>
+                                Planted {formattedTimeSincePlanted} ago by{" "}
+                                {planterName}
+                            </Text>
+                            <View style={styles.imageContainer}>
+                                <Image
+                                    source={getPlantImage(
+                                        plantName,
+                                        currentStage
+                                    )}
+                                    style={styles.plantImage}
+                                    resizeMode="contain"
+                                />
+                            </View>
+                            {/* 3. Harvest Button */}
+                            {canHarvest && (
                                 <TouchableOpacity
                                     onPress={handleHarvest}
                                     disabled={!isMature}
@@ -261,12 +379,14 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                         ]}
                                     >
                                         {isMature
-                                            ? `🌾 Harvest ${plantName}`
-                                            : `${formattedTimeToMaturity}`}
+                                            ? "Harvest"
+                                            : `${formattedTimeToMaturity} to Harvest`}
                                     </Text>
                                 </TouchableOpacity>
-                            </View>
-                        )}
+                            )}
+                        </View>
+                        {/* END TOP SECTION */}
+                        {/* Plant Image */}
 
                         {/* Plant Stats */}
                         <View style={styles.section}>
@@ -276,7 +396,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     Current Stage:
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {getStageDescription(plant.current_stage)}
+                                    {getStageDescription(currentStage)}
                                 </Text>
                             </View>
                             <View style={styles.statRow}>
@@ -365,23 +485,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                 </Text>
                             </View>
                         </View>
-
-                        {/* Planter Info */}
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>
-                                Planting Information
-                            </Text>
-                            <View style={styles.statRow}>
-                                <Text style={styles.statLabel}>
-                                    Planted by:
-                                </Text>
-                                <Text style={styles.statValue}>Friend</Text>
-                            </View>
-                            <View style={styles.statRow}>
-                                <Text style={styles.statLabel}>Plant ID:</Text>
-                                <Text style={styles.statValue}>{plant.id}</Text>
-                            </View>
-                        </View>
                     </ScrollView>
                 </View>
             </View>
@@ -406,29 +509,65 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         elevation: 5,
     },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "bold",
-        color: "#333",
-    },
     closeButton: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
+        position: "absolute",
+        top: 12,
+        right: 12,
+        zIndex: 10,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: "#f0f0f0",
-        justifyContent: "center",
         alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
     },
     closeButtonText: {
+        fontSize: 22,
+        color: "#666",
+        fontWeight: "bold",
+    },
+    topSection: {
+        alignItems: "center",
+        marginBottom: 20,
+        marginTop: 40,
+    },
+    plantTitle: {
+        fontSize: 28,
+        fontWeight: "bold",
+        color: "#222",
+        marginBottom: 4,
+        textAlign: "center",
+    },
+    plantedInfo: {
+        fontSize: 14,
+        color: "#666",
+        marginBottom: 16,
+        textAlign: "center",
+    },
+    harvestButton: {
+        width: "90%",
+        padding: 14,
+        borderRadius: 8,
+        alignItems: "center",
+        marginTop: 8,
+    },
+    harvestButtonEnabled: {
+        backgroundColor: "#4CAF50",
+    },
+    harvestButtonDisabled: {
+        backgroundColor: "#ccc",
+    },
+    harvestButtonText: {
         fontSize: 18,
+        fontWeight: "bold",
+    },
+    harvestButtonTextEnabled: {
+        color: "#fff",
+    },
+    harvestButtonTextDisabled: {
         color: "#666",
     },
     imageContainer: {
@@ -486,29 +625,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "bold",
         color: "#333",
-    },
-    harvestButton: {
-        backgroundColor: "#333",
-        padding: 12,
-        borderRadius: 8,
-        alignItems: "center",
-    },
-    harvestButtonEnabled: {
-        backgroundColor: "#4CAF50",
-    },
-    harvestButtonDisabled: {
-        backgroundColor: "#ccc",
-    },
-    harvestButtonText: {
-        fontSize: 16,
-        fontWeight: "bold",
-        color: "#fff",
-    },
-    harvestButtonTextEnabled: {
-        color: "#fff",
-    },
-    harvestButtonTextDisabled: {
-        color: "#666",
     },
 });
 

@@ -211,6 +211,8 @@ export default function Home() {
         {}
     );
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [selectedPlanterName, setSelectedPlanterName] =
+        useState<string>("Unknown");
 
     // Logout handler
     const handleLogout = async () => {
@@ -433,24 +435,21 @@ export default function Home() {
                             weatherCondition
                         );
 
-                    // Check if plant should advance to next stage
-                    if (
-                        growthCalculation.shouldAdvance &&
-                        plantedPlant.current_stage < 5
-                    ) {
-                        const newStage = plantedPlant.current_stage + 1;
-                        const isMature =
-                            newStage === 5 && growthCalculation.progress >= 100;
+                    // Update maturity status based on calculated growth
+                    const isMature =
+                        growthCalculation.stage === 5 &&
+                        growthCalculation.progress >= 100;
 
+                    // Only update maturity status if it changed
+                    if (isMature !== plantedPlant.is_mature) {
                         console.log(
-                            `Updating plant ${plantedPlant.id} from stage ${plantedPlant.current_stage} to ${newStage}`
+                            `Updating plant ${plantedPlant.id} maturity: ${plantedPlant.is_mature} -> ${isMature} (stage: ${growthCalculation.stage}, progress: ${growthCalculation.progress}%)`
                         );
 
                         // Update the plant in database
                         await supabase
                             .from("planted_plants")
                             .update({
-                                current_stage: newStage,
                                 is_mature: isMature,
                             })
                             .eq("id", plantedPlant.id);
@@ -921,7 +920,22 @@ export default function Home() {
             setShowPlantPicker(false);
         }
     };
-    const handlePlantDetailsPress = (plant: any, friendWeather: string) => {
+    const handlePlantDetailsPress = async (
+        plant: any,
+        friendWeather: string
+    ) => {
+        let planterName = "Unknown";
+        if (plant.planter_id) {
+            const { data: profile, error } = await supabase
+                .from("profiles")
+                .select("name")
+                .eq("id", plant.planter_id)
+                .single();
+            if (profile && profile.name) {
+                planterName = profile.name;
+            }
+        }
+        setSelectedPlanterName(planterName);
         setSelectedPlant({ ...plant, friendWeather });
         setShowPlantDetails(true);
     };
@@ -932,13 +946,20 @@ export default function Home() {
     };
 
     const handlePlantHarvested = async () => {
+        console.log("handlePlantHarvested called - refreshing plant data...");
+
         // Refresh all planted plants data after harvest
         const plantsData: Record<string, any[]> = {};
         for (const friend of friendsWeather) {
             const plants = await fetchPlantedPlants(friend.id);
             plantsData[friend.id] = plants;
+            console.log(
+                `Refreshed plants for ${friend.contact_name}:`,
+                plants.length
+            );
         }
         setPlantedPlants(plantsData);
+        console.log("Plant data refresh completed");
     };
 
     const handleRefreshGrowth = async () => {
@@ -1475,6 +1496,7 @@ export default function Home() {
                 onHarvest={handlePlantHarvested}
                 currentUserId={currentUserId || undefined}
                 friendWeather={selectedPlant?.friendWeather}
+                planterName={selectedPlanterName}
             />
         </>
     );
