@@ -564,6 +564,7 @@ export default function Home() {
 
     // Handler for planting
     const handlePlantPress = (friendId: string) => {
+        console.log('handlePlantPress called', friendId);
         setSelectedFriendId(friendId);
         setShowPlantPicker(true);
     };
@@ -693,7 +694,6 @@ export default function Home() {
                     }}
                     columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 16 }}
                     renderItem={({ item: friend }) => {
-                        console.log('Rendering friend card', friend);
                         if (friend.type === 'add-friends') {
                             return (
                                 <TouchableOpacity
@@ -760,20 +760,18 @@ export default function Home() {
                             >
                                 {/* Lottie animation FRIEND'S full card, foreground */}
                                 {friend.weather_condition && (
-                                    <LottieView
-                                        source={getWeatherLottie(friend.weather_condition)}
-                                        autoPlay
-                                        loop
-                                        style={{
-                                            position: 'absolute',
-                                            top: -70,
-                                            left: -160,
-                                            width: 500,
-                                            height: 400,
-                                            zIndex: 10,
-                                            opacity: 0.7,
-                                        }}
-                                    />
+                                    <View pointerEvents="none" style={{ position: 'absolute', top: -70, left: -160, width: 500, height: 400, zIndex: 10 }}>
+                                        <LottieView
+                                            source={getWeatherLottie(friend.weather_condition)}
+                                            autoPlay
+                                            loop
+                                            style={{
+                                                width: 500,
+                                                height: 400,
+                                                opacity: 0.7,
+                                            }}
+                                        />
+                                    </View>
                                 )}
                                 {/* Card content above Lottie */}
                                 <View style={{ width: '100%', alignItems: 'center', zIndex: 0 }}>
@@ -829,6 +827,7 @@ export default function Home() {
                                         onPlantPress={() => handlePlantPress(friend.id)}
                                         isGardenFull={false}
                                     />
+
                                     {/* Weather and city at bottom */}
                                     <View style={{ alignItems: 'center', marginTop: 'auto', zIndex: 20 }}>
                                         <Text style={{ fontSize: 15, color: '#333', marginBottom: 2 }}>
