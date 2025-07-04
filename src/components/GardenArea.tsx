@@ -70,12 +70,11 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
-        backgroundColor: '#90EE90',
         borderRadius: 8,
         height: 60,
-        padding: 8,
-        marginTop: 8,
-        marginBottom: 4,
+        padding: 0,
+        marginTop: 10,
+        marginBottom: 0,
       }}
     >
       {slots.map((plant, idx) => {
@@ -92,14 +91,9 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
             >
               <Image
                 source={emptyPotImg}
-                style={{ width: 36, height: 36 }}
+                style={{ width: 90, height: 90 }}
                 resizeMode="contain"
               />
-              {idx === 0 && !isGardenFull && (
-                <Text style={{ fontSize: 10, color: '#666', marginTop: 2 }}>
-                  Tap to plant
-                </Text>
-              )}
             </TouchableOpacity>
           );
         }
@@ -109,7 +103,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
           <View key={plant.planted_plant_id} style={{ flex: 1, alignItems: 'center' }}>
             <Image
               source={getImageForPlant(plant.plant_name, stage)}
-              style={{ width: 36, height: 36 }}
+              style={{ width: 90, height: 90 }}
               resizeMode="contain"
             />
             <Text style={{ fontSize: 10, color: '#333', marginTop: 2 }}>

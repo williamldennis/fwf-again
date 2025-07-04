@@ -743,83 +743,78 @@ export default function Home() {
                         return (
                             <View
                                 style={{
-                                    width: cardWidth,
-                                    backgroundColor: '#fffbe6',
-                                    borderRadius: 16,
-                                    padding: 20,
-                                    alignItems: 'center',
-                                    marginHorizontal: 4,
-                                    minHeight: 240,
+                                    width: 220, // fixed width
+                                    backgroundColor: '#fff',
+                                    borderRadius: 20,
                                     shadowColor: '#000',
                                     shadowOffset: { width: 0, height: 2 },
                                     shadowOpacity: 0.08,
-                                    shadowRadius: 4,
-                                    elevation: 2,
+                                    shadowRadius: 8,
+                                    elevation: 3,
+                                    marginHorizontal: 8,
+                                    marginBottom: 14,
+                                    alignItems: 'center',
                                     overflow: 'visible',
+                                    borderWidth: .5,
+                                    borderColor: '#DBDBDB',
                                 }}
                             >
-                                {/* Lottie animation FRIEND'S full card, foreground */}
-                                {friend.weather_condition && (
-                                    <View pointerEvents="none" style={{ position: 'absolute', top: -70, left: -160, width: 500, height: 400, zIndex: 10 }}>
-                                        <LottieView
-                                            source={getWeatherLottie(friend.weather_condition)}
-                                            autoPlay
-                                            loop
-                                            style={{
-                                                width: 500,
-                                                height: 400,
-                                                opacity: 0.7,
-                                            }}
-                                        />
-                                    </View>
-                                )}
-                                {/* Card content above Lottie */}
-                                <View style={{ width: '100%', alignItems: 'center', zIndex: 0 }}>
-                                    {/* Name */}
-                                    <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 20, textAlign: 'center', zIndex: 0 }}>
-                                        {friend.contact_name || 'Unknown'}
+                                {/* Name at top */}
+                                <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center', marginTop: 20, marginBottom: 20
+                                    
+                                 }}>
+                                    {friend.contact_name || 'Unknown'}
+                                </Text>
+                                {/* Inner card */}
+                                <View
+                                    style={{
+                                        width: '90%',
+                                        backgroundColor: '#F0F0F0',
+                                        borderRadius: 16,
+                                        alignItems: 'center',
+                                        paddingVertical: 0,
+                                        paddingHorizontal: 10,
+                                        position: 'relative',
+                                        minHeight: 220,
+                                        marginBottom: 14,
+                                        borderWidth: .5,
+                                        borderColor: '#DBDBDB',
+                                    }}
+                                >
+                                    {/* Lottie animation floating above, centered */}
+                                    {friend.weather_condition && (
+                                        <View pointerEvents="none" style={{ position: 'absolute', top: -140, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
+                                            <LottieView
+                                                source={getWeatherLottie(friend.weather_condition)}
+                                                autoPlay
+                                                loop
+                                                style={{ width: 400, height: 400, opacity: 0.7 }}
+                                            />
+                                        </View>
+                                    )}
+                                    {/* Selfie */}
+                                    <Image
+                                        source={{
+                                            uri:
+                                                friend.selfie_urls && mapWeatherToSelfieKey(friend.weather_condition)
+                                                    ? friend.selfie_urls[mapWeatherToSelfieKey(friend.weather_condition)]
+                                                    : undefined,
+                                        }}
+                                        style={{
+                                            width: 80,
+                                            height: 80,
+                                            borderRadius: 40,
+                                            resizeMode: 'cover',
+                                            backgroundColor: '#eee',
+                                            marginTop: 32, // space for Lottie
+                                            marginBottom: 28,
+                                        }}
+                                    />
+                                    {/* Weather text */}
+                                    <Text style={{ fontSize: 16, color: '#333', textAlign: 'center', marginBottom: 24 }}>
+                                        It&apos;s <Text style={{ fontWeight: 'bold' }}>{friend.weather_temp ? Math.round(friend.weather_temp) : '--'}°</Text> and <Text style={{ fontWeight: 'bold' }}>{getWeatherDescription(friend.weather_condition || '')}</Text> in <Text style={{ fontWeight: 'bold' }}>{friend.city_name}</Text>
                                     </Text>
-                                    {/* Photo + Temp */}
-                                    <View style={{ width: 90, height: 90, marginBottom: 20, position: 'relative', alignItems: 'center', justifyContent: 'center', zIndex: 0 }}>
-                                        {/* Friend's photo */}
-                                        <Image
-                                            source={{
-                                                uri:
-                                                    friend.selfie_urls && mapWeatherToSelfieKey(friend.weather_condition)
-                                                        ? friend.selfie_urls[mapWeatherToSelfieKey(friend.weather_condition)]
-                                                        : undefined,
-                                            }}
-                                            style={{
-                                                width: 90,
-                                                height: 90,
-                                                borderRadius: 45,
-                                                resizeMode: 'cover',
-                                                zIndex: 0,
-                                                borderWidth: 2,
-                                                borderColor: '#fff',
-                                            }}
-                                        />
-                                        {/* Temp circle */}
-                                        {friend.weather_temp !== null && (
-                                            <View
-                                                style={{
-                                                    position: 'absolute',
-                                                    right: -12,
-                                                    top: 50,
-                                                    backgroundColor: '#fff',
-                                                    borderRadius: 20,
-                                                    width: 40,
-                                                    height: 40,
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    zIndex: 0,
-                                                }}
-                                            >
-                                                <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>{Math.round(friend.weather_temp)}°</Text>
-                                            </View>
-                                        )}
-                                    </View>
-                                    {/* GARDEN AREA */}
+                                    {/* Plants */}
                                     <GardenArea
                                         gardenOwnerId={friend.id}
                                         plants={getMockGarden()}
@@ -827,16 +822,6 @@ export default function Home() {
                                         onPlantPress={() => handlePlantPress(friend.id)}
                                         isGardenFull={false}
                                     />
-
-                                    {/* Weather and city at bottom */}
-                                    <View style={{ alignItems: 'center', marginTop: 'auto', zIndex: 20 }}>
-                                        <Text style={{ fontSize: 15, color: '#333', marginBottom: 2 }}>
-                                            It&apos;s {getWeatherDescription(friend.weather_condition || '')} in
-                                        </Text>
-                                        <Text style={{ fontSize: 15, color: '#333', marginBottom: 2 }}>
-                                            {friend.city_name}
-                                        </Text>
-                                    </View>
                                 </View>
                             </View>
                         );
