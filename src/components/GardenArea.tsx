@@ -1,6 +1,7 @@
 import React from "react";
 import { View, TouchableOpacity, Image, Text, Alert } from "react-native";
 import { GardenAreaProps, GrowthStage } from "../types/garden";
+import { GrowthService } from "../services/growthService";
 
 const plantStageImages: Record<string, Record<number, any>> = {
     sunflower: {
@@ -114,11 +115,29 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                     );
                 }
 
-                // Show plant at its current stage (now tappable)
-                const stage = plant.current_stage as GrowthStage;
-                // Handle both joined data structure and flat structure
+                // Calculate the current stage based on growth progress
                 const plantName =
                     plant.plant?.name || plant.plant_name || "Unknown";
+                const plantObject = plant.plant || {
+                    id: plant.plant_id,
+                    name: plantName,
+                    growth_time_hours: plant.growth_time_hours || 0,
+                    weather_bonus: plant.weather_bonus || {
+                        sunny: 1,
+                        cloudy: 1,
+                        rainy: 1,
+                    },
+                    image_path: plant.image_path || "",
+                    created_at: plant.planted_at,
+                };
+
+                // Use GrowthService to calculate the actual current stage
+                const growthCalculation = GrowthService.calculateGrowthStage(
+                    plant,
+                    plantObject,
+                    weatherCondition
+                );
+                const stage = growthCalculation.stage as GrowthStage;
 
                 return (
                     <TouchableOpacity

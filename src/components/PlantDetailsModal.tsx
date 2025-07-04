@@ -57,6 +57,9 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         friendWeather
     );
 
+    // Use the calculated stage instead of database stage for accurate display
+    const currentStage = growthCalculation.stage;
+
     // Use TimeCalculationService for consistent time calculations
     const timeToMaturity = TimeCalculationService.getTimeToMaturity(
         plant.planted_at,
@@ -230,10 +233,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                         {/* Plant Image */}
                         <View style={styles.imageContainer}>
                             <Image
-                                source={getPlantImage(
-                                    plantName,
-                                    plant.current_stage
-                                )}
+                                source={getPlantImage(plantName, currentStage)}
                                 style={styles.plantImage}
                                 resizeMode="contain"
                             />
@@ -276,7 +276,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     Current Stage:
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {getStageDescription(plant.current_stage)}
+                                    {getStageDescription(currentStage)}
                                 </Text>
                             </View>
                             <View style={styles.statRow}>

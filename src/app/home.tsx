@@ -433,24 +433,21 @@ export default function Home() {
                             weatherCondition
                         );
 
-                    // Check if plant should advance to next stage
-                    if (
-                        growthCalculation.shouldAdvance &&
-                        plantedPlant.current_stage < 5
-                    ) {
-                        const newStage = plantedPlant.current_stage + 1;
-                        const isMature =
-                            newStage === 5 && growthCalculation.progress >= 100;
+                    // Update maturity status based on calculated growth
+                    const isMature =
+                        growthCalculation.stage === 5 &&
+                        growthCalculation.progress >= 100;
 
+                    // Only update maturity status if it changed
+                    if (isMature !== plantedPlant.is_mature) {
                         console.log(
-                            `Updating plant ${plantedPlant.id} from stage ${plantedPlant.current_stage} to ${newStage}`
+                            `Updating plant ${plantedPlant.id} maturity: ${plantedPlant.is_mature} -> ${isMature} (stage: ${growthCalculation.stage}, progress: ${growthCalculation.progress}%)`
                         );
 
                         // Update the plant in database
                         await supabase
                             .from("planted_plants")
                             .update({
-                                current_stage: newStage,
                                 is_mature: isMature,
                             })
                             .eq("id", plantedPlant.id);
