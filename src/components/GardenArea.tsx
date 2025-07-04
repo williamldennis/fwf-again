@@ -2,34 +2,47 @@ import React from 'react';
 import { View, TouchableOpacity, Image, Text, Alert } from 'react-native';
 import { GardenAreaProps, GrowthStage } from '../types/garden';
 
-// Helper to get the correct image for a plant stage
-const getPlantImage = (plantName: string, stage: GrowthStage) => {
-  const plantNameLower = plantName.toLowerCase();
-  switch (stage) {
-    case 1:
-      return require('../../assets/images/plants/empty_pot.png');
-    case 2:
-      return require('../../assets/images/plants/dirt.png');
-    case 3:
-      return require(`../../assets/images/plants/${plantNameLower}/sprout.png`);
-    case 4:
-      return require(`../../assets/images/plants/${plantNameLower}/adolescent.png`);
-    case 5:
-      return require(`../../assets/images/plants/${plantNameLower}/mature.png`);
-    default:
-      return require('../../assets/images/plants/empty_pot.png');
-  }
+const plantStageImages: Record<string, Record<number, any>> = {
+  sunflower: {
+    3: require('../../assets/images/plants/sunflower/sprout.png'),
+    4: require('../../assets/images/plants/sunflower/adolescent.png'),
+    5: require('../../assets/images/plants/sunflower/mature.png'),
+  },
+  mushroom: {
+    3: require('../../assets/images/plants/mushroom/sprout.png'),
+    4: require('../../assets/images/plants/mushroom/adolescent.png'),
+    5: require('../../assets/images/plants/mushroom/mature.png'),
+  },
+  fern: {
+    3: require('../../assets/images/plants/fern/sprout.png'),
+    4: require('../../assets/images/plants/fern/adolescent.png'),
+    5: require('../../assets/images/plants/fern/mature.png'),
+  },
+  cactus: {
+    3: require('../../assets/images/plants/cactus/sprout.png'),
+    4: require('../../assets/images/plants/cactus/adolescent.png'),
+    5: require('../../assets/images/plants/cactus/mature.png'),
+  },
+  water_lily: {
+    3: require('../../assets/images/plants/water_lily/sprout.png'),
+    4: require('../../assets/images/plants/water_lily/adolescent.png'),
+    5: require('../../assets/images/plants/water_lily/mature.png'),
+  },
+  pine_tree: {
+    3: require('../../assets/images/plants/pine_tree/sprout.png'),
+    4: require('../../assets/images/plants/pine_tree/adolescent.png'),
+    5: require('../../assets/images/plants/pine_tree/mature.png'),
+  },
 };
+
+const emptyPotImg = require('../../assets/images/plants/empty_pot.png');
+const dirtImg = require('../../assets/images/plants/dirt.png');
 
 const SLOT_COUNT = 3;
 
-export const GardenArea: React.FC<GardenAreaProps> = ({
-  gardenOwnerId,
-  plants,
-  weatherCondition,
-  onPlantPress,
-  isGardenFull,
-}) => {
+export const GardenArea: React.FC<GardenAreaProps> = (props) => {
+  console.log('GardenArea rendered', props);
+  const { gardenOwnerId, plants, weatherCondition, onPlantPress, isGardenFull } = props;
   // Fill up to 3 slots with either a plant or null (for empty)
   const slots = Array(SLOT_COUNT)
     .fill(null)
@@ -42,6 +55,13 @@ export const GardenArea: React.FC<GardenAreaProps> = ({
     } else {
       onPlantPress();
     }
+  };
+
+  const getImageForPlant = (plantName: string, stage: GrowthStage) => {
+    if (stage === 1) return emptyPotImg;
+    if (stage === 2) return dirtImg;
+    const plantKey = plantName.toLowerCase();
+    return plantStageImages[plantKey]?.[stage] || emptyPotImg;
   };
 
   return (
@@ -71,7 +91,7 @@ export const GardenArea: React.FC<GardenAreaProps> = ({
               }}
             >
               <Image
-                source={require('../../assets/images/plants/empty_pot.png')}
+                source={emptyPotImg}
                 style={{ width: 36, height: 36 }}
                 resizeMode="contain"
               />
@@ -88,7 +108,7 @@ export const GardenArea: React.FC<GardenAreaProps> = ({
         return (
           <View key={plant.planted_plant_id} style={{ flex: 1, alignItems: 'center' }}>
             <Image
-              source={getPlantImage(plant.plant_name, stage)}
+              source={getImageForPlant(plant.plant_name, stage)}
               style={{ width: 36, height: 36 }}
               resizeMode="contain"
             />

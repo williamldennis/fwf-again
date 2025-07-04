@@ -3,6 +3,15 @@ import { Modal, View, Text, TouchableOpacity, Image, FlatList, StyleSheet } from
 import { Plant, PlantPickerProps } from '../types/garden';
 import { GrowthService } from '../services/growthService';
 
+const plantImages: Record<string, any> = {
+  sunflower: require('../../assets/images/plants/sunflower/mature.png'),
+  mushroom: require('../../assets/images/plants/mushroom/mature.png'),
+  fern: require('../../assets/images/plants/fern/mature.png'),
+  cactus: require('../../assets/images/plants/cactus/mature.png'),
+  water_lily: require('../../assets/images/plants/water_lily/mature.png'),
+  pine_tree: require('../../assets/images/plants/pine_tree/mature.png'),
+};
+
 interface PlantPickerFullProps extends PlantPickerProps {
   plants: Plant[];
 }
@@ -14,6 +23,7 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
   weatherCondition,
   plants,
 }) => {
+  console.log('PlantPicker rendered', { visible, plants });
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -28,7 +38,7 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
                 onPress={() => onSelectPlant(item.id)}
               >
                 <Image
-                  source={require(`../../assets/images/plants/${item.image_path}/mature.png`)}
+                  source={plantImages[item.image_path]}
                   style={styles.plantImage}
                   resizeMode="contain"
                 />

@@ -693,6 +693,7 @@ export default function Home() {
                     }}
                     columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 16 }}
                     renderItem={({ item: friend }) => {
+                        console.log('Rendering friend card', friend);
                         if (friend.type === 'add-friends') {
                             return (
                                 <TouchableOpacity
