@@ -7,20 +7,26 @@ import {
     Image,
     StyleSheet,
     ScrollView,
+    Alert,
 } from "react-native";
 // @ts-ignore
 import { DateTime } from "luxon";
+import { supabase } from "../utils/supabase";
 
 interface PlantDetailsModalProps {
     visible: boolean;
     onClose: () => void;
     plant: any; // The planted plant data with joined plant info
+    onHarvest?: () => void; // Callback to refresh plants after harvest
+    currentUserId?: string; // Current user's ID to check if they can harvest
 }
 
 export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     visible,
     onClose,
     plant,
+    onHarvest,
+    currentUserId,
 }) => {
     if (!plant) return null;
 
@@ -40,6 +46,52 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         0,
         growthTimeHours - timeSincePlanted.hours
     );
+
+    // Check if plant is mature
+    const isMature =
+        plant.is_mature || (plant.current_stage === 5 && timeToMaturity <= 0);
+
+    // Check if current user can harvest (anyone can harvest now)
+    const canHarvest = currentUserId && !plant.harvested_at;
+
+    // Handle harvest
+    const handleHarvest = async () => {
+        if (!canHarvest || !isMature) return;
+
+        try {
+            const { error } = await supabase
+                .from("planted_plants")
+                .update({
+                    harvested_at: new Date().toISOString(),
+                    harvester_id: currentUserId,
+                })
+                .eq("id", plant.id);
+
+            if (error) {
+                console.error("Error harvesting plant:", error);
+                Alert.alert(
+                    "Error",
+                    "Failed to harvest plant. Please try again."
+                );
+                return;
+            }
+
+            Alert.alert("Harvested!", `You harvested ${plantName}!`);
+
+            // Call the callback to refresh plants
+            if (onHarvest) {
+                onHarvest();
+            }
+
+            onClose();
+        } catch (error) {
+            console.error("Error harvesting plant:", error);
+            Alert.alert(
+                "Error",
+                "An unexpected error occurred while harvesting."
+            );
+        }
+    };
 
     // Get weather preference description
     const getWeatherPreference = () => {
@@ -156,6 +208,35 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                 resizeMode="contain"
                             />
                         </View>
+
+                        {/* Harvest Button */}
+                        {canHarvest && (
+                            <View style={styles.section}>
+                                <TouchableOpacity
+                                    onPress={handleHarvest}
+                                    disabled={!isMature}
+                                    style={[
+                                        styles.harvestButton,
+                                        isMature
+                                            ? styles.harvestButtonEnabled
+                                            : styles.harvestButtonDisabled,
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.harvestButtonText,
+                                            isMature
+                                                ? styles.harvestButtonTextEnabled
+                                                : styles.harvestButtonTextDisabled,
+                                        ]}
+                                    >
+                                        {isMature
+                                            ? `🌾 Harvest ${plantName}`
+                                            : `${Math.ceil(timeToMaturity)} hours until harvest`}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
 
                         {/* Plant Stats */}
                         <View style={styles.section}>
@@ -385,6 +466,29 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "bold",
         color: "#333",
+    },
+    harvestButton: {
+        backgroundColor: "#333",
+        padding: 12,
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    harvestButtonEnabled: {
+        backgroundColor: "#4CAF50",
+    },
+    harvestButtonDisabled: {
+        backgroundColor: "#ccc",
+    },
+    harvestButtonText: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#fff",
+    },
+    harvestButtonTextEnabled: {
+        color: "#fff",
+    },
+    harvestButtonTextDisabled: {
+        color: "#666",
     },
 });
 

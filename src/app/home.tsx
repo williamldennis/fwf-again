@@ -28,6 +28,7 @@ import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
 import PlantDetailsModal from "../components/PlantDetailsModal";
 import { Plant } from "../types/garden";
+import { GrowthService } from "../services/growthService";
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 
@@ -209,6 +210,7 @@ export default function Home() {
     const [plantedPlants, setPlantedPlants] = useState<Record<string, any[]>>(
         {}
     );
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     // Logout handler
     const handleLogout = async () => {
@@ -368,6 +370,100 @@ export default function Home() {
         }
     };
 
+    const updatePlantGrowth = async () => {
+        try {
+            // Get all planted plants that aren't mature
+            const { data: allPlantedPlants, error } = await supabase
+                .from("planted_plants")
+                .select(
+                    `
+                    *,
+                    plant:plants(*)
+                `
+                )
+                .eq("is_mature", false);
+
+            if (error) {
+                console.error(
+                    "Error fetching planted plants for growth update:",
+                    error
+                );
+                return;
+            }
+
+            if (!allPlantedPlants || allPlantedPlants.length === 0) {
+                return;
+            }
+
+            console.log(
+                `Updating growth for ${allPlantedPlants.length} plants`
+            );
+
+            // Group plants by garden owner to get their weather
+            const plantsByGarden = new Map<string, any[]>();
+            allPlantedPlants.forEach((plant) => {
+                const gardenOwnerId = plant.garden_owner_id;
+                if (!plantsByGarden.has(gardenOwnerId)) {
+                    plantsByGarden.set(gardenOwnerId, []);
+                }
+                plantsByGarden.get(gardenOwnerId)!.push(plant);
+            });
+
+            // Update each garden's plants
+            for (const [gardenOwnerId, plants] of plantsByGarden) {
+                // Get the garden owner's current weather
+                const { data: gardenOwner } = await supabase
+                    .from("profiles")
+                    .select("weather_condition")
+                    .eq("id", gardenOwnerId)
+                    .single();
+
+                const weatherCondition =
+                    gardenOwner?.weather_condition || "clear";
+
+                // Calculate growth for each plant in this garden
+                for (const plantedPlant of plants) {
+                    const plant = plantedPlant.plant;
+                    if (!plant) continue;
+
+                    const growthCalculation =
+                        GrowthService.calculateGrowthStage(
+                            plantedPlant,
+                            plant,
+                            weatherCondition
+                        );
+
+                    // Check if plant should advance to next stage
+                    if (
+                        growthCalculation.shouldAdvance &&
+                        plantedPlant.current_stage < 5
+                    ) {
+                        const newStage = plantedPlant.current_stage + 1;
+                        const isMature =
+                            newStage === 5 && growthCalculation.progress >= 100;
+
+                        console.log(
+                            `Updating plant ${plantedPlant.id} from stage ${plantedPlant.current_stage} to ${newStage}`
+                        );
+
+                        // Update the plant in database
+                        await supabase
+                            .from("planted_plants")
+                            .update({
+                                current_stage: newStage,
+                                is_mature: isMature,
+                            })
+                            .eq("id", plantedPlant.id);
+                    }
+                }
+            }
+
+            console.log("Plant growth update completed");
+        } catch (error) {
+            console.error("Error updating plant growth:", error);
+        }
+    };
+
     const fetchPlantedPlants = async (friendId: string) => {
         try {
             const { data: plants, error } = await supabase
@@ -379,7 +475,7 @@ export default function Home() {
                 `
                 )
                 .eq("garden_owner_id", friendId)
-                .eq("is_mature", false)
+                .is("harvested_at", null) // Only show non-harvested plants
                 .order("planted_at", { ascending: false });
 
             if (error) {
@@ -612,8 +708,32 @@ export default function Home() {
     };
 
     useEffect(() => {
+        // Get current user ID
+        const getCurrentUser = async () => {
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+            if (user) {
+                setCurrentUserId(user.id);
+            }
+        };
+
+        getCurrentUser();
         fetchAvailablePlants();
         fetchProfileAndWeather();
+        updatePlantGrowth(); // Update plant growth on app load
+
+        // Set up periodic growth updates (every 5 minutes)
+        const growthInterval = setInterval(
+            () => {
+                updatePlantGrowth();
+            },
+            5 * 60 * 1000
+        ); // 5 minutes
+
+        return () => {
+            clearInterval(growthInterval);
+        };
     }, []);
 
     // Helper to format hour label
@@ -789,6 +909,9 @@ export default function Home() {
                 [selectedFriendId]: updatedPlants,
             }));
 
+            // Update growth for all plants
+            await updatePlantGrowth();
+
             // Close the modal
             setShowPlantPicker(false);
             setSelectedFriendId(null);
@@ -806,6 +929,31 @@ export default function Home() {
     const handleClosePlantDetails = () => {
         setShowPlantDetails(false);
         setSelectedPlant(null);
+    };
+
+    const handlePlantHarvested = async () => {
+        // Refresh all planted plants data after harvest
+        const plantsData: Record<string, any[]> = {};
+        for (const friend of friendsWeather) {
+            const plants = await fetchPlantedPlants(friend.id);
+            plantsData[friend.id] = plants;
+        }
+        setPlantedPlants(plantsData);
+    };
+
+    const handleRefreshGrowth = async () => {
+        console.log("Manual growth refresh triggered");
+        await updatePlantGrowth();
+
+        // Refresh all planted plants data
+        const plantsData: Record<string, any[]> = {};
+        for (const friend of friendsWeather) {
+            const plants = await fetchPlantedPlants(friend.id);
+            plantsData[friend.id] = plants;
+        }
+        setPlantedPlants(plantsData);
+
+        Alert.alert("Growth Updated", "Plant growth has been refreshed!");
     };
 
     const handleClosePlantPicker = () => {
@@ -1277,6 +1425,22 @@ export default function Home() {
                             <TouchableOpacity
                                 onPress={() => {
                                     setShowMenu(false);
+                                    handleRefreshGrowth();
+                                }}
+                                style={{
+                                    paddingVertical: 12,
+                                    paddingHorizontal: 16,
+                                    borderBottomWidth: 1,
+                                    borderBottomColor: "#f0f0f0",
+                                }}
+                            >
+                                <Text style={{ fontSize: 16, color: "#333" }}>
+                                    Refresh Plant Growth
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setShowMenu(false);
                                     handleLogout();
                                 }}
                                 style={{
@@ -1308,6 +1472,8 @@ export default function Home() {
                 visible={showPlantDetails}
                 onClose={handleClosePlantDetails}
                 plant={selectedPlant}
+                onHarvest={handlePlantHarvested}
+                currentUserId={currentUserId || undefined}
             />
         </>
     );
