@@ -485,23 +485,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                 </Text>
                             </View>
                         </View>
-
-                        {/* Planter Info */}
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>
-                                Planting Information
-                            </Text>
-                            <View style={styles.statRow}>
-                                <Text style={styles.statLabel}>
-                                    Planted by:
-                                </Text>
-                                <Text style={styles.statValue}>Friend</Text>
-                            </View>
-                            <View style={styles.statRow}>
-                                <Text style={styles.statLabel}>Plant ID:</Text>
-                                <Text style={styles.statValue}>{plant.id}</Text>
-                            </View>
-                        </View>
                     </ScrollView>
                 </View>
             </View>
