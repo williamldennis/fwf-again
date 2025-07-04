@@ -1,13 +1,33 @@
 import { Plant, PlantedPlant, GrowthCalculation, GrowthStage } from '../types/garden';
+import { TimeCalculationService } from './timeCalculationService';
 
 export class GrowthService {
   /**
    * Calculate the weather bonus multiplier for a plant based on current weather
    */
   static getWeatherBonus(plant: Plant, weatherCondition: string): number {
+    // Map API weather conditions to plant weather bonus keys
+    const weatherMapping: Record<string, keyof typeof plant.weather_bonus> = {
+      'clear': 'sunny',
+      'clouds': 'cloudy', 
+      'rain': 'rainy',
+      'drizzle': 'rainy',
+      'mist': 'rainy',
+      'fog': 'rainy',
+      'haze': 'rainy',
+      'snow': 'rainy', // Snow plants don't exist, default to rainy
+      'thunderstorm': 'rainy' // Thunderstorm plants don't exist, default to rainy
+    };
+    
     const weatherKey = weatherCondition.toLowerCase();
-    const bonus = plant.weather_bonus[weatherKey as keyof typeof plant.weather_bonus];
-    return bonus || 1.0; // Default to 1.0 if weather not found
+    const mappedKey = weatherMapping[weatherKey];
+    
+    if (mappedKey) {
+      return plant.weather_bonus[mappedKey];
+    }
+    
+    // Default to 1.0 if weather not found
+    return 1.0;
   }
 
   /**
@@ -18,13 +38,9 @@ export class GrowthService {
     plant: Plant,
     friendWeather: string
   ): GrowthCalculation {
-    const timeElapsed = Date.now() - new Date(plantedPlant.planted_at).getTime();
+    // Use TimeCalculationService for consistent time calculations
+    const hoursElapsed = TimeCalculationService.getTimeElapsedHours(plantedPlant.planted_at);
     const weatherBonus = this.getWeatherBonus(plant, friendWeather);
-    
-    // Convert to hours
-    const hoursElapsed = timeElapsed / (1000 * 60 * 60);
-    
-    // Calculate adjusted time with weather bonus
     const adjustedHours = hoursElapsed * weatherBonus;
     
     // Calculate total growth time needed

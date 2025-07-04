@@ -69,7 +69,7 @@ export interface GardenAreaProps {
   plants: any[]; // Using any[] to handle the joined data structure from Supabase
   weatherCondition: string;
   onPlantPress: () => void;
-  onPlantDetailsPress?: (plant: any) => void; // Optional callback for plant details
+  onPlantDetailsPress?: (plant: any, weatherCondition: string) => void; // Optional callback for plant details
   isGardenFull: boolean;
 }
 

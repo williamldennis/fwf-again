@@ -7,20 +7,30 @@ import {
     Image,
     StyleSheet,
     ScrollView,
+    Alert,
 } from "react-native";
 // @ts-ignore
 import { DateTime } from "luxon";
+import { supabase } from "../utils/supabase";
+import { GrowthService } from "../services/growthService";
+import { TimeCalculationService } from "../services/timeCalculationService";
 
 interface PlantDetailsModalProps {
     visible: boolean;
     onClose: () => void;
     plant: any; // The planted plant data with joined plant info
+    onHarvest?: () => void; // Callback to refresh plants after harvest
+    currentUserId?: string; // Current user's ID to check if they can harvest
+    friendWeather?: string; // Friend's current weather for accurate growth calculation
 }
 
 export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     visible,
     onClose,
     plant,
+    onHarvest,
+    currentUserId,
+    friendWeather = "clear", // Default to clear if not provided
 }) => {
     if (!plant) return null;
 
@@ -30,16 +40,88 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     const growthTimeHours =
         plant.plant?.growth_time_hours || plant.growth_time_hours || 0;
 
-    // Calculate time since planted
-    const plantedAt = DateTime.fromISO(plant.planted_at);
-    const now = DateTime.now();
-    const timeSincePlanted = now.diff(plantedAt, ["hours", "minutes"]);
+    // Create plant object for service calls
+    const plantObject = plant.plant || {
+        id: plant.plant_id,
+        name: plantName,
+        growth_time_hours: growthTimeHours,
+        weather_bonus: weatherBonus,
+        image_path: plant.image_path || "",
+        created_at: plant.planted_at,
+    };
 
-    // Calculate time to maturity (rough estimate)
-    const timeToMaturity = Math.max(
-        0,
-        growthTimeHours - timeSincePlanted.hours
+    // Use GrowthService for accurate calculations (includes weather effects)
+    const growthCalculation = GrowthService.calculateGrowthStage(
+        plant,
+        plantObject,
+        friendWeather
     );
+
+    // Use TimeCalculationService for consistent time calculations
+    const timeToMaturity = TimeCalculationService.getTimeToMaturity(
+        plant.planted_at,
+        plantObject,
+        friendWeather
+    );
+
+    const formattedTimeToMaturity =
+        TimeCalculationService.getFormattedTimeToMaturity(
+            plant.planted_at,
+            plantObject,
+            friendWeather
+        );
+
+    const formattedTimeSincePlanted =
+        TimeCalculationService.getFormattedTimeSincePlanted(plant.planted_at);
+
+    // Check if plant is mature using GrowthService
+    const isMature = GrowthService.isPlantMature(
+        plant,
+        plantObject,
+        friendWeather
+    );
+
+    // Check if current user can harvest (anyone can harvest now)
+    const canHarvest = currentUserId && !plant.harvested_at;
+
+    // Handle harvest
+    const handleHarvest = async () => {
+        if (!canHarvest || !isMature) return;
+
+        try {
+            const { error } = await supabase
+                .from("planted_plants")
+                .update({
+                    harvested_at: new Date().toISOString(),
+                    harvester_id: currentUserId,
+                })
+                .eq("id", plant.id);
+
+            if (error) {
+                console.error("Error harvesting plant:", error);
+                Alert.alert(
+                    "Error",
+                    "Failed to harvest plant. Please try again."
+                );
+                return;
+            }
+
+            Alert.alert("Harvested!", `You harvested ${plantName}!`);
+
+            // Call the callback to refresh plants
+            if (onHarvest) {
+                onHarvest();
+            }
+
+            onClose();
+        } catch (error) {
+            console.error("Error harvesting plant:", error);
+            Alert.alert(
+                "Error",
+                "An unexpected error occurred while harvesting."
+            );
+        }
+    };
 
     // Get weather preference description
     const getWeatherPreference = () => {
@@ -157,6 +239,35 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                             />
                         </View>
 
+                        {/* Harvest Button */}
+                        {canHarvest && (
+                            <View style={styles.section}>
+                                <TouchableOpacity
+                                    onPress={handleHarvest}
+                                    disabled={!isMature}
+                                    style={[
+                                        styles.harvestButton,
+                                        isMature
+                                            ? styles.harvestButtonEnabled
+                                            : styles.harvestButtonDisabled,
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.harvestButtonText,
+                                            isMature
+                                                ? styles.harvestButtonTextEnabled
+                                                : styles.harvestButtonTextDisabled,
+                                        ]}
+                                    >
+                                        {isMature
+                                            ? `🌾 Harvest ${plantName}`
+                                            : `${formattedTimeToMaturity}`}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
                         {/* Plant Stats */}
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Plant Stats</Text>
@@ -171,7 +282,9 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                             <View style={styles.statRow}>
                                 <Text style={styles.statLabel}>Planted:</Text>
                                 <Text style={styles.statValue}>
-                                    {plantedAt.toFormat("MMM dd, yyyy")}
+                                    {DateTime.fromISO(
+                                        plant.planted_at
+                                    ).toFormat("MMM dd, yyyy")}
                                 </Text>
                             </View>
                             <View style={styles.statRow}>
@@ -179,9 +292,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     Time Since Planted:
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {timeSincePlanted.hours > 24
-                                        ? `${Math.floor(timeSincePlanted.hours / 24)} days`
-                                        : `${Math.floor(timeSincePlanted.hours)} hours`}
+                                    {formattedTimeSincePlanted}
                                 </Text>
                             </View>
                             <View style={styles.statRow}>
@@ -189,9 +300,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     Time to Maturity:
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {timeToMaturity > 0
-                                        ? `${Math.floor(timeToMaturity)} hours`
-                                        : "Ready to harvest!"}
+                                    {formattedTimeToMaturity}
                                 </Text>
                             </View>
                         </View>
@@ -252,15 +361,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     Growth Progress:
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {Math.min(
-                                        100,
-                                        Math.floor(
-                                            (timeSincePlanted.hours /
-                                                growthTimeHours) *
-                                                100
-                                        )
-                                    )}
-                                    %
+                                    {growthCalculation.progress}%
                                 </Text>
                             </View>
                         </View>
@@ -385,6 +486,29 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "bold",
         color: "#333",
+    },
+    harvestButton: {
+        backgroundColor: "#333",
+        padding: 12,
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    harvestButtonEnabled: {
+        backgroundColor: "#4CAF50",
+    },
+    harvestButtonDisabled: {
+        backgroundColor: "#ccc",
+    },
+    harvestButtonText: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#fff",
+    },
+    harvestButtonTextEnabled: {
+        color: "#fff",
+    },
+    harvestButtonTextDisabled: {
+        color: "#666",
     },
 });
 
