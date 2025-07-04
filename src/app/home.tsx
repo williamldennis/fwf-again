@@ -12,6 +12,9 @@ import { DateTime } from 'luxon';
 import sunCloudTrans from '../../assets/images/sun-cloud-trans.png';
 import * as Contacts from 'expo-contacts';
 import { parsePhoneNumberFromString, CountryCode } from 'libphonenumber-js';
+import GardenArea from '../components/GardenArea';
+import PlantPicker from '../components/PlantPicker';
+import { Plant } from '../types/garden';
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 
@@ -181,6 +184,34 @@ export default function Home() {
     const cardWidth = (Dimensions.get('window').width - 36) / 2; // 16px margin on each side, 16px between cards
     const [forecast, setForecast] = useState<any[]>([]);
     const [forecastSummary, setForecastSummary] = useState<string>('');
+    const [showPlantPicker, setShowPlantPicker] = useState(false);
+    const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
+    const [mockPlants, setMockPlants] = useState<Plant[]>([ // mock plant list for picker
+        {
+            id: '1',
+            name: 'Sunflower',
+            growth_time_hours: 4,
+            weather_bonus: { sunny: 1.5, cloudy: 0.8, rainy: 0.6 },
+            image_path: 'sunflower',
+            created_at: ''
+        },
+        {
+            id: '2',
+            name: 'Mushroom',
+            growth_time_hours: 2,
+            weather_bonus: { rainy: 2.0, cloudy: 1.2, sunny: 0.4 },
+            image_path: 'mushroom',
+            created_at: ''
+        },
+        {
+            id: '3',
+            name: 'Fern',
+            growth_time_hours: 6,
+            weather_bonus: { cloudy: 1.8, rainy: 1.3, sunny: 0.7 },
+            image_path: 'fern',
+            created_at: ''
+        }
+    ]);
 
     // Logout handler
     const handleLogout = async () => {
@@ -528,6 +559,22 @@ export default function Home() {
     // Before rendering FlatList:
     const friendsData = [...friendsWeather, { type: 'add-friends' }];
 
+    // For now, mock garden data for each friend (empty or sample)
+    const getMockGarden = () => [];
+
+    // Handler for planting
+    const handlePlantPress = (friendId: string) => {
+        setSelectedFriendId(friendId);
+        setShowPlantPicker(true);
+    };
+    const handleSelectPlant = (plantId: string) => {
+        // For now, just close the modal
+        setShowPlantPicker(false);
+    };
+    const handleClosePlantPicker = () => {
+        setShowPlantPicker(false);
+    };
+
     return (
         <>
             <Stack.Screen
@@ -773,6 +820,14 @@ export default function Home() {
                                             </View>
                                         )}
                                     </View>
+                                    {/* GARDEN AREA */}
+                                    <GardenArea
+                                        gardenOwnerId={friend.id}
+                                        plants={getMockGarden()}
+                                        weatherCondition={friend.weather_condition}
+                                        onPlantPress={() => handlePlantPress(friend.id)}
+                                        isGardenFull={false}
+                                    />
                                     {/* Weather and city at bottom */}
                                     <View style={{ alignItems: 'center', marginTop: 'auto', zIndex: 20 }}>
                                         <Text style={{ fontSize: 15, color: '#333', marginBottom: 2 }}>
@@ -869,6 +924,14 @@ export default function Home() {
                     </View>
                 </TouchableOpacity>
             </Modal>
+            {/* PLANT PICKER MODAL */}
+            <PlantPicker
+                visible={showPlantPicker}
+                onClose={handleClosePlantPicker}
+                onSelectPlant={handleSelectPlant}
+                weatherCondition={''}
+                plants={mockPlants}
+            />
         </>
     );
 }
