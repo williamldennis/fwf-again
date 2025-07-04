@@ -48,6 +48,8 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         weatherCondition,
         onPlantPress,
         isGardenFull,
+        onPlantPress: onPlantPressOriginal, // Keep original for empty slots
+        onPlantDetailsPress, // New callback for plant details
     } = props;
 
     // Fill up to 3 slots with either a plant or null (for empty)
@@ -60,7 +62,14 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         if (isGardenFull) {
             Alert.alert("Garden is full", "Check back tomorrow.");
         } else {
-            onPlantPress();
+            onPlantPressOriginal();
+        }
+    };
+
+    // Handler for planted plant tap
+    const handlePlantPress = (plant: any) => {
+        if (onPlantDetailsPress) {
+            onPlantDetailsPress(plant);
         }
     };
 
@@ -80,7 +89,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 borderRadius: 8,
                 height: 60,
                 padding: 0,
-                marginTop: 60,
+                marginTop: 20,
                 marginBottom: 0,
             }}
         >
@@ -105,14 +114,16 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                     );
                 }
 
-                // Show plant at its current stage
+                // Show plant at its current stage (now tappable)
                 const stage = plant.current_stage as GrowthStage;
+                // Handle both joined data structure and flat structure
                 const plantName =
                     plant.plant?.name || plant.plant_name || "Unknown";
 
                 return (
-                    <View
+                    <TouchableOpacity
                         key={plant.id || `plant-${idx}`}
+                        onPress={() => handlePlantPress(plant)}
                         style={{ flex: 1, alignItems: "center" }}
                     >
                         <Image
@@ -123,15 +134,13 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                         <Text
                             style={{
                                 fontSize: 10,
-                                fontWeight: "bold",
                                 color: "#333",
                                 marginTop: 2,
-                                paddingBottom: 10,
                             }}
                         >
                             {plantName}
                         </Text>
-                    </View>
+                    </TouchableOpacity>
                 );
             })}
         </View>

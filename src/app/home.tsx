@@ -26,6 +26,7 @@ import * as Contacts from "expo-contacts";
 import { parsePhoneNumberFromString, CountryCode } from "libphonenumber-js";
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
+import PlantDetailsModal from "../components/PlantDetailsModal";
 import { Plant } from "../types/garden";
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
@@ -199,9 +200,11 @@ export default function Home() {
     const [forecast, setForecast] = useState<any[]>([]);
     const [forecastSummary, setForecastSummary] = useState<string>("");
     const [showPlantPicker, setShowPlantPicker] = useState(false);
+    const [showPlantDetails, setShowPlantDetails] = useState(false);
     const [selectedFriendId, setSelectedFriendId] = useState<string | null>(
         null
     );
+    const [selectedPlant, setSelectedPlant] = useState<any>(null);
     const [availablePlants, setAvailablePlants] = useState<Plant[]>([]);
     const [plantedPlants, setPlantedPlants] = useState<Record<string, any[]>>(
         {}
@@ -795,6 +798,16 @@ export default function Home() {
             setShowPlantPicker(false);
         }
     };
+    const handlePlantDetailsPress = (plant: any) => {
+        setSelectedPlant(plant);
+        setShowPlantDetails(true);
+    };
+
+    const handleClosePlantDetails = () => {
+        setShowPlantDetails(false);
+        setSelectedPlant(null);
+    };
+
     const handleClosePlantPicker = () => {
         setShowPlantPicker(false);
     };
@@ -1162,6 +1175,9 @@ export default function Home() {
                                         onPlantPress={() =>
                                             handlePlantPress(friend.id)
                                         }
+                                        onPlantDetailsPress={
+                                            handlePlantDetailsPress
+                                        }
                                         isGardenFull={
                                             (plantedPlants[friend.id] || [])
                                                 .length >= 3
@@ -1285,6 +1301,13 @@ export default function Home() {
                 onSelectPlant={handleSelectPlant}
                 weatherCondition={""}
                 plants={availablePlants}
+            />
+
+            {/* PLANT DETAILS MODAL */}
+            <PlantDetailsModal
+                visible={showPlantDetails}
+                onClose={handleClosePlantDetails}
+                plant={selectedPlant}
             />
         </>
     );
