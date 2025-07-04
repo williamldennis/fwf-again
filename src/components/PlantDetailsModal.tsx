@@ -13,6 +13,7 @@ import {
 import { DateTime } from "luxon";
 import { supabase } from "../utils/supabase";
 import { GrowthService } from "../services/growthService";
+import { TimeCalculationService } from "../services/timeCalculationService";
 
 interface PlantDetailsModalProps {
     visible: boolean;
@@ -39,53 +40,44 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     const growthTimeHours =
         plant.plant?.growth_time_hours || plant.growth_time_hours || 0;
 
-    // Calculate time since planted
-    const plantedAt = DateTime.fromISO(plant.planted_at);
-    const now = DateTime.now();
-    const timeSincePlanted = now.diff(plantedAt, ["hours", "minutes"]);
+    // Create plant object for service calls
+    const plantObject = plant.plant || {
+        id: plant.plant_id,
+        name: plantName,
+        growth_time_hours: growthTimeHours,
+        weather_bonus: weatherBonus,
+        image_path: plant.image_path || "",
+        created_at: plant.planted_at,
+    };
 
     // Use GrowthService for accurate calculations (includes weather effects)
     const growthCalculation = GrowthService.calculateGrowthStage(
         plant,
-        plant.plant || {
-            id: plant.plant_id,
-            name: plantName,
-            growth_time_hours: growthTimeHours,
-            weather_bonus: weatherBonus,
-            image_path: plant.image_path || "",
-            created_at: plant.planted_at,
-        },
+        plantObject,
         friendWeather
     );
 
-    // Calculate time to maturity using GrowthService logic
-    const weatherBonusMultiplier = GrowthService.getWeatherBonus(
-        plant.plant || {
-            id: plant.plant_id,
-            name: plantName,
-            growth_time_hours: growthTimeHours,
-            weather_bonus: weatherBonus,
-            image_path: plant.image_path || "",
-            created_at: plant.planted_at,
-        },
+    // Use TimeCalculationService for consistent time calculations
+    const timeToMaturity = TimeCalculationService.getTimeToMaturity(
+        plant.planted_at,
+        plantObject,
         friendWeather
     );
 
-    const adjustedHoursElapsed =
-        timeSincePlanted.hours * weatherBonusMultiplier;
-    const timeToMaturity = Math.max(0, growthTimeHours - adjustedHoursElapsed);
+    const formattedTimeToMaturity =
+        TimeCalculationService.getFormattedTimeToMaturity(
+            plant.planted_at,
+            plantObject,
+            friendWeather
+        );
+
+    const formattedTimeSincePlanted =
+        TimeCalculationService.getFormattedTimeSincePlanted(plant.planted_at);
 
     // Check if plant is mature using GrowthService
     const isMature = GrowthService.isPlantMature(
         plant,
-        plant.plant || {
-            id: plant.plant_id,
-            name: plantName,
-            growth_time_hours: growthTimeHours,
-            weather_bonus: weatherBonus,
-            image_path: plant.image_path || "",
-            created_at: plant.planted_at,
-        },
+        plantObject,
         friendWeather
     );
 
@@ -270,7 +262,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     >
                                         {isMature
                                             ? `🌾 Harvest ${plantName}`
-                                            : `${Math.ceil(timeToMaturity)} hours until harvest`}
+                                            : `${formattedTimeToMaturity}`}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -290,7 +282,9 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                             <View style={styles.statRow}>
                                 <Text style={styles.statLabel}>Planted:</Text>
                                 <Text style={styles.statValue}>
-                                    {plantedAt.toFormat("MMM dd, yyyy")}
+                                    {DateTime.fromISO(
+                                        plant.planted_at
+                                    ).toFormat("MMM dd, yyyy")}
                                 </Text>
                             </View>
                             <View style={styles.statRow}>
@@ -298,9 +292,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     Time Since Planted:
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {timeSincePlanted.hours > 24
-                                        ? `${Math.floor(timeSincePlanted.hours / 24)} days`
-                                        : `${Math.floor(timeSincePlanted.hours)} hours`}
+                                    {formattedTimeSincePlanted}
                                 </Text>
                             </View>
                             <View style={styles.statRow}>
@@ -308,9 +300,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     Time to Maturity:
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {timeToMaturity > 0
-                                        ? `${Math.floor(timeToMaturity)} hours`
-                                        : "Ready to harvest!"}
+                                    {formattedTimeToMaturity}
                                 </Text>
                             </View>
                         </View>

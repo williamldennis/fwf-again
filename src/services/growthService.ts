@@ -1,4 +1,5 @@
 import { Plant, PlantedPlant, GrowthCalculation, GrowthStage } from '../types/garden';
+import { TimeCalculationService } from './timeCalculationService';
 
 export class GrowthService {
   /**
@@ -18,14 +19,12 @@ export class GrowthService {
     plant: Plant,
     friendWeather: string
   ): GrowthCalculation {
-    const timeElapsed = Date.now() - new Date(plantedPlant.planted_at).getTime();
-    const weatherBonus = this.getWeatherBonus(plant, friendWeather);
-    
-    // Convert to hours
-    const hoursElapsed = timeElapsed / (1000 * 60 * 60);
-    
-    // Calculate adjusted time with weather bonus
-    const adjustedHours = hoursElapsed * weatherBonus;
+    // Use TimeCalculationService for consistent time calculations
+    const adjustedHours = TimeCalculationService.getAdjustedTimeElapsed(
+      plantedPlant.planted_at,
+      plant,
+      friendWeather
+    );
     
     // Calculate total growth time needed
     const totalGrowthHours = plant.growth_time_hours;
