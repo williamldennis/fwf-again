@@ -50,14 +50,14 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         created_at: plant.planted_at,
     };
 
-    // Use GrowthService for accurate calculations (includes weather effects)
+    // Use GrowthService for all stage calculations (includes weather effects)
     const growthCalculation = GrowthService.calculateGrowthStage(
         plant,
         plantObject,
         friendWeather
     );
 
-    // Use the calculated stage instead of database stage for accurate display
+    // Use the calculated stage for accurate display
     const currentStage = growthCalculation.stage;
 
     // Use TimeCalculationService for consistent time calculations
@@ -277,8 +277,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
     // Get plant image for current stage
     const getPlantImage = (plantName: string, stage: number) => {
-        if (stage === 1)
-            return require("../../assets/images/plants/empty_pot.png");
         if (stage === 2) return require("../../assets/images/plants/dirt.png");
 
         const plantNameLower = plantName.toLowerCase();
@@ -317,7 +315,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
         return (
             plantStageImages[plantNameLower]?.[stage] ||
-            require("../../assets/images/plants/empty_pot.png")
+            require("../../assets/images/plants/dirt.png")
         );
     };
 

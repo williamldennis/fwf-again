@@ -53,8 +53,7 @@ export class GrowthService {
     let stage: GrowthStage = 1;
     let shouldAdvance = false;
     
-    if (progress >= 0) stage = 1; // Empty pot
-    if (progress >= 5) stage = 2; // Dirt (immediate after planting)
+    if (progress >= 0) stage = 2; // Dirt (immediate after planting)
     if (progress >= 20) stage = 3; // Sprout
     if (progress >= 40) stage = 4; // Adolescent
     if (progress >= 70) stage = 5; // Mature
@@ -79,8 +78,8 @@ export class GrowthService {
    */
   private static getStageProgress(stage: GrowthStage): number {
     switch (stage) {
-      case 1: return 0;   // Empty pot
-      case 2: return 5;   // Dirt
+      case 1: return 0;   // Empty pot (not used anymore)
+      case 2: return 0;   // Dirt (immediate after planting)
       case 3: return 20;  // Sprout
       case 4: return 40;  // Adolescent
       case 5: return 70;  // Mature

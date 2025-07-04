@@ -75,10 +75,9 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
     };
 
     const getImageForPlant = (plantName: string, stage: GrowthStage) => {
-        if (stage === 1) return emptyPotImg;
         if (stage === 2) return dirtImg;
         const plantKey = plantName.toLowerCase();
-        return plantStageImages[plantKey]?.[stage] || emptyPotImg;
+        return plantStageImages[plantKey]?.[stage] || dirtImg;
     };
 
     return (
