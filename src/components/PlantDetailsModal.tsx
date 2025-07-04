@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     topSection: {
         alignItems: "center",
         marginBottom: 20,
-        marginTop: 10,
+        marginTop: 40,
     },
     plantTitle: {
         fontSize: 28,
