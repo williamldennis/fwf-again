@@ -22,6 +22,7 @@ interface PlantDetailsModalProps {
     onHarvest?: () => void; // Callback to refresh plants after harvest
     currentUserId?: string; // Current user's ID to check if they can harvest
     friendWeather?: string; // Friend's current weather for accurate growth calculation
+    planterName: string; // Name of the person who planted the plant
 }
 
 export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
@@ -31,6 +32,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     onHarvest,
     currentUserId,
     friendWeather = "clear", // Default to clear if not provided
+    planterName,
 }) => {
     if (!plant) return null;
 
@@ -328,30 +330,36 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         >
             <View style={styles.overlay}>
                 <View style={styles.container}>
+                    {/* Close (X) button in upper right */}
+                    <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={onClose}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                        <Text style={styles.closeButtonText}>✕</Text>
+                    </TouchableOpacity>
                     <ScrollView showsVerticalScrollIndicator={false}>
-                        {/* Header */}
-                        <View style={styles.header}>
-                            <Text style={styles.title}>{plantName}</Text>
-                            <TouchableOpacity
-                                onPress={onClose}
-                                style={styles.closeButton}
-                            >
-                                <Text style={styles.closeButtonText}>✕</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Plant Image */}
-                        <View style={styles.imageContainer}>
-                            <Image
-                                source={getPlantImage(plantName, currentStage)}
-                                style={styles.plantImage}
-                                resizeMode="contain"
-                            />
-                        </View>
-
-                        {/* Harvest Button */}
-                        {canHarvest && (
-                            <View style={styles.section}>
+                        {/* TOP SECTION */}
+                        <View style={styles.topSection}>
+                            {/* 1. Plant Title */}
+                            <Text style={styles.plantTitle}>{plantName}</Text>
+                            {/* 2. Planted X hours ago by {planterName} */}
+                            <Text style={styles.plantedInfo}>
+                                Planted {formattedTimeSincePlanted} ago by{" "}
+                                {planterName}
+                            </Text>
+                            <View style={styles.imageContainer}>
+                                <Image
+                                    source={getPlantImage(
+                                        plantName,
+                                        currentStage
+                                    )}
+                                    style={styles.plantImage}
+                                    resizeMode="contain"
+                                />
+                            </View>
+                            {/* 3. Harvest Button */}
+                            {canHarvest && (
                                 <TouchableOpacity
                                     onPress={handleHarvest}
                                     disabled={!isMature}
@@ -371,12 +379,14 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                         ]}
                                     >
                                         {isMature
-                                            ? `🌾 Harvest ${plantName}`
-                                            : `${formattedTimeToMaturity}`}
+                                            ? "Harvest"
+                                            : `${formattedTimeToMaturity} to Harvest`}
                                     </Text>
                                 </TouchableOpacity>
-                            </View>
-                        )}
+                            )}
+                        </View>
+                        {/* END TOP SECTION */}
+                        {/* Plant Image */}
 
                         {/* Plant Stats */}
                         <View style={styles.section}>
@@ -516,29 +526,65 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         elevation: 5,
     },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "bold",
-        color: "#333",
-    },
     closeButton: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
+        position: "absolute",
+        top: 12,
+        right: 12,
+        zIndex: 10,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: "#f0f0f0",
-        justifyContent: "center",
         alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
     },
     closeButtonText: {
+        fontSize: 22,
+        color: "#666",
+        fontWeight: "bold",
+    },
+    topSection: {
+        alignItems: "center",
+        marginBottom: 20,
+        marginTop: 10,
+    },
+    plantTitle: {
+        fontSize: 28,
+        fontWeight: "bold",
+        color: "#222",
+        marginBottom: 4,
+        textAlign: "center",
+    },
+    plantedInfo: {
+        fontSize: 14,
+        color: "#666",
+        marginBottom: 16,
+        textAlign: "center",
+    },
+    harvestButton: {
+        width: "90%",
+        padding: 14,
+        borderRadius: 8,
+        alignItems: "center",
+        marginTop: 8,
+    },
+    harvestButtonEnabled: {
+        backgroundColor: "#4CAF50",
+    },
+    harvestButtonDisabled: {
+        backgroundColor: "#ccc",
+    },
+    harvestButtonText: {
         fontSize: 18,
+        fontWeight: "bold",
+    },
+    harvestButtonTextEnabled: {
+        color: "#fff",
+    },
+    harvestButtonTextDisabled: {
         color: "#666",
     },
     imageContainer: {
@@ -596,29 +642,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "bold",
         color: "#333",
-    },
-    harvestButton: {
-        backgroundColor: "#333",
-        padding: 12,
-        borderRadius: 8,
-        alignItems: "center",
-    },
-    harvestButtonEnabled: {
-        backgroundColor: "#4CAF50",
-    },
-    harvestButtonDisabled: {
-        backgroundColor: "#ccc",
-    },
-    harvestButtonText: {
-        fontSize: 16,
-        fontWeight: "bold",
-        color: "#fff",
-    },
-    harvestButtonTextEnabled: {
-        color: "#fff",
-    },
-    harvestButtonTextDisabled: {
-        color: "#666",
     },
 });
 

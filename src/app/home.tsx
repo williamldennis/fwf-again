@@ -211,6 +211,8 @@ export default function Home() {
         {}
     );
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [selectedPlanterName, setSelectedPlanterName] =
+        useState<string>("Unknown");
 
     // Logout handler
     const handleLogout = async () => {
@@ -918,7 +920,22 @@ export default function Home() {
             setShowPlantPicker(false);
         }
     };
-    const handlePlantDetailsPress = (plant: any, friendWeather: string) => {
+    const handlePlantDetailsPress = async (
+        plant: any,
+        friendWeather: string
+    ) => {
+        let planterName = "Unknown";
+        if (plant.planter_id) {
+            const { data: profile, error } = await supabase
+                .from("profiles")
+                .select("name")
+                .eq("id", plant.planter_id)
+                .single();
+            if (profile && profile.name) {
+                planterName = profile.name;
+            }
+        }
+        setSelectedPlanterName(planterName);
         setSelectedPlant({ ...plant, friendWeather });
         setShowPlantDetails(true);
     };
@@ -1479,6 +1496,7 @@ export default function Home() {
                 onHarvest={handlePlantHarvested}
                 currentUserId={currentUserId || undefined}
                 friendWeather={selectedPlant?.friendWeather}
+                planterName={selectedPlanterName}
             />
         </>
     );
