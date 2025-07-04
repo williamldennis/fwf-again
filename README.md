@@ -1,19 +1,27 @@
 flow
 
 sign up
-phone number add 
+phone number add
 contacts approve
 location approve
 selfies
 home
 
 TO DO
+[] OTP for phone number to verify number
+[X] styling for onboarding
+[] styling for selfies
+[] some sort of interaction between users
+[] allow dragging of selfie animations
+[] style camera permissions screen
+[] remove 'retake' from selfies flow
+[] make the share sheet default to messages (if possible)
+[] improve rain selfie animation
+[] improve snow selfie animation
+[] loading spinner on sign in
 [X] selfies
-[] styling for onboarding
-[] improve selfies so they are smaller / front facing / filters / have text overlay
-[] display selfies 
-
-
+[X] improve selfies so they are smaller / front facing / filters / have text overlay
+[X] display selfies
 
 # Welcome to your Expo app 👋
 
@@ -23,15 +31,15 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
 1. Install dependencies
 
-   ```bash
-   npm install
-   ```
+    ```bash
+    npm install
+    ```
 
 2. Start the app
 
-   ```bash
-   npx expo start
-   ```
+    ```bash
+    npx expo start
+    ```
 
 In the output, you'll find options to open the app in a
 
