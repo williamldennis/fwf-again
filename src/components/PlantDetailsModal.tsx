@@ -87,18 +87,67 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     // Check if current user can harvest (anyone can harvest now)
     const canHarvest = currentUserId && !plant.harvested_at;
 
+    // Debug logging for harvest state
+    console.log("PlantDetailsModal harvest state:", {
+        plantName,
+        currentStage,
+        isMature,
+        canHarvest,
+        harvested_at: plant.harvested_at,
+        currentUserId,
+        plantId: plant.id,
+        plantData: {
+            id: plant.id,
+            garden_owner_id: plant.garden_owner_id,
+            planter_id: plant.planter_id,
+            plant_id: plant.plant_id,
+            planted_at: plant.planted_at,
+            current_stage: plant.current_stage,
+            is_mature: plant.is_mature,
+            harvested_at: plant.harvested_at,
+            harvester_id: plant.harvester_id,
+        },
+        growthCalculation: {
+            stage: growthCalculation.stage,
+            progress: growthCalculation.progress,
+        },
+    });
+
     // Handle harvest
     const handleHarvest = async () => {
-        if (!canHarvest || !isMature) return;
+        console.log("Harvest attempt:", {
+            canHarvest,
+            isMature,
+            plantId: plant.id,
+            currentUserId,
+            plantName,
+        });
+
+        if (!canHarvest || !isMature) {
+            console.log("Harvest blocked:", { canHarvest, isMature });
+            return;
+        }
 
         try {
-            const { error } = await supabase
+            console.log("Updating database for harvest...");
+            console.log("Plant ID to update:", plant.id);
+            console.log("Current user ID:", currentUserId);
+            console.log("Current plant data:", {
+                id: plant.id,
+                harvested_at: plant.harvested_at,
+                harvester_id: plant.harvester_id,
+            });
+
+            const { data, error } = await supabase
                 .from("planted_plants")
                 .update({
                     harvested_at: new Date().toISOString(),
                     harvester_id: currentUserId,
                 })
-                .eq("id", plant.id);
+                .eq("id", plant.id)
+                .select("*");
+
+            console.log("Supabase response:", { data, error });
 
             if (error) {
                 console.error("Error harvesting plant:", error);
@@ -109,10 +158,73 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 return;
             }
 
+            console.log("Harvest successful:", data);
+
+            // Since Supabase update with select is returning empty array,
+            // let's verify the update actually worked by fetching the updated record
+            if (!data || data.length === 0) {
+                console.log(
+                    "Update returned empty array, checking if update actually worked..."
+                );
+
+                // Fetch the updated plant to see if the harvest was successful
+                const { data: fetchData, error: fetchError } = await supabase
+                    .from("planted_plants")
+                    .select("*")
+                    .eq("id", plant.id)
+                    .single();
+
+                console.log("Fetch after update result:", {
+                    fetchData,
+                    fetchError,
+                });
+
+                if (fetchError) {
+                    console.error("Error fetching updated plant:", fetchError);
+                    Alert.alert(
+                        "Error",
+                        "Failed to verify harvest. Please try again."
+                    );
+                    return;
+                }
+
+                // Check if the harvest actually worked
+                if (fetchData && fetchData.harvested_at) {
+                    console.log(
+                        "Harvest was successful! Updated plant:",
+                        fetchData
+                    );
+
+                    Alert.alert("Harvested!", `You harvested ${plantName}!`);
+
+                    // Call the callback to refresh plants
+                    if (onHarvest) {
+                        console.log("Calling onHarvest callback...");
+                        onHarvest();
+                    }
+
+                    onClose();
+                    return;
+                } else {
+                    console.error(
+                        "Update did not work - harvested_at is still null"
+                    );
+                    Alert.alert(
+                        "Error",
+                        "Plant was not found or could not be updated."
+                    );
+                    return;
+                }
+            }
+
+            const updatedPlant = data[0];
+            console.log("Updated plant data:", updatedPlant);
+
             Alert.alert("Harvested!", `You harvested ${plantName}!`);
 
             // Call the callback to refresh plants
             if (onHarvest) {
+                console.log("Calling onHarvest callback...");
                 onHarvest();
             }
 

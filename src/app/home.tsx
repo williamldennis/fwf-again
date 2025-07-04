@@ -929,13 +929,20 @@ export default function Home() {
     };
 
     const handlePlantHarvested = async () => {
+        console.log("handlePlantHarvested called - refreshing plant data...");
+
         // Refresh all planted plants data after harvest
         const plantsData: Record<string, any[]> = {};
         for (const friend of friendsWeather) {
             const plants = await fetchPlantedPlants(friend.id);
             plantsData[friend.id] = plants;
+            console.log(
+                `Refreshed plants for ${friend.contact_name}:`,
+                plants.length
+            );
         }
         setPlantedPlants(plantsData);
+        console.log("Plant data refresh completed");
     };
 
     const handleRefreshGrowth = async () => {
