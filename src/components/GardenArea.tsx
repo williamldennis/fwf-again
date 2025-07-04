@@ -49,6 +49,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         onPlantPress,
         isGardenFull,
     } = props;
+
     // Fill up to 3 slots with either a plant or null (for empty)
     const slots = Array(SLOT_COUNT)
         .fill(null)
@@ -88,7 +89,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                     // Empty slot
                     return (
                         <TouchableOpacity
-                            key={idx}
+                            key={`empty-${idx}`}
                             onPress={handleEmptySlotPress}
                             style={{
                                 flex: 1,
@@ -103,26 +104,31 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                         </TouchableOpacity>
                     );
                 }
+
                 // Show plant at its current stage
                 const stage = plant.current_stage as GrowthStage;
+                const plantName =
+                    plant.plant?.name || plant.plant_name || "Unknown";
+
                 return (
                     <View
-                        key={plant.planted_plant_id}
+                        key={plant.id || `plant-${idx}`}
                         style={{ flex: 1, alignItems: "center" }}
                     >
                         <Image
-                            source={getImageForPlant(plant.plant_name, stage)}
+                            source={getImageForPlant(plantName, stage)}
                             style={{ width: 90, height: 90 }}
                             resizeMode="contain"
                         />
                         <Text
                             style={{
                                 fontSize: 10,
+                                fontWeight: "bold",
                                 color: "#333",
                                 marginTop: 2,
                             }}
                         >
-                            {plant.plant_name}
+                            {plantName}
                         </Text>
                     </View>
                 );

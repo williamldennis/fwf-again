@@ -66,7 +66,7 @@ export interface PlantPickerProps {
 // Garden area props
 export interface GardenAreaProps {
   gardenOwnerId: string;
-  plants: GardenData[];
+  plants: any[]; // Using any[] to handle the joined data structure from Supabase
   weatherCondition: string;
   onPlantPress: () => void;
   isGardenFull: boolean;

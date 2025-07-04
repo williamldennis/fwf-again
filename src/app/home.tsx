@@ -202,33 +202,10 @@ export default function Home() {
     const [selectedFriendId, setSelectedFriendId] = useState<string | null>(
         null
     );
-    const [mockPlants, setMockPlants] = useState<Plant[]>([
-        // mock plant list for picker
-        {
-            id: "1",
-            name: "Sunflower",
-            growth_time_hours: 4,
-            weather_bonus: { sunny: 1.5, cloudy: 0.8, rainy: 0.6 },
-            image_path: "sunflower",
-            created_at: "",
-        },
-        {
-            id: "2",
-            name: "Mushroom",
-            growth_time_hours: 2,
-            weather_bonus: { rainy: 2.0, cloudy: 1.2, sunny: 0.4 },
-            image_path: "mushroom",
-            created_at: "",
-        },
-        {
-            id: "3",
-            name: "Fern",
-            growth_time_hours: 6,
-            weather_bonus: { cloudy: 1.8, rainy: 1.3, sunny: 0.7 },
-            image_path: "fern",
-            created_at: "",
-        },
-    ]);
+    const [availablePlants, setAvailablePlants] = useState<Plant[]>([]);
+    const [plantedPlants, setPlantedPlants] = useState<Record<string, any[]>>(
+        {}
+    );
 
     // Logout handler
     const handleLogout = async () => {
@@ -385,6 +362,53 @@ export default function Home() {
         } finally {
             setRefreshingContacts(false);
             setShowMenu(false);
+        }
+    };
+
+    const fetchPlantedPlants = async (friendId: string) => {
+        try {
+            const { data: plants, error } = await supabase
+                .from("planted_plants")
+                .select(
+                    `
+                    *,
+                    plant:plants(*)
+                `
+                )
+                .eq("garden_owner_id", friendId)
+                .eq("is_mature", false)
+                .order("planted_at", { ascending: false });
+
+            if (error) {
+                console.error("Error fetching planted plants:", error);
+                return [];
+            }
+
+            return plants || [];
+        } catch (error) {
+            console.error("Error fetching planted plants:", error);
+            return [];
+        }
+    };
+
+    const fetchAvailablePlants = async () => {
+        try {
+            const { data: plants, error } = await supabase
+                .from("plants")
+                .select("*")
+                .order("name");
+
+            if (error) {
+                console.error("Error fetching plants:", error);
+                return;
+            }
+
+            if (plants) {
+                setAvailablePlants(plants);
+                console.log("Fetched plants:", plants);
+            }
+        } catch (error) {
+            console.error("Error fetching plants:", error);
         }
     };
 
@@ -566,6 +590,14 @@ export default function Home() {
                 })
             );
             setFriendsWeather(friendsWithNamesAndCities);
+
+            // Fetch planted plants for each friend
+            const plantsData: Record<string, any[]> = {};
+            for (const friend of friendsWithNamesAndCities) {
+                const plants = await fetchPlantedPlants(friend.id);
+                plantsData[friend.id] = plants;
+            }
+            setPlantedPlants(plantsData);
         } catch (err) {
             console.error("Weather fetch error:", err);
             setError(
@@ -577,6 +609,7 @@ export default function Home() {
     };
 
     useEffect(() => {
+        fetchAvailablePlants();
         fetchProfileAndWeather();
     }, []);
 
@@ -679,18 +712,88 @@ export default function Home() {
     // Before rendering FlatList:
     const friendsData = [...friendsWeather, { type: "add-friends" }];
 
-    // For now, mock garden data for each friend (empty or sample)
-    const getMockGarden = () => [];
-
     // Handler for planting
     const handlePlantPress = (friendId: string) => {
         console.log("handlePlantPress called", friendId);
         setSelectedFriendId(friendId);
         setShowPlantPicker(true);
     };
-    const handleSelectPlant = (plantId: string) => {
-        // For now, just close the modal
-        setShowPlantPicker(false);
+    const handleSelectPlant = async (plantId: string) => {
+        if (!selectedFriendId) {
+            console.error("No friend selected for planting");
+            setShowPlantPicker(false);
+            return;
+        }
+
+        try {
+            // Get current user
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+            if (!user) {
+                console.error("No authenticated user found");
+                setShowPlantPicker(false);
+                return;
+            }
+
+            // Check if garden is full (max 3 plants)
+            const { data: plantCount, error: countError } = await supabase
+                .from("planted_plants")
+                .select("id", { count: "exact" })
+                .eq("garden_owner_id", selectedFriendId)
+                .eq("is_mature", false);
+
+            if (countError) {
+                console.error("Error checking garden capacity:", countError);
+                Alert.alert("Error", "Could not check garden capacity");
+                setShowPlantPicker(false);
+                return;
+            }
+
+            if (plantCount && plantCount.length >= 3) {
+                Alert.alert("Garden Full", "This garden already has 3 plants");
+                setShowPlantPicker(false);
+                return;
+            }
+
+            // Plant the seed
+            const { data: plantedPlant, error: plantError } = await supabase
+                .from("planted_plants")
+                .insert({
+                    garden_owner_id: selectedFriendId,
+                    planter_id: user.id,
+                    plant_id: plantId,
+                    current_stage: 2, // Start at stage 2 (dirt) immediately after planting
+                    is_mature: false,
+                })
+                .select()
+                .single();
+
+            if (plantError) {
+                console.error("Error planting seed:", plantError);
+                Alert.alert("Error", "Failed to plant seed");
+                setShowPlantPicker(false);
+                return;
+            }
+
+            console.log("Successfully planted:", plantedPlant);
+            Alert.alert("Success", "Plant planted successfully!");
+
+            // Refresh planted plants for this friend
+            const updatedPlants = await fetchPlantedPlants(selectedFriendId);
+            setPlantedPlants((prev) => ({
+                ...prev,
+                [selectedFriendId]: updatedPlants,
+            }));
+
+            // Close the modal
+            setShowPlantPicker(false);
+            setSelectedFriendId(null);
+        } catch (error) {
+            console.error("Error in handleSelectPlant:", error);
+            Alert.alert("Error", "An unexpected error occurred");
+            setShowPlantPicker(false);
+        }
     };
     const handleClosePlantPicker = () => {
         setShowPlantPicker(false);
@@ -1059,14 +1162,17 @@ export default function Home() {
                                     {/* Plants */}
                                     <GardenArea
                                         gardenOwnerId={friend.id}
-                                        plants={getMockGarden()}
+                                        plants={plantedPlants[friend.id] || []}
                                         weatherCondition={
                                             friend.weather_condition
                                         }
                                         onPlantPress={() =>
                                             handlePlantPress(friend.id)
                                         }
-                                        isGardenFull={false}
+                                        isGardenFull={
+                                            (plantedPlants[friend.id] || [])
+                                                .length >= 3
+                                        }
                                     />
                                 </View>
                             </View>
@@ -1185,7 +1291,7 @@ export default function Home() {
                 onClose={handleClosePlantPicker}
                 onSelectPlant={handleSelectPlant}
                 weatherCondition={""}
-                plants={mockPlants}
+                plants={availablePlants}
             />
         </>
     );
