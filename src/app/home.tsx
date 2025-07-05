@@ -1245,7 +1245,7 @@ export default function Home() {
                                                 color: "#007AFF",
                                             }}
                                         >
-                                            {userPoints}
+                                            {userPoints}pts
                                         </Text>
                                         <View
                                             style={{
@@ -1568,7 +1568,7 @@ export default function Home() {
                                         color: "#007AFF",
                                     }}
                                 >
-                                    {friend.points || 0}
+                                    {friend.points || 0}pts
                                 </Text>
                                 {/* Inner card */}
                                 <View
