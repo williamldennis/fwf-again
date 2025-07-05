@@ -1171,6 +1171,7 @@ export default function Home() {
                         paddingBottom: 16,
                     }}
                     showsVerticalScrollIndicator={false}
+                    stickyHeaderIndices={[0]}
                     renderItem={({ item, index }) => {
                         // User card as first item
                         if (item.type === "user-card") {
@@ -1180,6 +1181,7 @@ export default function Home() {
                                         alignItems: "center",
                                         marginTop: 16,
                                         marginBottom: 8,
+                                        zIndex: 1,
                                     }}
                                 >
                                     <View
@@ -1448,6 +1450,7 @@ export default function Home() {
                                         overflow: "visible",
                                         height: 240, // Match the height of friend cards
                                         pointerEvents: "auto",
+                                        zIndex: 100,
                                     }}
                                 >
                                     <Image
@@ -1509,6 +1512,7 @@ export default function Home() {
                                     borderWidth: 0.5,
                                     borderColor: "#DBDBDB",
                                     pointerEvents: "auto",
+                                    zIndex: 100,
                                 }}
                             >
                                 {/* Name at top */}
