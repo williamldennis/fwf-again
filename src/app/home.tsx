@@ -23,6 +23,7 @@ import tzlookup from "tz-lookup";
 import { DateTime } from "luxon";
 import sunCloudTrans from "../../assets/images/sun-cloud-trans.png";
 import * as Contacts from "expo-contacts";
+import * as Location from "expo-location";
 import { parsePhoneNumberFromString, CountryCode } from "libphonenumber-js";
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
@@ -587,34 +588,91 @@ export default function Home() {
                 setLoading(false);
                 return;
             }
-            // Get profile (add selfie_urls to select)
+
+            // Get current device location and update profile
+            let updatedLatitude: number | null = null;
+            let updatedLongitude: number | null = null;
+
+            try {
+                // Check if we have location permission
+                const { status } =
+                    await Location.getForegroundPermissionsAsync();
+                if (status === "granted") {
+                    // Get current location
+                    const location = await Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.Balanced,
+                        timeInterval: 10000,
+                    });
+
+                    updatedLatitude = location.coords.latitude;
+                    updatedLongitude = location.coords.longitude;
+
+                    console.log(
+                        "Got current location:",
+                        updatedLatitude,
+                        updatedLongitude
+                    );
+
+                    // Update the profile with new coordinates
+                    const { error: updateError } = await supabase
+                        .from("profiles")
+                        .update({
+                            latitude: updatedLatitude,
+                            longitude: updatedLongitude,
+                        })
+                        .eq("id", user.id);
+
+                    if (updateError) {
+                        console.warn("Could not update location:", updateError);
+                    } else {
+                        console.log("Successfully updated user location");
+                    }
+                } else {
+                    console.log(
+                        "Location permission not granted, using stored coordinates"
+                    );
+                }
+            } catch (locationError) {
+                console.warn("Could not get current location:", locationError);
+            }
+
+            // Get profile (use updated coordinates if available, otherwise use stored)
             const { data: profile, error: profileError } = await supabase
                 .from("profiles")
                 .select("latitude,longitude,selfie_urls")
                 .eq("id", user.id)
                 .single();
+
             if (profileError) {
                 console.error("Profile error:", profileError);
                 setError(`Profile error: ${profileError.message}`);
                 setLoading(false);
                 return;
             }
-            if (!profile?.latitude || !profile?.longitude) {
+
+            // Use updated coordinates if we got them, otherwise use stored coordinates
+            const latitude = updatedLatitude ?? profile?.latitude;
+            const longitude = updatedLongitude ?? profile?.longitude;
+
+            if (!latitude || !longitude) {
                 setError("Location not found.");
                 setLoading(false);
                 return;
             }
+
             setSelfieUrls(profile.selfie_urls || null);
+
             // Get user's timezone and local hour
             let localHour = 12;
             try {
-                const timezone = tzlookup(profile.latitude, profile.longitude);
+                const timezone = tzlookup(latitude, longitude);
                 const localTime = DateTime.now().setZone(timezone);
                 localHour = localTime.hour;
             } catch (e) {
                 console.warn("Could not determine timezone from lat/lon", e);
             }
             setBgColor(getBackgroundColor(localHour));
+
             // Check if OpenWeather API key is available
             if (!OPENWEATHER_API_KEY) {
                 console.error("OpenWeather API key is missing");
@@ -622,17 +680,19 @@ export default function Home() {
                 setLoading(false);
                 return;
             }
-            // Fetch weather
-            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${profile.latitude}&lon=${profile.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
+
+            // Fetch weather using the coordinates (updated or stored)
+            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
             const response = await fetch(url);
             const data = await response.json();
             if (data.cod && data.cod !== 200) {
                 throw new Error(`Weather API error: ${data.message}`);
             }
             setWeather(data);
-            // Fetch 3-hourly forecast
+
+            // Fetch 3-hourly forecast using the same coordinates
             try {
-                const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${profile.latitude}&lon=${profile.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
+                const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
                 const forecastRes = await fetch(forecastUrl);
                 const forecastData = await forecastRes.json();
                 if (forecastData.list && Array.isArray(forecastData.list)) {
@@ -652,6 +712,7 @@ export default function Home() {
             } catch (e) {
                 console.warn("Could not fetch forecast", e);
             }
+
             // Update user's weather in Supabase
             await supabase
                 .from("profiles")

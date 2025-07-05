@@ -8,17 +8,30 @@ selfies
 home
 
 TO DO
+
+[X] style plant details modal  
+[] own garden card (you can't harvest your own -- it incentivizes needing friends to earn points)
+[] add points
+[] android
+[] loading spinner on sign in / improve home page loading
+[] trim images
+[] plant your own plants
+
+POLISH
+[] video playback quality
+[] menu styling
 [] OTP for phone number to verify number
 [X] styling for onboarding
-[] styling for selfies
-[] some sort of interaction between users
+[X] styling for selfies
+[X] some sort of interaction between users
 [] allow dragging of selfie animations
 [] style camera permissions screen
 [] remove 'retake' from selfies flow
 [] make the share sheet default to messages (if possible)
 [] improve rain selfie animation
 [] improve snow selfie animation
-[] loading spinner on sign in
+[] naming: garden party, flower thief, picnic, pickett, nickit picnic,
+
 [X] selfies
 [X] improve selfies so they are smaller / front facing / filters / have text overlay
 [X] display selfies
