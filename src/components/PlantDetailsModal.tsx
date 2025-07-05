@@ -429,7 +429,43 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                             )}
                         </View>
                         {/* END TOP SECTION */}
-
+                        {/* CURRENT WEATHER EFFECT SECTION */}
+                        <View style={styles.weatherEffectSection}>
+                            <Text style={styles.weatherEffectTitle}>
+                                Weather Growth Speed
+                            </Text>
+                            <View style={styles.weatherEffectBox}>
+                                {/* Left: Circle with percent */}
+                                <View
+                                    style={[
+                                        styles.weatherEffectCircle,
+                                        weatherEffectPercent > 100
+                                            ? styles.weatherEffectCircleUp
+                                            : weatherEffectPercent < 100
+                                              ? styles.weatherEffectCircleDown
+                                              : styles.weatherEffectCircleNeutral,
+                                    ]}
+                                >
+                                    <Text
+                                        style={styles.weatherEffectCircleText}
+                                    >
+                                        {weatherEffectPercent}%
+                                    </Text>
+                                </View>
+                                {/* Right: Sentence */}
+                                <Text style={styles.weatherEffectCopy}>
+                                    Current {weatherLabel} weather{" "}
+                                    {weatherEffectPercent > 100
+                                        ? "speeds up"
+                                        : weatherEffectPercent < 100
+                                          ? "slows down"
+                                          : "does not affect"}{" "}
+                                    this plant's growth by{" "}
+                                    {weatherEffectPercent}%
+                                </Text>
+                            </View>
+                        </View>
+                        {/* END CURRENT WEATHER EFFECT SECTION */}
                         {/* GROWTH PROGRESS SECTION */}
                         <View style={styles.growthSection}>
                             <Text style={styles.growthTitle}>
@@ -500,44 +536,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                         </View>
                         {/* END GROWTH PROGRESS SECTION */}
 
-                        {/* CURRENT WEATHER EFFECT SECTION */}
-                        <View style={styles.weatherEffectSection}>
-                            <Text style={styles.weatherEffectTitle}>
-                                Current Weather Effect
-                            </Text>
-                            <View style={styles.weatherEffectBox}>
-                                {/* Left: Circle with percent */}
-                                <View
-                                    style={[
-                                        styles.weatherEffectCircle,
-                                        weatherEffectPercent > 100
-                                            ? styles.weatherEffectCircleUp
-                                            : weatherEffectPercent < 100
-                                              ? styles.weatherEffectCircleDown
-                                              : styles.weatherEffectCircleNeutral,
-                                    ]}
-                                >
-                                    <Text
-                                        style={styles.weatherEffectCircleText}
-                                    >
-                                        {weatherEffectPercent}%
-                                    </Text>
-                                </View>
-                                {/* Right: Sentence */}
-                                <Text style={styles.weatherEffectCopy}>
-                                    Current {weatherLabel} weather{" "}
-                                    {weatherEffectPercent > 100
-                                        ? "speeds up"
-                                        : weatherEffectPercent < 100
-                                          ? "slows down"
-                                          : "does not affect"}{" "}
-                                    this plant's growth by{" "}
-                                    {weatherEffectPercent}%
-                                </Text>
-                            </View>
-                        </View>
-                        {/* END CURRENT WEATHER EFFECT SECTION */}
-
                         {/* PLANT INFO SECTION */}
                         <Text style={styles.plantInfoTitle}>Plant Info</Text>
                         <View style={styles.plantInfoSection}>
@@ -561,7 +559,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                             </View>
                             <View style={styles.plantInfoDivider} />
                             <Text style={styles.plantInfoWeatherTitle}>
-                                Weather Effects
+                                Weather Growth Speed
                             </Text>
                             <Text style={styles.plantInfoWeatherDesc}>
                                 The {plantName.toLowerCase()}{" "}
