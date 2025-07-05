@@ -73,6 +73,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
     // Use the calculated stage for accurate display
     const currentStage = growthCalculation.stage;
+    const progress = growthCalculation.progress;
 
     // Use TimeCalculationService for consistent time calculations
     const timeToMaturity = TimeCalculationService.getTimeToMaturity(
@@ -97,6 +98,9 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         plantObject,
         friendWeather
     );
+
+    // For display: only show mature image and 'Ready to Harvest' step if isMature
+    const displayStage = isMature ? 5 : Math.min(currentStage, 4);
 
     // Check if current user can harvest (anyone can harvest now)
     const canHarvest = currentUserId && !plant.harvested_at;
@@ -395,7 +399,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                 <Image
                                     source={getPlantImage(
                                         plantName,
-                                        currentStage
+                                        displayStage
                                     )}
                                     style={styles.plantImage}
                                     resizeMode="contain"
@@ -469,7 +473,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                         {/* GROWTH PROGRESS SECTION */}
                         <View style={styles.growthSection}>
                             <Text style={styles.growthTitle}>
-                                Growth Progress: {growthCalculation.progress}%
+                                Growth Progress: {progress}%
                             </Text>
                             <View style={styles.stepperBox}>
                                 {[
@@ -494,8 +498,17 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                         label: "Ready to Harvest",
                                     },
                                 ].map((step, idx) => {
-                                    const isComplete = currentStage > step.key;
-                                    const isCurrent = currentStage === step.key;
+                                    let isComplete = false;
+                                    let isCurrent = false;
+                                    if (step.key === 5) {
+                                        isComplete = isMature;
+                                        isCurrent = isMature;
+                                    } else {
+                                        isComplete = displayStage > step.key;
+                                        isCurrent =
+                                            displayStage === step.key &&
+                                            !isMature;
+                                    }
                                     return (
                                         <View
                                             key={step.key}
