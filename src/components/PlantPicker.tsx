@@ -86,7 +86,11 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
                     <View style={styles.container}>
                         <Text style={styles.title}>Choose a Plant</Text>
                         <FlatList
-                            data={plants}
+                            data={plants.sort(
+                                (a, b) =>
+                                    (a.harvest_points || 10) -
+                                    (b.harvest_points || 10)
+                            )}
                             keyExtractor={(item) => item.id}
                             renderItem={({ item }) => (
                                 <TouchableOpacity
@@ -105,9 +109,20 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
                                         transition={200}
                                     />
                                     <View style={{ flex: 1, marginLeft: 12 }}>
-                                        <Text style={styles.plantName}>
-                                            {item.name}
-                                        </Text>
+                                        <View
+                                            style={{
+                                                flexDirection: "row",
+                                                alignItems: "center",
+                                                justifyContent: "space-between",
+                                            }}
+                                        >
+                                            <Text style={styles.plantName}>
+                                                {item.name}
+                                            </Text>
+                                            <Text style={styles.pointsText}>
+                                                +{item.harvest_points || 10} pts
+                                            </Text>
+                                        </View>
                                         <Text style={styles.plantDesc}>
                                             {GrowthService.getWeatherPreferenceDescription(
                                                 item
@@ -177,6 +192,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "bold",
         color: "#222",
+    },
+    pointsText: {
+        fontSize: 14,
+        fontWeight: "bold",
+        color: "#007AFF",
     },
     plantDesc: {
         fontSize: 13,
