@@ -213,6 +213,52 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                         fetchData
                     );
 
+                    // Award points for harvesting
+                    try {
+                        const plantPoints = plant.plant?.harvest_points || 10; // Default to 10 if not found
+                        console.log(
+                            `Awarding ${plantPoints} points for harvesting ${plantName}`
+                        );
+
+                        // Get current user's profile to update points
+                        const { data: profileData, error: profileError } =
+                            await supabase
+                                .from("profiles")
+                                .select("points")
+                                .eq("id", currentUserId)
+                                .single();
+
+                        if (profileError) {
+                            console.error(
+                                "Error fetching user profile:",
+                                profileError
+                            );
+                        } else {
+                            const currentPoints = profileData?.points || 0;
+                            const newPoints = currentPoints + plantPoints;
+
+                            // Update user's points
+                            const { error: updateError } = await supabase
+                                .from("profiles")
+                                .update({ points: newPoints })
+                                .eq("id", currentUserId);
+
+                            if (updateError) {
+                                console.error(
+                                    "Error updating points:",
+                                    updateError
+                                );
+                            } else {
+                                console.log(
+                                    `Points updated: ${currentPoints} + ${plantPoints} = ${newPoints}`
+                                );
+                            }
+                        }
+                    } catch (pointsError) {
+                        console.error("Error awarding points:", pointsError);
+                        // Don't block the harvest if points fail
+                    }
+
                     Alert.alert("Harvested!", `You harvested ${plantName}!`);
 
                     // Call the callback to refresh plants
@@ -237,6 +283,46 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
             const updatedPlant = data[0];
             console.log("Updated plant data:", updatedPlant);
+
+            // Award points for harvesting
+            try {
+                const plantPoints = plant.plant?.harvest_points || 10; // Default to 10 if not found
+                console.log(
+                    `Awarding ${plantPoints} points for harvesting ${plantName}`
+                );
+
+                // Get current user's profile to update points
+                const { data: profileData, error: profileError } =
+                    await supabase
+                        .from("profiles")
+                        .select("points")
+                        .eq("id", currentUserId)
+                        .single();
+
+                if (profileError) {
+                    console.error("Error fetching user profile:", profileError);
+                } else {
+                    const currentPoints = profileData?.points || 0;
+                    const newPoints = currentPoints + plantPoints;
+
+                    // Update user's points
+                    const { error: updateError } = await supabase
+                        .from("profiles")
+                        .update({ points: newPoints })
+                        .eq("id", currentUserId);
+
+                    if (updateError) {
+                        console.error("Error updating points:", updateError);
+                    } else {
+                        console.log(
+                            `Points updated: ${currentPoints} + ${plantPoints} = ${newPoints}`
+                        );
+                    }
+                }
+            } catch (pointsError) {
+                console.error("Error awarding points:", pointsError);
+                // Don't block the harvest if points fail
+            }
 
             Alert.alert("Harvested!", `You harvested ${plantName}!`);
 

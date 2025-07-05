@@ -10,6 +10,7 @@ export interface Plant {
     rainy: number;
   };
   image_path: string;
+  harvest_points: number;
   created_at: string;
 }
 
@@ -92,4 +93,20 @@ export interface PlantImageMap {
   [plantName: string]: {
     [stage: number]: any; // require() result
   };
+}
+
+// Profile interface for user data
+export interface Profile {
+  id: string;
+  email?: string;
+  full_name?: string;
+  phone_number?: string;
+  latitude?: number;
+  longitude?: number;
+  weather_condition?: string;
+  contacts_approved?: boolean;
+  contacts_count?: number;
+  points: number;
+  created_at?: string;
+  updated_at?: string;
 } 
