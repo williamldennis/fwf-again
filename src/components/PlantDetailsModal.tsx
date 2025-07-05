@@ -518,6 +518,10 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     </Text>
                                 </TouchableOpacity>
                             )}
+                            {/* Points value - always visible */}
+                            <Text style={styles.harvestPointsText}>
+                                +{plant.plant?.harvest_points || 10} pts
+                            </Text>
                         </View>
                         {/* END TOP SECTION */}
                         {/* CURRENT WEATHER EFFECT SECTION */}
@@ -656,6 +660,10 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                         Average Grow Time: {growthTimeHours}{" "}
                                         hours
                                     </Text>
+                                    <Text style={styles.plantInfoPoints}>
+                                        Harvest Points: +
+                                        {plant.plant?.harvest_points || 10} pts
+                                    </Text>
                                 </View>
                             </View>
                             <View style={styles.plantInfoDivider} />
@@ -783,6 +791,13 @@ const styles = StyleSheet.create({
     },
     harvestButtonTextDisabled: {
         color: "#666",
+    },
+    harvestPointsText: {
+        fontSize: 14,
+        color: "#007AFF",
+        textAlign: "center",
+        marginTop: 8,
+        fontWeight: "bold",
     },
     imageContainer: {
         alignItems: "center",
@@ -945,6 +960,13 @@ const styles = StyleSheet.create({
         color: "#444",
         textAlign: "left",
         marginTop: 2,
+    },
+    plantInfoPoints: {
+        fontSize: 16,
+        color: "#007AFF",
+        textAlign: "left",
+        marginTop: 4,
+        fontWeight: "bold",
     },
     plantInfoDivider: {
         borderBottomWidth: 1,
