@@ -10,12 +10,13 @@ home
 TO DO
 
 [X] style plant details modal  
-[] own garden card (you can't harvest your own -- it incentivizes needing friends to earn points)
+[X] own garden card (you can't harvest your own -- it incentivizes needing friends to earn points)
 [] add points
 [] android
 [] loading spinner on sign in / improve home page loading
 [] trim images
-[] plant your own plants
+[X] plant your own plants
+[] improve image size and dimensions
 
 POLISH
 [] video playback quality

@@ -1187,7 +1187,6 @@ export default function Home() {
                                     <View
                                         style={{
                                             width: cardWidth,
-                                            backgroundColor: "#fff",
                                             borderRadius: 20,
                                             shadowColor: "#000",
                                             shadowOffset: {
@@ -1200,9 +1199,10 @@ export default function Home() {
                                             alignItems: "center",
                                             overflow: "visible",
                                             borderWidth: 0.5,
-                                            borderColor: "#DBDBDB",
+                                            borderColor: "#DEEFFF",
                                             marginBottom: 0,
                                             marginTop: 30,
+                                            backgroundColor: "#DFEFFF",
                                         }}
                                     >
                                         <Text
@@ -1219,7 +1219,7 @@ export default function Home() {
                                         <View
                                             style={{
                                                 width: "90%",
-                                                backgroundColor: "#F0F0F0",
+                                                backgroundColor: "#fff",
                                                 borderRadius: 16,
                                                 alignItems: "center",
                                                 paddingVertical: 0,
@@ -1227,7 +1227,7 @@ export default function Home() {
                                                 position: "relative",
                                                 marginBottom: 14,
                                                 borderWidth: 0.5,
-                                                borderColor: "#DBDBDB",
+                                                borderColor: "#DEEFFF",
                                             }}
                                         >
                                             {/* Lottie animation floating above, centered */}
@@ -1299,7 +1299,7 @@ export default function Home() {
                                                     fontSize: 16,
                                                     color: "#333",
                                                     textAlign: "center",
-                                                    marginBottom: 20,
+                                                    marginBottom: 60,
                                                 }}
                                             >
                                                 It&apos;s{" "}
@@ -1499,7 +1499,7 @@ export default function Home() {
                             <View
                                 style={{
                                     width: cardWidth, // dynamic width based on screen size
-                                    backgroundColor: "#fff",
+                                    backgroundColor: "#DFEFFF",
                                     borderRadius: 20,
                                     shadowColor: "#000",
                                     shadowOffset: { width: 0, height: 2 },
@@ -1510,7 +1510,7 @@ export default function Home() {
                                     alignItems: "center",
                                     overflow: "visible",
                                     borderWidth: 0.5,
-                                    borderColor: "#DBDBDB",
+                                    borderColor: "#DEEFFF",
                                     pointerEvents: "auto",
                                     zIndex: 100,
                                 }}
@@ -1531,7 +1531,7 @@ export default function Home() {
                                 <View
                                     style={{
                                         width: "90%",
-                                        backgroundColor: "#F0F0F0",
+                                        backgroundColor: "#fff",
                                         borderRadius: 16,
                                         alignItems: "center",
                                         paddingVertical: 0,
@@ -1539,7 +1539,7 @@ export default function Home() {
                                         position: "relative",
                                         marginBottom: 14,
                                         borderWidth: 0.5,
-                                        borderColor: "#DBDBDB",
+                                        borderColor: "#DEEFFF",
                                     }}
                                 >
                                     {/* Lottie animation floating above, centered */}
