@@ -184,7 +184,7 @@ function getBackgroundColor(hour: number) {
     return "#191970"; // Night blue
 }
 
-const WEATHER_CARD_HEIGHT = 450; // adjust as needed for your weather card height
+const WEATHER_CARD_HEIGHT = 540; // adjust as needed for your weather card height
 
 // Utility to aggregate 3-hourly forecast to 5 daily objects
 function aggregateToFiveDay(forecastList: any[]): any[] {
@@ -1082,7 +1082,7 @@ export default function Home() {
                             borderWidth: 0.5,
                             borderColor: "#DBDBDB",
                             marginBottom: 0,
-                            marginTop: 80,
+                            marginTop: 30,
                         }}
                     >
                         <Text
@@ -1223,8 +1223,8 @@ export default function Home() {
                                         .length >= 3
                                 }
                             />
-                            <FiveDayForecast forecastData={userFiveDayData} />
                         </View>
+                        <FiveDayForecast forecastData={userFiveDayData} />
                     </View>
                     {loading && (
                         <View
@@ -1489,24 +1489,20 @@ export default function Home() {
                                                 .length >= 3
                                         }
                                     />
-                                    {(() => {
-                                        fetchFriendForecast(friend);
-                                        return null;
-                                    })()}
-                                    <FiveDayForecast
-                                        forecastData={
-                                            friendForecasts[friend.id] || []
-                                        }
-                                    />
                                 </View>
+                                {(() => {
+                                    fetchFriendForecast(friend);
+                                    return null;
+                                })()}
+                                <FiveDayForecast
+                                    forecastData={
+                                        friendForecasts[friend.id] || []
+                                    }
+                                />
                             </View>
                         );
                     }}
-                    ListHeaderComponent={
-                        <View className="mb-4">
-                            <ForecastSection />
-                        </View>
-                    }
+                    ListHeaderComponent={null}
                     ListEmptyComponent={
                         <Text className="ml-4 text-gray-500">
                             No friends using the app yet.
