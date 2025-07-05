@@ -183,7 +183,7 @@ function getBackgroundColor(hour: number) {
     return "#191970"; // Night blue
 }
 
-const WEATHER_CARD_HEIGHT = 260; // adjust as needed for your weather card height
+const WEATHER_CARD_HEIGHT = 420; // adjust as needed for your weather card height
 
 export default function Home() {
     const [weather, setWeather] = useState<any>(null);
@@ -1022,6 +1022,7 @@ export default function Home() {
                             borderWidth: 0.5,
                             borderColor: "#DBDBDB",
                             marginBottom: 0,
+                            marginTop: 80,
                         }}
                     >
                         <Text
