@@ -37,7 +37,19 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     if (!plant) return null;
 
     const plantName = plant.plant?.name || plant.plant_name || "Unknown";
-    const weatherBonus =
+    // Use GrowthService to get the weather bonus multiplier for the current weather
+    const weatherBonus = GrowthService.getWeatherBonus(
+        plant.plant || {
+            id: plant.plant_id,
+            name: plantName,
+            growth_time_hours: plant.growth_time_hours || 0,
+            image_path: plant.image_path || "",
+            created_at: plant.planted_at,
+        },
+        friendWeather
+    );
+    // For debugging or display, keep the original weather_bonus object
+    const weatherBonusObject =
         plant.plant?.weather_bonus || plant.weather_bonus || {};
     const growthTimeHours =
         plant.plant?.growth_time_hours || plant.growth_time_hours || 0;
@@ -243,15 +255,14 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     // Get weather preference description
     const getWeatherPreference = () => {
         const preferences = [];
-        if (weatherBonus.sunny > 1.2) preferences.push("Loves sunny weather");
-        if (weatherBonus.cloudy > 1.2)
-            preferences.push("Thrives in cloudy weather");
-        if (weatherBonus.rainy > 1.2) preferences.push("Enjoys rainy weather");
+        if (weatherBonus > 1.2) preferences.push("Loves sunny weather");
+        if (weatherBonus > 1.2) preferences.push("Thrives in cloudy weather");
+        if (weatherBonus > 1.2) preferences.push("Enjoys rainy weather");
 
         if (preferences.length === 0) {
-            if (weatherBonus.sunny < 0.8) preferences.push("Prefers shade");
-            if (weatherBonus.cloudy < 0.8) preferences.push("Needs more sun");
-            if (weatherBonus.rainy < 0.8) preferences.push("Drought tolerant");
+            if (weatherBonus < 0.8) preferences.push("Prefers shade");
+            if (weatherBonus < 0.8) preferences.push("Needs more sun");
+            if (weatherBonus < 0.8) preferences.push("Drought tolerant");
         }
 
         return preferences.length > 0
@@ -321,6 +332,21 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         );
     };
 
+    // Calculate weather effect percent and label (reuse weatherBonus)
+    const weatherEffectPercent = Math.round(weatherBonus * 100);
+    const weatherLabel =
+        friendWeather.charAt(0).toUpperCase() +
+        friendWeather.slice(1).toLowerCase();
+
+    // Debug logging for weather effect section
+    console.log("Weather Effect Debug:", {
+        friendWeather,
+        weatherBonus,
+        weatherEffectPercent,
+        weatherLabel,
+        weatherBonusObject,
+    });
+
     return (
         <Modal
             visible={visible}
@@ -386,7 +412,114 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                             )}
                         </View>
                         {/* END TOP SECTION */}
-                        {/* Plant Image */}
+
+                        {/* GROWTH PROGRESS SECTION */}
+                        <View style={styles.growthSection}>
+                            <Text style={styles.growthTitle}>
+                                Growth Progress: {growthCalculation.progress}%
+                            </Text>
+                            <View style={styles.stepperBox}>
+                                {[
+                                    {
+                                        key: 2,
+                                        displayKey: "1",
+                                        label: "Freshly Planted",
+                                    },
+                                    {
+                                        key: 3,
+                                        displayKey: "2",
+                                        label: "Sprouting",
+                                    },
+                                    {
+                                        key: 4,
+                                        displayKey: "3",
+                                        label: "Growing",
+                                    },
+                                    {
+                                        key: 5,
+                                        displayKey: "$",
+                                        label: "Ready to Harvest",
+                                    },
+                                ].map((step, idx) => {
+                                    const isComplete = currentStage > step.key;
+                                    const isCurrent = currentStage === step.key;
+                                    return (
+                                        <View
+                                            key={step.key}
+                                            style={styles.stepRow}
+                                        >
+                                            <View
+                                                style={[
+                                                    styles.stepCircle,
+                                                    isComplete || isCurrent
+                                                        ? styles.stepCircleActive
+                                                        : styles.stepCircleInactive,
+                                                ]}
+                                            >
+                                                <Text
+                                                    style={[
+                                                        styles.stepCircleText,
+                                                        isComplete || isCurrent
+                                                            ? styles.stepCircleTextActive
+                                                            : styles.stepCircleTextInactive,
+                                                    ]}
+                                                >
+                                                    {step.displayKey}
+                                                </Text>
+                                            </View>
+                                            <Text
+                                                style={[
+                                                    styles.stepLabel,
+                                                    isCurrent &&
+                                                        styles.stepLabelCurrent,
+                                                ]}
+                                            >
+                                                {step.label}
+                                            </Text>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        </View>
+                        {/* END GROWTH PROGRESS SECTION */}
+
+                        {/* CURRENT WEATHER EFFECT SECTION */}
+                        <View style={styles.weatherEffectSection}>
+                            <Text style={styles.weatherEffectTitle}>
+                                Current Weather Effect
+                            </Text>
+                            <View style={styles.weatherEffectBox}>
+                                {/* Left: Circle with percent */}
+                                <View
+                                    style={[
+                                        styles.weatherEffectCircle,
+                                        weatherEffectPercent > 100
+                                            ? styles.weatherEffectCircleUp
+                                            : weatherEffectPercent < 100
+                                              ? styles.weatherEffectCircleDown
+                                              : styles.weatherEffectCircleNeutral,
+                                    ]}
+                                >
+                                    <Text
+                                        style={styles.weatherEffectCircleText}
+                                    >
+                                        {weatherEffectPercent}%
+                                    </Text>
+                                </View>
+                                {/* Right: Sentence */}
+                                <Text style={styles.weatherEffectCopy}>
+                                    Current {weatherLabel}{" "}
+                                    {weatherEffectPercent > 100
+                                        ? "speeds up"
+                                        : weatherEffectPercent < 100
+                                          ? "slows down"
+                                          : "does not affect"}{" "}
+                                    this plant's growth by{" "}
+                                    {weatherEffectPercent}%
+                                </Text>
+                            </View>
+                        </View>
+                        {/* END CURRENT WEATHER EFFECT SECTION */}
 
                         {/* Plant Stats */}
                         <View style={styles.section}>
@@ -440,7 +573,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                         Sunny
                                     </Text>
                                     <Text style={styles.weatherValue}>
-                                        {(weatherBonus.sunny * 100).toFixed(0)}%
+                                        {(weatherBonus * 100).toFixed(0)}%
                                     </Text>
                                 </View>
                                 <View style={styles.weatherStat}>
@@ -448,8 +581,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                         Cloudy
                                     </Text>
                                     <Text style={styles.weatherValue}>
-                                        {(weatherBonus.cloudy * 100).toFixed(0)}
-                                        %
+                                        {(weatherBonus * 100).toFixed(0)}%
                                     </Text>
                                 </View>
                                 <View style={styles.weatherStat}>
@@ -457,7 +589,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                         Rainy
                                     </Text>
                                     <Text style={styles.weatherValue}>
-                                        {(weatherBonus.rainy * 100).toFixed(0)}%
+                                        {(weatherBonus * 100).toFixed(0)}%
                                     </Text>
                                 </View>
                             </View>
@@ -622,9 +754,121 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     weatherValue: {
-        fontSize: 16,
+        fontSize: 8,
         fontWeight: "bold",
         color: "#333",
+    },
+    growthSection: {
+        marginTop: 24,
+        marginBottom: 24,
+        alignItems: "center",
+    },
+    growthTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#222",
+        marginBottom: 16,
+        alignSelf: "flex-start",
+        marginLeft: 16,
+    },
+    stepperBox: {
+        backgroundColor: "#fff",
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 20,
+        padding: 24,
+        width: "90%",
+        alignSelf: "center",
+    },
+    stepRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 18,
+    },
+    stepCircle: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 16,
+    },
+    stepCircleActive: {
+        backgroundColor: "orange",
+    },
+    stepCircleInactive: {
+        backgroundColor: "#E0E0E0",
+    },
+    stepCircleText: {
+        color: "#fff",
+        fontSize: 16,
+        fontWeight: "bold",
+    },
+    stepCircleTextActive: {
+        color: "#fff",
+    },
+    stepCircleTextInactive: {
+        color: "#666",
+    },
+    stepLabel: {
+        fontSize: 18,
+        color: "#222",
+    },
+    stepLabelCurrent: {
+        fontWeight: "bold",
+    },
+    weatherEffectSection: {
+        marginTop: 8,
+        marginBottom: 24,
+        width: "100%",
+        alignItems: "flex-start",
+    },
+    weatherEffectTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#222",
+        marginBottom: 12,
+        marginLeft: 16,
+    },
+    weatherEffectBox: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#fff",
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 20,
+        padding: 20,
+        marginHorizontal: 12,
+        width: "92%",
+    },
+    weatherEffectCircle: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 20,
+    },
+    weatherEffectCircleUp: {
+        backgroundColor: "#179A3D",
+    },
+    weatherEffectCircleDown: {
+        backgroundColor: "#D32F2F",
+    },
+    weatherEffectCircleNeutral: {
+        backgroundColor: "#BDBDBD",
+    },
+    weatherEffectCircleText: {
+        color: "#fff",
+        fontSize: 16,
+        fontWeight: "bold",
+    },
+    weatherEffectCopy: {
+        flex: 1,
+        fontSize: 18,
+        color: "#222",
+        fontWeight: "400",
+        lineHeight: 26,
     },
 });
 
