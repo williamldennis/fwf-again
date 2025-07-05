@@ -798,7 +798,7 @@ const styles = StyleSheet.create({
     },
     weatherEffectCopy: {
         flex: 1,
-        fontSize: 18,
+        fontSize: 16,
         color: "#222",
         fontWeight: "400",
         lineHeight: 26,
@@ -825,7 +825,7 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     plantInfoImage: {
-        width: 64,
+        width: 40,
         height: 64,
         marginRight: 16,
     },
@@ -848,7 +848,7 @@ const styles = StyleSheet.create({
     plantInfoDivider: {
         borderBottomWidth: 1,
         borderBottomColor: "#ccc",
-        marginVertical: 16,
+        marginVertical: 10,
     },
     plantInfoWeatherTitle: {
         fontSize: 16,
@@ -857,7 +857,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     plantInfoWeatherDesc: {
-        fontSize: 15,
+        fontSize: 13,
         color: "#444",
         fontStyle: "italic",
         marginBottom: 16,

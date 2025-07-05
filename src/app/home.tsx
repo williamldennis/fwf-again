@@ -1236,7 +1236,7 @@ export default function Home() {
                                         marginBottom: 20,
                                     }}
                                 >
-                                    {friend.contact_name || "Unknown"}
+                                    {friend.contact_name || "Unknown"}'s Garden
                                 </Text>
                                 {/* Inner card */}
                                 <View
@@ -1302,7 +1302,7 @@ export default function Home() {
                                             resizeMode: "cover",
                                             backgroundColor: "#eee",
                                             marginTop: 32, // space for Lottie
-                                            marginBottom: 28,
+                                            marginBottom: 30,
                                         }}
                                     />
                                     {/* Weather text */}
@@ -1311,7 +1311,7 @@ export default function Home() {
                                             fontSize: 16,
                                             color: "#333",
                                             textAlign: "center",
-                                            marginBottom: 24,
+                                            marginBottom: 70,
                                         }}
                                     >
                                         It&apos;s{" "}

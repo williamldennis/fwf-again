@@ -153,7 +153,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                             style={{
                                 fontSize: 10,
                                 color: "#333",
-                                marginTop: 2,
+                                marginBottom: 20,
                             }}
                         >
                             {plantName}
