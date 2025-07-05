@@ -13,13 +13,15 @@ TO DO
 [X] own garden card (you can't harvest your own -- it incentivizes needing friends to earn points)
 [] add points
 [] android
-[] loading spinner on sign in / improve home page loading
 [] trim images
 [X] plant your own plants
 [] improve image size and dimensions
-[] add full forecast modal when tapping
 
 POLISH
+[] add name or username to sign up
+[] add full forecast modal when tapping
+[] loading spinner on sign in / improve home page loading
+[] improve weather forecast stylist
 [] lottie animations for night time
 [] copy sweep for night time / clear / sunny etc
 [] video playback quality
