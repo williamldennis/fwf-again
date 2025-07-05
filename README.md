@@ -16,6 +16,7 @@ TO DO
 [] trim images
 [X] plant your own plants
 [] improve image size and dimensions
+[] check points acrrual for harvestER not gardener
 
 POLISH
 [] add name or username to sign up

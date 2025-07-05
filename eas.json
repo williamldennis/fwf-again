@@ -13,6 +13,11 @@
     "production": {}
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "fair-weather-friends-bed9516400b6.json",
+        "track": "internal"
+      }
+    }
   }
 }

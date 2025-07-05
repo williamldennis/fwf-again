@@ -52,4 +52,4 @@ ios/Podfile 2.lock
 *.xcodeproj
 *.xcworkspace
 # Node
-node_modules/
+fair-weather-friends-bed9516400b6.json
