@@ -11,7 +11,7 @@ TO DO
 
 [X] style plant details modal  
 [X] own garden card (you can't harvest your own -- it incentivizes needing friends to earn points)
-[] add points
+[X] add points
 [] android
 [] trim images
 [X] plant your own plants
