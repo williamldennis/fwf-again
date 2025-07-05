@@ -37,7 +37,19 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     if (!plant) return null;
 
     const plantName = plant.plant?.name || plant.plant_name || "Unknown";
-    const weatherBonus =
+    // Use GrowthService to get the weather bonus multiplier for the current weather
+    const weatherBonus = GrowthService.getWeatherBonus(
+        plant.plant || {
+            id: plant.plant_id,
+            name: plantName,
+            growth_time_hours: plant.growth_time_hours || 0,
+            image_path: plant.image_path || "",
+            created_at: plant.planted_at,
+        },
+        friendWeather
+    );
+    // For debugging or display, keep the original weather_bonus object
+    const weatherBonusObject =
         plant.plant?.weather_bonus || plant.weather_bonus || {};
     const growthTimeHours =
         plant.plant?.growth_time_hours || plant.growth_time_hours || 0;
@@ -61,6 +73,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
     // Use the calculated stage for accurate display
     const currentStage = growthCalculation.stage;
+    const progress = growthCalculation.progress;
 
     // Use TimeCalculationService for consistent time calculations
     const timeToMaturity = TimeCalculationService.getTimeToMaturity(
@@ -85,6 +98,9 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         plantObject,
         friendWeather
     );
+
+    // For display: only show mature image and 'Ready to Harvest' step if isMature
+    const displayStage = isMature ? 5 : Math.min(currentStage, 4);
 
     // Check if current user can harvest (anyone can harvest now)
     const canHarvest = currentUserId && !plant.harvested_at;
@@ -243,15 +259,14 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     // Get weather preference description
     const getWeatherPreference = () => {
         const preferences = [];
-        if (weatherBonus.sunny > 1.2) preferences.push("Loves sunny weather");
-        if (weatherBonus.cloudy > 1.2)
-            preferences.push("Thrives in cloudy weather");
-        if (weatherBonus.rainy > 1.2) preferences.push("Enjoys rainy weather");
+        if (weatherBonus > 1.2) preferences.push("Loves sunny weather");
+        if (weatherBonus > 1.2) preferences.push("Thrives in cloudy weather");
+        if (weatherBonus > 1.2) preferences.push("Enjoys rainy weather");
 
         if (preferences.length === 0) {
-            if (weatherBonus.sunny < 0.8) preferences.push("Prefers shade");
-            if (weatherBonus.cloudy < 0.8) preferences.push("Needs more sun");
-            if (weatherBonus.rainy < 0.8) preferences.push("Drought tolerant");
+            if (weatherBonus < 0.8) preferences.push("Prefers shade");
+            if (weatherBonus < 0.8) preferences.push("Needs more sun");
+            if (weatherBonus < 0.8) preferences.push("Drought tolerant");
         }
 
         return preferences.length > 0
@@ -321,6 +336,38 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         );
     };
 
+    // Calculate weather effect percent and label (reuse weatherBonus)
+    const weatherEffectPercent = Math.round(weatherBonus * 100);
+    // Map weather conditions to display names
+    const getWeatherDisplayName = (weather: string): string => {
+        const weatherMapping: Record<string, string> = {
+            clear: "sunny",
+            clouds: "cloudy",
+            rain: "rainy",
+            drizzle: "rainy",
+            mist: "rainy",
+            fog: "rainy",
+            haze: "rainy",
+            snow: "rainy",
+            thunderstorm: "rainy",
+        };
+
+        const mappedWeather =
+            weatherMapping[weather.toLowerCase()] || weather.toLowerCase();
+        return mappedWeather;
+    };
+
+    const weatherLabel = getWeatherDisplayName(friendWeather);
+
+    // Debug logging for weather effect section
+    console.log("Weather Effect Debug:", {
+        friendWeather,
+        weatherBonus,
+        weatherEffectPercent,
+        weatherLabel,
+        weatherBonusObject,
+    });
+
     return (
         <Modal
             visible={visible}
@@ -352,7 +399,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                 <Image
                                     source={getPlantImage(
                                         plantName,
-                                        currentStage
+                                        displayStage
                                     )}
                                     style={styles.plantImage}
                                     resizeMode="contain"
@@ -386,105 +433,184 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                             )}
                         </View>
                         {/* END TOP SECTION */}
-                        {/* Plant Image */}
-
-                        {/* Plant Stats */}
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Plant Stats</Text>
-                            <View style={styles.statRow}>
-                                <Text style={styles.statLabel}>
-                                    Current Stage:
-                                </Text>
-                                <Text style={styles.statValue}>
-                                    {getStageDescription(currentStage)}
-                                </Text>
-                            </View>
-                            <View style={styles.statRow}>
-                                <Text style={styles.statLabel}>Planted:</Text>
-                                <Text style={styles.statValue}>
-                                    {DateTime.fromISO(
-                                        plant.planted_at
-                                    ).toFormat("MMM dd, yyyy")}
-                                </Text>
-                            </View>
-                            <View style={styles.statRow}>
-                                <Text style={styles.statLabel}>
-                                    Time Since Planted:
-                                </Text>
-                                <Text style={styles.statValue}>
-                                    {formattedTimeSincePlanted}
-                                </Text>
-                            </View>
-                            <View style={styles.statRow}>
-                                <Text style={styles.statLabel}>
-                                    Time to Maturity:
-                                </Text>
-                                <Text style={styles.statValue}>
-                                    {formattedTimeToMaturity}
+                        {/* CURRENT WEATHER EFFECT SECTION */}
+                        <View style={styles.weatherEffectSection}>
+                            <Text style={styles.weatherEffectTitle}>
+                                Weather Growth Speed
+                            </Text>
+                            <View style={styles.weatherEffectBox}>
+                                {/* Left: Circle with percent */}
+                                <View
+                                    style={[
+                                        styles.weatherEffectCircle,
+                                        weatherEffectPercent > 100
+                                            ? styles.weatherEffectCircleUp
+                                            : weatherEffectPercent < 100
+                                              ? styles.weatherEffectCircleDown
+                                              : styles.weatherEffectCircleNeutral,
+                                    ]}
+                                >
+                                    <Text
+                                        style={styles.weatherEffectCircleText}
+                                    >
+                                        {weatherEffectPercent}%
+                                    </Text>
+                                </View>
+                                {/* Right: Sentence */}
+                                <Text style={styles.weatherEffectCopy}>
+                                    Current {weatherLabel} weather{" "}
+                                    {weatherEffectPercent > 100
+                                        ? "speeds up"
+                                        : weatherEffectPercent < 100
+                                          ? "slows down"
+                                          : "does not affect"}{" "}
+                                    this plant's growth by{" "}
+                                    {weatherEffectPercent}%
                                 </Text>
                             </View>
                         </View>
-
-                        {/* Weather Preferences */}
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>
-                                Weather Preferences
+                        {/* END CURRENT WEATHER EFFECT SECTION */}
+                        {/* GROWTH PROGRESS SECTION */}
+                        <View style={styles.growthSection}>
+                            <Text style={styles.growthTitle}>
+                                Growth Progress: {progress}%
                             </Text>
-                            <Text style={styles.weatherDescription}>
-                                {getWeatherPreference()}
-                            </Text>
-
-                            <View style={styles.weatherStats}>
-                                <View style={styles.weatherStat}>
-                                    <Text style={styles.weatherLabel}>
-                                        Sunny
-                                    </Text>
-                                    <Text style={styles.weatherValue}>
-                                        {(weatherBonus.sunny * 100).toFixed(0)}%
-                                    </Text>
-                                </View>
-                                <View style={styles.weatherStat}>
-                                    <Text style={styles.weatherLabel}>
-                                        Cloudy
-                                    </Text>
-                                    <Text style={styles.weatherValue}>
-                                        {(weatherBonus.cloudy * 100).toFixed(0)}
-                                        %
-                                    </Text>
-                                </View>
-                                <View style={styles.weatherStat}>
-                                    <Text style={styles.weatherLabel}>
-                                        Rainy
-                                    </Text>
-                                    <Text style={styles.weatherValue}>
-                                        {(weatherBonus.rainy * 100).toFixed(0)}%
-                                    </Text>
-                                </View>
+                            <View style={styles.stepperBox}>
+                                {[
+                                    {
+                                        key: 2,
+                                        displayKey: "1",
+                                        label: "Freshly Planted",
+                                    },
+                                    {
+                                        key: 3,
+                                        displayKey: "2",
+                                        label: "Sprouting",
+                                    },
+                                    {
+                                        key: 4,
+                                        displayKey: "3",
+                                        label: "Growing",
+                                    },
+                                    {
+                                        key: 5,
+                                        displayKey: "$",
+                                        label: "Ready to Harvest",
+                                    },
+                                ].map((step, idx) => {
+                                    let isComplete = false;
+                                    let isCurrent = false;
+                                    if (step.key === 5) {
+                                        isComplete = isMature;
+                                        isCurrent = isMature;
+                                    } else {
+                                        isComplete = displayStage > step.key;
+                                        isCurrent =
+                                            displayStage === step.key &&
+                                            !isMature;
+                                    }
+                                    return (
+                                        <View
+                                            key={step.key}
+                                            style={styles.stepRow}
+                                        >
+                                            <View
+                                                style={[
+                                                    styles.stepCircle,
+                                                    isComplete || isCurrent
+                                                        ? styles.stepCircleActive
+                                                        : styles.stepCircleInactive,
+                                                ]}
+                                            >
+                                                <Text
+                                                    style={[
+                                                        styles.stepCircleText,
+                                                        isComplete || isCurrent
+                                                            ? styles.stepCircleTextActive
+                                                            : styles.stepCircleTextInactive,
+                                                    ]}
+                                                >
+                                                    {step.displayKey}
+                                                </Text>
+                                            </View>
+                                            <Text
+                                                style={[
+                                                    styles.stepLabel,
+                                                    isCurrent &&
+                                                        styles.stepLabelCurrent,
+                                                ]}
+                                            >
+                                                {step.label}
+                                            </Text>
+                                        </View>
+                                    );
+                                })}
                             </View>
                         </View>
+                        {/* END GROWTH PROGRESS SECTION */}
 
-                        {/* Growth Info */}
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>
-                                Growth Information
-                            </Text>
-                            <View style={styles.statRow}>
-                                <Text style={styles.statLabel}>
-                                    Base Growth Time:
-                                </Text>
-                                <Text style={styles.statValue}>
-                                    {growthTimeHours} hours
-                                </Text>
+                        {/* PLANT INFO SECTION */}
+                        <Text style={styles.plantInfoTitle}>Plant Info</Text>
+                        <View style={styles.plantInfoSection}>
+                            <View style={styles.plantInfoHeaderRow}>
+                                {/* Mature plant image on left */}
+                                <Image
+                                    source={getPlantImage(plantName, 5)}
+                                    style={styles.plantInfoImage}
+                                    resizeMode="contain"
+                                />
+                                {/* Name and grow time on right */}
+                                <View style={styles.plantInfoTextCol}>
+                                    <Text style={styles.plantInfoName}>
+                                        {plantName}
+                                    </Text>
+                                    <Text style={styles.plantInfoGrowTime}>
+                                        Average Grow Time: {growthTimeHours}{" "}
+                                        hours
+                                    </Text>
+                                </View>
                             </View>
-                            <View style={styles.statRow}>
-                                <Text style={styles.statLabel}>
-                                    Growth Progress:
-                                </Text>
-                                <Text style={styles.statValue}>
-                                    {growthCalculation.progress}%
-                                </Text>
+                            <View style={styles.plantInfoDivider} />
+                            <Text style={styles.plantInfoWeatherTitle}>
+                                Weather Growth Speed
+                            </Text>
+                            <Text style={styles.plantInfoWeatherDesc}>
+                                The {plantName.toLowerCase()}{" "}
+                                {GrowthService.getWeatherPreferenceDescription(
+                                    plantObject
+                                ).toLowerCase()}
+                                .
+                            </Text>
+                            <View style={styles.plantInfoWeatherRow}>
+                                {["sunny", "cloudy", "rainy"].map((type) => (
+                                    <View
+                                        key={type}
+                                        style={styles.plantInfoWeatherCol}
+                                    >
+                                        <Text
+                                            style={styles.plantInfoWeatherType}
+                                        >
+                                            {type.charAt(0).toUpperCase() +
+                                                type.slice(1)}
+                                        </Text>
+                                        <Text
+                                            style={styles.plantInfoWeatherValue}
+                                        >
+                                            {plantObject.weather_bonus &&
+                                            plantObject.weather_bonus[type]
+                                                ? Math.round(
+                                                      plantObject.weather_bonus[
+                                                          type
+                                                      ] * 100
+                                                  )
+                                                : 100}
+                                            %
+                                        </Text>
+                                    </View>
+                                ))}
                             </View>
                         </View>
+                        {/* END PLANT INFO SECTION */}
                     </ScrollView>
                 </View>
             </View>
@@ -578,53 +704,194 @@ const styles = StyleSheet.create({
         width: 120,
         height: 120,
     },
-    section: {
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "#333",
-        marginBottom: 12,
-    },
-    statRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 8,
-    },
-    statLabel: {
-        fontSize: 16,
-        color: "#666",
-    },
-    statValue: {
-        fontSize: 16,
-        color: "#333",
-        fontWeight: "500",
-    },
-    weatherDescription: {
-        fontSize: 16,
-        color: "#333",
-        marginBottom: 12,
-        fontStyle: "italic",
-    },
-    weatherStats: {
-        flexDirection: "row",
-        justifyContent: "space-around",
-    },
-    weatherStat: {
+    growthSection: {
+        marginTop: 24,
+        marginBottom: 24,
         alignItems: "center",
     },
-    weatherLabel: {
-        fontSize: 14,
-        color: "#666",
-        marginBottom: 4,
+    growthTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#222",
+        marginBottom: 16,
+        alignSelf: "flex-start",
+        marginLeft: 16,
     },
-    weatherValue: {
+    stepperBox: {
+        backgroundColor: "#fff",
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 20,
+        padding: 24,
+        width: "90%",
+        alignSelf: "center",
+    },
+    stepRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 18,
+    },
+    stepCircle: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 16,
+    },
+    stepCircleActive: {
+        backgroundColor: "orange",
+    },
+    stepCircleInactive: {
+        backgroundColor: "#E0E0E0",
+    },
+    stepCircleText: {
+        color: "#fff",
         fontSize: 16,
         fontWeight: "bold",
-        color: "#333",
+    },
+    stepCircleTextActive: {
+        color: "#fff",
+    },
+    stepCircleTextInactive: {
+        color: "#666",
+    },
+    stepLabel: {
+        fontSize: 18,
+        color: "#222",
+    },
+    stepLabelCurrent: {
+        fontWeight: "bold",
+    },
+    weatherEffectSection: {
+        marginTop: 8,
+        marginBottom: 24,
+        width: "100%",
+        alignItems: "flex-start",
+    },
+    weatherEffectTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#222",
+        marginBottom: 12,
+        marginLeft: 16,
+    },
+    weatherEffectBox: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#fff",
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 20,
+        padding: 20,
+        marginHorizontal: 12,
+        width: "92%",
+    },
+    weatherEffectCircle: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 20,
+    },
+    weatherEffectCircleUp: {
+        backgroundColor: "#179A3D",
+    },
+    weatherEffectCircleDown: {
+        backgroundColor: "#D32F2F",
+    },
+    weatherEffectCircleNeutral: {
+        backgroundColor: "#BDBDBD",
+    },
+    weatherEffectCircleText: {
+        color: "#fff",
+        fontSize: 16,
+        fontWeight: "bold",
+    },
+    weatherEffectCopy: {
+        flex: 1,
+        fontSize: 16,
+        color: "#222",
+        fontWeight: "400",
+        lineHeight: 26,
+    },
+    plantInfoSection: {
+        backgroundColor: "#fff",
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: "#ccc",
+        marginHorizontal: 16,
+        marginBottom: 24,
+        padding: 20,
+    },
+    plantInfoTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#222",
+        marginBottom: 12,
+        marginLeft: 16,
+    },
+    plantInfoHeaderRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    plantInfoImage: {
+        width: 40,
+        height: 64,
+        marginRight: 16,
+    },
+    plantInfoTextCol: {
+        flex: 1,
+        justifyContent: "center",
+    },
+    plantInfoName: {
+        fontSize: 22,
+        fontWeight: "bold",
+        color: "#222",
+        textAlign: "left",
+    },
+    plantInfoGrowTime: {
+        fontSize: 16,
+        color: "#444",
+        textAlign: "left",
+        marginTop: 2,
+    },
+    plantInfoDivider: {
+        borderBottomWidth: 1,
+        borderBottomColor: "#ccc",
+        marginVertical: 10,
+    },
+    plantInfoWeatherTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#222",
+        marginBottom: 8,
+    },
+    plantInfoWeatherDesc: {
+        fontSize: 13,
+        color: "#444",
+        fontStyle: "italic",
+        marginBottom: 16,
+    },
+    plantInfoWeatherRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+    },
+    plantInfoWeatherCol: {
+        alignItems: "center",
+        flex: 1,
+    },
+    plantInfoWeatherType: {
+        fontSize: 17,
+        color: "#222",
+        marginBottom: 4,
+    },
+    plantInfoWeatherValue: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#222",
     },
 });
 

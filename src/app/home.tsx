@@ -29,6 +29,7 @@ import PlantPicker from "../components/PlantPicker";
 import PlantDetailsModal from "../components/PlantDetailsModal";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
+import FiveDayForecast from "../components/FiveDayForecast";
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 
@@ -183,7 +184,41 @@ function getBackgroundColor(hour: number) {
     return "#191970"; // Night blue
 }
 
-const WEATHER_CARD_HEIGHT = 260; // adjust as needed for your weather card height
+const WEATHER_CARD_HEIGHT = 540; // adjust as needed for your weather card height
+
+// Utility to aggregate 3-hourly forecast to 5 daily objects
+function aggregateToFiveDay(forecastList: any[]): any[] {
+    if (!forecastList || forecastList.length === 0) return [];
+    const days: {
+        [date: string]: {
+            date: string;
+            high: number;
+            low: number;
+            icon: string;
+        };
+    } = {};
+    forecastList.forEach((item: any) => {
+        const date = item.dt_txt.split(" ")[0];
+        if (!days[date]) {
+            days[date] = {
+                date,
+                high: item.main.temp_max,
+                low: item.main.temp_min,
+                icon: item.weather[0].icon,
+            };
+        } else {
+            days[date].high = Math.max(days[date].high, item.main.temp_max);
+            days[date].low = Math.min(days[date].low, item.main.temp_min);
+        }
+        // Use the icon from the midday forecast if possible
+        const hour = parseInt(item.dt_txt.split(" ")[1].split(":")[0], 10);
+        if (hour === 12) {
+            days[date].icon = item.weather[0].icon;
+        }
+    });
+    // Return only the first 5 days
+    return Object.values(days).slice(0, 5);
+}
 
 export default function Home() {
     const [weather, setWeather] = useState<any>(null);
@@ -213,6 +248,33 @@ export default function Home() {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [selectedPlanterName, setSelectedPlanterName] =
         useState<string>("Unknown");
+
+    // User's 5-day forecast data
+    const userFiveDayData = aggregateToFiveDay(forecast);
+
+    // Friend forecast cache
+    const [friendForecasts, setFriendForecasts] = useState<
+        Record<string, any[]>
+    >({});
+
+    // Helper to fetch and cache friend forecast
+    async function fetchFriendForecast(friend: any) {
+        if (!friend.latitude || !friend.longitude) return;
+        if (friendForecasts[friend.id]) return; // Already cached
+        try {
+            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${friend.latitude}&lon=${friend.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.list) {
+                setFriendForecasts((prev) => ({
+                    ...prev,
+                    [friend.id]: aggregateToFiveDay(data.list),
+                }));
+            }
+        } catch (e) {
+            // Ignore errors for now
+        }
+    }
 
     // Logout handler
     const handleLogout = async () => {
@@ -574,9 +636,7 @@ export default function Home() {
                 const forecastRes = await fetch(forecastUrl);
                 const forecastData = await forecastRes.json();
                 if (forecastData.list && Array.isArray(forecastData.list)) {
-                    // Next 8 intervals (24 hours)
-                    const next8 = forecastData.list.slice(0, 8);
-                    setForecast(next8);
+                    setForecast(forecastData.list);
                     // Simple summary from first entry
                     setForecastSummary(
                         forecastData.list[0]?.weather?.[0]?.description
@@ -998,37 +1058,73 @@ export default function Home() {
                 }}
             />
             <View style={{ flex: 1, backgroundColor: bgColor }}>
-                {/* Weather Card (main user) */}
-                <View style={{ zIndex: 1 }}>
-                    <View className="items-center p-5 m-4 rounded-xl">
-                        {loading ? (
-                            <View className="flex-1 justify-center items-center">
-                                <ActivityIndicator size="large" />
-                                <Text className="text-black">
-                                    Loading weather...
-                                </Text>
-                            </View>
-                        ) : error ? (
-                            <View className="flex-1 justify-center items-center">
-                                <Text className="text-black">{error}</Text>
-                            </View>
-                        ) : weather ? (
-                            <>
-                                <View
-                                    style={{
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        marginVertical: 40,
-                                    }}
-                                >
+                {/* User Weather Card (styled like friend card) */}
+                <View
+                    style={{
+                        zIndex: 1,
+                        alignItems: "center",
+                        marginTop: 16,
+                        marginBottom: 8,
+                    }}
+                >
+                    <View
+                        style={{
+                            width: cardWidth,
+                            backgroundColor: "#fff",
+                            borderRadius: 20,
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.08,
+                            shadowRadius: 8,
+                            elevation: 3,
+                            alignItems: "center",
+                            overflow: "visible",
+                            borderWidth: 0.5,
+                            borderColor: "#DBDBDB",
+                            marginBottom: 0,
+                            marginTop: 30,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                fontWeight: "bold",
+                                fontSize: 18,
+                                textAlign: "center",
+                                marginTop: 20,
+                                marginBottom: 20,
+                            }}
+                        >
+                            Your Garden
+                        </Text>
+                        <View
+                            style={{
+                                width: "90%",
+                                backgroundColor: "#F0F0F0",
+                                borderRadius: 16,
+                                alignItems: "center",
+                                paddingVertical: 0,
+                                paddingHorizontal: 0,
+                                position: "relative",
+                                marginBottom: 14,
+                                borderWidth: 0.5,
+                                borderColor: "#DBDBDB",
+                            }}
+                        >
+                            {/* Lottie animation floating above, centered */}
+                            {weather &&
+                                weather.weather &&
+                                weather.weather[0] && (
                                     <View
+                                        pointerEvents="none"
                                         style={{
-                                            position: "relative",
+                                            position: "absolute",
+                                            top: -140,
+                                            left: 0,
+                                            right: 0,
                                             alignItems: "center",
-                                            justifyContent: "center",
+                                            zIndex: 3,
                                         }}
                                     >
-                                        {/* Lottie animation (unchanged) */}
                                         <LottieView
                                             source={getWeatherLottie(
                                                 weather.weather[0].main
@@ -1036,90 +1132,131 @@ export default function Home() {
                                             autoPlay
                                             loop
                                             style={{
-                                                width: 800,
-                                                height: 800,
-                                                position: "absolute",
-                                                zIndex: 4,
-                                                opacity: 0.8,
-                                                marginTop: 200,
-                                            }}
-                                        />
-                                        {/* Temperature in large white circle */}
-                                        <View
-                                            style={{
-                                                width: 120,
-                                                height: 120,
-                                                borderRadius: 70,
-                                                backgroundColor: "#fff",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                zIndex: 2,
-                                                shadowColor: "#000",
-                                                shadowOpacity: 0.1,
-                                                shadowRadius: 8,
-                                                elevation: 4,
-                                            }}
-                                        >
-                                            <Text
-                                                style={{
-                                                    fontSize: 56,
-                                                    fontWeight: "bold",
-                                                    color: "#222",
-                                                }}
-                                            >
-                                                {Math.round(weather.main.temp)}°
-                                            </Text>
-                                        </View>
-                                        {/* User's selfie, smaller, bottom right, overlapping */}
-                                        <Image
-                                            source={{
-                                                uri:
-                                                    selfieUrls &&
-                                                    mapWeatherToSelfieKey(
-                                                        weather.weather[0].main
-                                                    )
-                                                        ? selfieUrls[
-                                                              mapWeatherToSelfieKey(
-                                                                  weather
-                                                                      .weather[0]
-                                                                      .main
-                                                              )
-                                                          ]
-                                                        : undefined,
-                                            }}
-                                            style={{
-                                                width: 50,
-                                                height: 50,
-                                                borderRadius: 32,
-                                                resizeMode: "cover",
-                                                position: "absolute",
-                                                right: -5,
-                                                bottom: -5,
-                                                borderWidth: 0,
-                                                borderColor: "#fff",
-                                                zIndex: 3,
-                                                backgroundColor: "#eee",
+                                                width: 400,
+                                                height: 400,
+                                                opacity: 0.7,
                                             }}
                                         />
                                     </View>
-                                </View>
-                                <Text
-                                    className="text-base text-black"
-                                    style={{
-                                        marginTop: 0,
-                                        textAlign: "center",
-                                        fontSize: 16,
-                                    }}
-                                >
-                                    It&apos;s{" "}
-                                    {getWeatherDescription(
-                                        weather.weather[0].main
-                                    )}{" "}
-                                    in {weather.name}
+                                )}
+                            {/* Selfie */}
+                            <Image
+                                source={{
+                                    uri:
+                                        selfieUrls &&
+                                        weather &&
+                                        weather.weather &&
+                                        mapWeatherToSelfieKey(
+                                            weather.weather[0].main
+                                        )
+                                            ? selfieUrls[
+                                                  mapWeatherToSelfieKey(
+                                                      weather.weather[0].main
+                                                  )
+                                              ]
+                                            : undefined,
+                                }}
+                                style={{
+                                    width: 80,
+                                    height: 80,
+                                    borderRadius: 40,
+                                    resizeMode: "cover",
+                                    backgroundColor: "#eee",
+                                    marginTop: 32, // space for Lottie
+                                    marginBottom: 30,
+                                }}
+                            />
+                            {/* Weather text */}
+                            <Text
+                                style={{
+                                    fontSize: 16,
+                                    color: "#333",
+                                    textAlign: "center",
+                                    marginBottom: 20,
+                                }}
+                            >
+                                It&apos;s{" "}
+                                <Text style={{ fontWeight: "bold" }}>
+                                    {weather &&
+                                    weather.main &&
+                                    weather.main.temp
+                                        ? Math.round(weather.main.temp)
+                                        : "--"}
+                                    °
+                                </Text>{" "}
+                                and{" "}
+                                <Text style={{ fontWeight: "bold" }}>
+                                    {weather &&
+                                    weather.weather &&
+                                    weather.weather[0]
+                                        ? getWeatherDescription(
+                                              weather.weather[0].main
+                                          )
+                                        : "--"}
+                                </Text>{" "}
+                                in{" "}
+                                <Text style={{ fontWeight: "bold" }}>
+                                    {weather && weather.name
+                                        ? weather.name
+                                        : "--"}
                                 </Text>
-                            </>
-                        ) : null}
+                            </Text>
+                            {/* User's Garden */}
+                            <GardenArea
+                                gardenOwnerId={currentUserId || ""}
+                                plants={
+                                    plantedPlants[currentUserId || ""] || []
+                                }
+                                weatherCondition={
+                                    weather &&
+                                    weather.weather &&
+                                    weather.weather[0]
+                                        ? weather.weather[0].main
+                                        : "clear"
+                                }
+                                onPlantPress={() =>
+                                    handlePlantPress(currentUserId || "")
+                                }
+                                onPlantDetailsPress={handlePlantDetailsPress}
+                                isGardenFull={
+                                    (plantedPlants[currentUserId || ""] || [])
+                                        .length >= 3
+                                }
+                            />
+                        </View>
+                        <FiveDayForecast forecastData={userFiveDayData} />
                     </View>
+                    {loading && (
+                        <View
+                            style={{
+                                position: "absolute",
+                                top: 60,
+                                left: 0,
+                                right: 0,
+                                alignItems: "center",
+                                zIndex: 10,
+                            }}
+                        >
+                            <ActivityIndicator size="large" />
+                            <Text style={{ color: "#333", marginTop: 8 }}>
+                                Loading weather...
+                            </Text>
+                        </View>
+                    )}
+                    {error && !loading && (
+                        <View
+                            style={{
+                                position: "absolute",
+                                top: 60,
+                                left: 0,
+                                right: 0,
+                                alignItems: "center",
+                                zIndex: 10,
+                            }}
+                        >
+                            <Text style={{ color: "#ff4444" }}>{error}</Text>
+                        </View>
+                    )}
                 </View>
                 {/* Friends List with forecast as header */}
                 <FlatList
@@ -1236,7 +1373,7 @@ export default function Home() {
                                         marginBottom: 20,
                                     }}
                                 >
-                                    {friend.contact_name || "Unknown"}
+                                    {friend.contact_name || "Unknown"}'s Garden
                                 </Text>
                                 {/* Inner card */}
                                 <View
@@ -1302,7 +1439,7 @@ export default function Home() {
                                             resizeMode: "cover",
                                             backgroundColor: "#eee",
                                             marginTop: 32, // space for Lottie
-                                            marginBottom: 28,
+                                            marginBottom: 30,
                                         }}
                                     />
                                     {/* Weather text */}
@@ -1311,7 +1448,7 @@ export default function Home() {
                                             fontSize: 16,
                                             color: "#333",
                                             textAlign: "center",
-                                            marginBottom: 24,
+                                            marginBottom: 70,
                                         }}
                                     >
                                         It&apos;s{" "}
@@ -1353,14 +1490,19 @@ export default function Home() {
                                         }
                                     />
                                 </View>
+                                {(() => {
+                                    fetchFriendForecast(friend);
+                                    return null;
+                                })()}
+                                <FiveDayForecast
+                                    forecastData={
+                                        friendForecasts[friend.id] || []
+                                    }
+                                />
                             </View>
                         );
                     }}
-                    ListHeaderComponent={
-                        <View className="mb-4">
-                            <ForecastSection />
-                        </View>
-                    }
+                    ListHeaderComponent={null}
                     ListEmptyComponent={
                         <Text className="ml-4 text-gray-500">
                             No friends using the app yet.
