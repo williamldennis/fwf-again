@@ -334,9 +334,26 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
     // Calculate weather effect percent and label (reuse weatherBonus)
     const weatherEffectPercent = Math.round(weatherBonus * 100);
-    const weatherLabel =
-        friendWeather.charAt(0).toUpperCase() +
-        friendWeather.slice(1).toLowerCase();
+    // Map weather conditions to display names
+    const getWeatherDisplayName = (weather: string): string => {
+        const weatherMapping: Record<string, string> = {
+            clear: "sunny",
+            clouds: "cloudy",
+            rain: "rainy",
+            drizzle: "rainy",
+            mist: "rainy",
+            fog: "rainy",
+            haze: "rainy",
+            snow: "rainy",
+            thunderstorm: "rainy",
+        };
+
+        const mappedWeather =
+            weatherMapping[weather.toLowerCase()] || weather.toLowerCase();
+        return mappedWeather;
+    };
+
+    const weatherLabel = getWeatherDisplayName(friendWeather);
 
     // Debug logging for weather effect section
     console.log("Weather Effect Debug:", {
@@ -486,7 +503,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                         {/* CURRENT WEATHER EFFECT SECTION */}
                         <View style={styles.weatherEffectSection}>
                             <Text style={styles.weatherEffectTitle}>
-                                Current Weather Effect
+                                Current Weather Impact
                             </Text>
                             <View style={styles.weatherEffectBox}>
                                 {/* Left: Circle with percent */}
@@ -508,7 +525,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                 </View>
                                 {/* Right: Sentence */}
                                 <Text style={styles.weatherEffectCopy}>
-                                    Current {weatherLabel}{" "}
+                                    Current {weatherLabel} weather{" "}
                                     {weatherEffectPercent > 100
                                         ? "speeds up"
                                         : weatherEffectPercent < 100
