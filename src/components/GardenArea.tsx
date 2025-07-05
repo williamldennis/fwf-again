@@ -49,7 +49,6 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         weatherCondition,
         onPlantPress,
         isGardenFull,
-        onPlantPress: onPlantPressOriginal, // Keep original for empty slots
         onPlantDetailsPress, // New callback for plant details
     } = props;
 
@@ -63,7 +62,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         if (isGardenFull) {
             Alert.alert("Garden is full", "Check back tomorrow.");
         } else {
-            onPlantPressOriginal();
+            onPlantPress();
         }
     };
 
