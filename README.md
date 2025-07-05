@@ -17,8 +17,11 @@ TO DO
 [] trim images
 [X] plant your own plants
 [] improve image size and dimensions
+[] add full forecast modal when tapping
 
 POLISH
+[] lottie animations for night time
+[] copy sweep for night time / clear / sunny etc
 [] video playback quality
 [] menu styling
 [] OTP for phone number to verify number
