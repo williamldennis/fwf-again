@@ -1180,7 +1180,7 @@ export default function Home() {
                                     style={{
                                         alignItems: "center",
                                         marginTop: 16,
-                                        marginBottom: 8,
+                                        marginBottom: 20,
                                         zIndex: 1,
                                     }}
                                 >
