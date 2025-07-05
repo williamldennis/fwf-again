@@ -249,6 +249,7 @@ export default function Home() {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [selectedPlanterName, setSelectedPlanterName] =
         useState<string>("Unknown");
+    const [userPoints, setUserPoints] = useState<number>(0);
 
     // User's 5-day forecast data
     const userFiveDayData = aggregateToFiveDay(forecast);
@@ -639,7 +640,7 @@ export default function Home() {
             // Get profile (use updated coordinates if available, otherwise use stored)
             const { data: profile, error: profileError } = await supabase
                 .from("profiles")
-                .select("latitude,longitude,selfie_urls")
+                .select("latitude,longitude,selfie_urls,points")
                 .eq("id", user.id)
                 .single();
 
@@ -661,6 +662,7 @@ export default function Home() {
             }
 
             setSelfieUrls(profile.selfie_urls || null);
+            setUserPoints(profile.points || 0);
 
             // Get user's timezone and local hour
             let localHour = 12;
@@ -777,7 +779,7 @@ export default function Home() {
                     return supabase
                         .from("profiles")
                         .select(
-                            "id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude, selfie_urls"
+                            "id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude, selfie_urls, points"
                         )
                         .in("phone_number", chunk)
                         .then((result) => result);
@@ -1084,6 +1086,23 @@ export default function Home() {
     const handlePlantHarvested = async () => {
         console.log("handlePlantHarvested called - refreshing plant data...");
 
+        // Refresh user's points after harvest
+        if (currentUserId) {
+            try {
+                const { data: profile } = await supabase
+                    .from("profiles")
+                    .select("points")
+                    .eq("id", currentUserId)
+                    .single();
+                if (profile) {
+                    setUserPoints(profile.points || 0);
+                    console.log("Updated user points:", profile.points);
+                }
+            } catch (error) {
+                console.error("Error refreshing user points:", error);
+            }
+        }
+
         // Refresh all planted plants data after harvest
         const plantsData: Record<string, any[]> = {};
 
@@ -1215,6 +1234,18 @@ export default function Home() {
                                             }}
                                         >
                                             Your Garden
+                                        </Text>
+                                        <Text
+                                            style={{
+                                                position: "absolute",
+                                                top: 20,
+                                                right: 20,
+                                                fontSize: 16,
+                                                fontWeight: "bold",
+                                                color: "#007AFF",
+                                            }}
+                                        >
+                                            {userPoints}
                                         </Text>
                                         <View
                                             style={{
@@ -1526,6 +1557,18 @@ export default function Home() {
                                     }}
                                 >
                                     {friend.contact_name || "Unknown"}'s Garden
+                                </Text>
+                                <Text
+                                    style={{
+                                        position: "absolute",
+                                        top: 20,
+                                        right: 20,
+                                        fontSize: 16,
+                                        fontWeight: "bold",
+                                        color: "#007AFF",
+                                    }}
+                                >
+                                    {friend.points || 0}
                                 </Text>
                                 {/* Inner card */}
                                 <View
