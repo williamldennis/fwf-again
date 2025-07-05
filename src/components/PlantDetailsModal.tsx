@@ -4,11 +4,11 @@ import {
     View,
     Text,
     TouchableOpacity,
-    Image,
     StyleSheet,
     ScrollView,
     Alert,
 } from "react-native";
+import { Image } from "expo-image";
 // @ts-ignore
 import { DateTime } from "luxon";
 import { supabase } from "../utils/supabase";
@@ -402,7 +402,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                         displayStage
                                     )}
                                     style={styles.plantImage}
-                                    resizeMode="contain"
+                                    contentFit="contain"
+                                    cachePolicy="memory-disk"
                                 />
                             </View>
                             {/* 3. Harvest Button */}
@@ -557,7 +558,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                 <Image
                                     source={getPlantImage(plantName, 5)}
                                     style={styles.plantInfoImage}
-                                    resizeMode="contain"
+                                    contentFit="contain"
+                                    cachePolicy="memory-disk"
                                 />
                                 {/* Name and grow time on right */}
                                 <View style={styles.plantInfoTextCol}>

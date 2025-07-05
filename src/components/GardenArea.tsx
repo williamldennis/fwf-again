@@ -1,5 +1,6 @@
 import React from "react";
-import { View, TouchableOpacity, Image, Text, Alert } from "react-native";
+import { View, TouchableOpacity, Text, Alert } from "react-native";
+import { Image } from "expo-image";
 import { GardenAreaProps, GrowthStage } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 
@@ -49,7 +50,6 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         weatherCondition,
         onPlantPress,
         isGardenFull,
-        onPlantPress: onPlantPressOriginal, // Keep original for empty slots
         onPlantDetailsPress, // New callback for plant details
     } = props;
 
@@ -63,7 +63,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         if (isGardenFull) {
             Alert.alert("Garden is full", "Check back tomorrow.");
         } else {
-            onPlantPressOriginal();
+            onPlantPress();
         }
     };
 
@@ -108,7 +108,8 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                             <Image
                                 source={emptyPotImg}
                                 style={{ width: 90, height: 90 }}
-                                resizeMode="contain"
+                                contentFit="contain"
+                                cachePolicy="memory-disk"
                             />
                         </TouchableOpacity>
                     );
@@ -147,13 +148,15 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                         <Image
                             source={getImageForPlant(plantName, stage)}
                             style={{ width: 90, height: 90 }}
-                            resizeMode="contain"
+                            contentFit="contain"
+                            cachePolicy="memory-disk"
                         />
                         <Text
                             style={{
                                 fontSize: 10,
                                 color: "#333",
                                 marginBottom: 20,
+                                fontWeight: "bold",
                             }}
                         >
                             {plantName}
