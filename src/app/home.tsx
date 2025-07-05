@@ -998,37 +998,72 @@ export default function Home() {
                 }}
             />
             <View style={{ flex: 1, backgroundColor: bgColor }}>
-                {/* Weather Card (main user) */}
-                <View style={{ zIndex: 1 }}>
-                    <View className="items-center p-5 m-4 rounded-xl">
-                        {loading ? (
-                            <View className="flex-1 justify-center items-center">
-                                <ActivityIndicator size="large" />
-                                <Text className="text-black">
-                                    Loading weather...
-                                </Text>
-                            </View>
-                        ) : error ? (
-                            <View className="flex-1 justify-center items-center">
-                                <Text className="text-black">{error}</Text>
-                            </View>
-                        ) : weather ? (
-                            <>
-                                <View
-                                    style={{
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        marginVertical: 40,
-                                    }}
-                                >
+                {/* User Weather Card (styled like friend card) */}
+                <View
+                    style={{
+                        zIndex: 1,
+                        alignItems: "center",
+                        marginTop: 16,
+                        marginBottom: 8,
+                    }}
+                >
+                    <View
+                        style={{
+                            width: cardWidth,
+                            backgroundColor: "#fff",
+                            borderRadius: 20,
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.08,
+                            shadowRadius: 8,
+                            elevation: 3,
+                            alignItems: "center",
+                            overflow: "visible",
+                            borderWidth: 0.5,
+                            borderColor: "#DBDBDB",
+                            marginBottom: 0,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                fontWeight: "bold",
+                                fontSize: 18,
+                                textAlign: "center",
+                                marginTop: 20,
+                                marginBottom: 20,
+                            }}
+                        >
+                            Your Garden
+                        </Text>
+                        <View
+                            style={{
+                                width: "90%",
+                                backgroundColor: "#F0F0F0",
+                                borderRadius: 16,
+                                alignItems: "center",
+                                paddingVertical: 0,
+                                paddingHorizontal: 0,
+                                position: "relative",
+                                marginBottom: 14,
+                                borderWidth: 0.5,
+                                borderColor: "#DBDBDB",
+                            }}
+                        >
+                            {/* Lottie animation floating above, centered */}
+                            {weather &&
+                                weather.weather &&
+                                weather.weather[0] && (
                                     <View
+                                        pointerEvents="none"
                                         style={{
-                                            position: "relative",
+                                            position: "absolute",
+                                            top: -140,
+                                            left: 0,
+                                            right: 0,
                                             alignItems: "center",
-                                            justifyContent: "center",
+                                            zIndex: 3,
                                         }}
                                     >
-                                        {/* Lottie animation (unchanged) */}
                                         <LottieView
                                             source={getWeatherLottie(
                                                 weather.weather[0].main
@@ -1036,90 +1071,108 @@ export default function Home() {
                                             autoPlay
                                             loop
                                             style={{
-                                                width: 800,
-                                                height: 800,
-                                                position: "absolute",
-                                                zIndex: 4,
-                                                opacity: 0.8,
-                                                marginTop: 200,
-                                            }}
-                                        />
-                                        {/* Temperature in large white circle */}
-                                        <View
-                                            style={{
-                                                width: 120,
-                                                height: 120,
-                                                borderRadius: 70,
-                                                backgroundColor: "#fff",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                zIndex: 2,
-                                                shadowColor: "#000",
-                                                shadowOpacity: 0.1,
-                                                shadowRadius: 8,
-                                                elevation: 4,
-                                            }}
-                                        >
-                                            <Text
-                                                style={{
-                                                    fontSize: 56,
-                                                    fontWeight: "bold",
-                                                    color: "#222",
-                                                }}
-                                            >
-                                                {Math.round(weather.main.temp)}°
-                                            </Text>
-                                        </View>
-                                        {/* User's selfie, smaller, bottom right, overlapping */}
-                                        <Image
-                                            source={{
-                                                uri:
-                                                    selfieUrls &&
-                                                    mapWeatherToSelfieKey(
-                                                        weather.weather[0].main
-                                                    )
-                                                        ? selfieUrls[
-                                                              mapWeatherToSelfieKey(
-                                                                  weather
-                                                                      .weather[0]
-                                                                      .main
-                                                              )
-                                                          ]
-                                                        : undefined,
-                                            }}
-                                            style={{
-                                                width: 50,
-                                                height: 50,
-                                                borderRadius: 32,
-                                                resizeMode: "cover",
-                                                position: "absolute",
-                                                right: -5,
-                                                bottom: -5,
-                                                borderWidth: 0,
-                                                borderColor: "#fff",
-                                                zIndex: 3,
-                                                backgroundColor: "#eee",
+                                                width: 400,
+                                                height: 400,
+                                                opacity: 0.7,
                                             }}
                                         />
                                     </View>
-                                </View>
-                                <Text
-                                    className="text-base text-black"
-                                    style={{
-                                        marginTop: 0,
-                                        textAlign: "center",
-                                        fontSize: 16,
-                                    }}
-                                >
-                                    It&apos;s{" "}
-                                    {getWeatherDescription(
-                                        weather.weather[0].main
-                                    )}{" "}
-                                    in {weather.name}
+                                )}
+                            {/* Selfie */}
+                            <Image
+                                source={{
+                                    uri:
+                                        selfieUrls &&
+                                        weather &&
+                                        weather.weather &&
+                                        mapWeatherToSelfieKey(
+                                            weather.weather[0].main
+                                        )
+                                            ? selfieUrls[
+                                                  mapWeatherToSelfieKey(
+                                                      weather.weather[0].main
+                                                  )
+                                              ]
+                                            : undefined,
+                                }}
+                                style={{
+                                    width: 80,
+                                    height: 80,
+                                    borderRadius: 40,
+                                    resizeMode: "cover",
+                                    backgroundColor: "#eee",
+                                    marginTop: 32, // space for Lottie
+                                    marginBottom: 30,
+                                }}
+                            />
+                            {/* Weather text */}
+                            <Text
+                                style={{
+                                    fontSize: 16,
+                                    color: "#333",
+                                    textAlign: "center",
+                                    marginBottom: 70,
+                                }}
+                            >
+                                It&apos;s{" "}
+                                <Text style={{ fontWeight: "bold" }}>
+                                    {weather &&
+                                    weather.main &&
+                                    weather.main.temp
+                                        ? Math.round(weather.main.temp)
+                                        : "--"}
+                                    °
+                                </Text>{" "}
+                                and{" "}
+                                <Text style={{ fontWeight: "bold" }}>
+                                    {weather &&
+                                    weather.weather &&
+                                    weather.weather[0]
+                                        ? getWeatherDescription(
+                                              weather.weather[0].main
+                                          )
+                                        : "--"}
+                                </Text>{" "}
+                                in{" "}
+                                <Text style={{ fontWeight: "bold" }}>
+                                    {weather && weather.name
+                                        ? weather.name
+                                        : "--"}
                                 </Text>
-                            </>
-                        ) : null}
+                            </Text>
+                        </View>
                     </View>
+                    {loading && (
+                        <View
+                            style={{
+                                position: "absolute",
+                                top: 60,
+                                left: 0,
+                                right: 0,
+                                alignItems: "center",
+                                zIndex: 10,
+                            }}
+                        >
+                            <ActivityIndicator size="large" />
+                            <Text style={{ color: "#333", marginTop: 8 }}>
+                                Loading weather...
+                            </Text>
+                        </View>
+                    )}
+                    {error && !loading && (
+                        <View
+                            style={{
+                                position: "absolute",
+                                top: 60,
+                                left: 0,
+                                right: 0,
+                                alignItems: "center",
+                                zIndex: 10,
+                            }}
+                        >
+                            <Text style={{ color: "#ff4444" }}>{error}</Text>
+                        </View>
+                    )}
                 </View>
                 {/* Friends List with forecast as header */}
                 <FlatList
