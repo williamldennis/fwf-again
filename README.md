@@ -13,24 +13,23 @@ TO DO
 [X] own garden card (you can't harvest your own -- it incentivizes needing friends to earn points)
 [X] add points
 [] android
-[] trim images
-[X] plant your own plants
-[] improve image size and dimensions
 [] check points acrrual for harvestER not gardener
+[] check plants are being planted correctly
+[X] trim images
+[X] plant your own plants
+[X] improve image size and dimensions
 
 POLISH
 [] add name or username to sign up
 [] add full forecast modal when tapping
-[] loading spinner on sign in / improve home page loading
-[] improve weather forecast stylist
+[] loading spinner on sign in and improve home page loading
+[] improve weather forecast styling
 [] lottie animations for night time
-[] copy sweep for night time / clear / sunny etc
+[] improve copy for night time / clear / sunny etc
 [] video playback quality
 [] menu styling
 [] OTP for phone number to verify number
-[X] styling for onboarding
-[X] styling for selfies
-[X] some sort of interaction between users
+
 [] allow dragging of selfie animations
 [] style camera permissions screen
 [] remove 'retake' from selfies flow
@@ -39,6 +38,9 @@ POLISH
 [] improve snow selfie animation
 [] naming: garden party, flower thief, picnic, pickett, nickit picnic,
 
+[X] styling for onboarding
+[X] styling for selfies
+[X] some sort of interaction between users
 [X] selfies
 [X] improve selfies so they are smaller / front facing / filters / have text overlay
 [X] display selfies

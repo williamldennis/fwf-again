@@ -8,6 +8,7 @@ import {
     StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
 import { Plant, PlantPickerProps } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 
@@ -37,26 +38,26 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
     weatherCondition,
     plants,
 }) => {
-    console.log("🎨 PlantPicker rendered", { visible, plants });
-
+    // Haptic feedback when selecting a plant
+    const handlePlantSelection = async (plantId: string) => {
+        try {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        } catch (error) {
+            console.log("[Haptics] Could not trigger haptic feedback:", error);
+        }
+        onSelectPlant(plantId);
+    };
     // Preload images when component mounts
     React.useEffect(() => {
-        console.log("🔄 Preloading plant images...");
         plants.forEach((plant) => {
             const imageSource = getPlantImageSource(plant.image_path);
-            console.log(`📸 Preloading: ${plant.name}`);
         });
     }, [plants]);
 
     // Debug: Check if images are preloaded
     React.useEffect(() => {
         if (visible) {
-            console.log("🔍 PlantPicker opened - checking image cache...");
-            plants.forEach((plant) => {
-                console.log(
-                    `📸 Plant: ${plant.name}, Image path: ${plant.image_path}`
-                );
-            });
+            // No logging needed here
         }
     }, [visible, plants]);
     return (
@@ -95,7 +96,9 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
                             renderItem={({ item }) => (
                                 <TouchableOpacity
                                     style={styles.plantRow}
-                                    onPress={() => onSelectPlant(item.id)}
+                                    onPress={() =>
+                                        handlePlantSelection(item.id)
+                                    }
                                 >
                                     <Image
                                         source={getPlantImageSource(

@@ -43,7 +43,6 @@ const dirtImg = require("../../assets/images/plants/dirt.png");
 const SLOT_COUNT = 3;
 
 export const GardenArea: React.FC<GardenAreaProps> = (props) => {
-    console.log("GardenArea rendered", props);
     const {
         gardenOwnerId,
         plants,
@@ -53,17 +52,25 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         onPlantDetailsPress, // New callback for plant details
     } = props;
 
+    // Map plants by slot for consistent rendering
+    const slotMap: Record<number, any> = {};
+    (plants || []).forEach((plant) => {
+        if (typeof plant.slot === "number") {
+            slotMap[plant.slot] = plant;
+        }
+    });
+
     // Fill up to 3 slots with either a plant or null (for empty)
     const slots = Array(SLOT_COUNT)
         .fill(null)
-        .map((_, i) => plants[i] || null);
+        .map((_, i) => slotMap[i] || null);
 
     // Handler for empty slot tap
-    const handleEmptySlotPress = () => {
+    const handleEmptySlotPress = (slotIdx: number) => {
         if (isGardenFull) {
-            Alert.alert("Garden is full", "Check back tomorrow.");
+            // No log needed here
         } else {
-            onPlantPress();
+            onPlantPress(slotIdx);
         }
     };
 
@@ -76,7 +83,8 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
 
     const getImageForPlant = (plantName: string, stage: GrowthStage) => {
         if (stage === 2) return dirtImg;
-        const plantKey = plantName.toLowerCase();
+        // Convert plant name to match the image mapping keys
+        const plantKey = plantName.toLowerCase().replace(/\s+/g, "_");
         return plantStageImages[plantKey]?.[stage] || dirtImg;
     };
 
@@ -99,7 +107,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                     return (
                         <TouchableOpacity
                             key={`empty-${idx}`}
-                            onPress={handleEmptySlotPress}
+                            onPress={() => handleEmptySlotPress(idx)}
                             style={{
                                 flex: 1,
                                 alignItems: "center",
@@ -111,6 +119,20 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 contentFit="contain"
                                 cachePolicy="memory-disk"
                             />
+                            <Text
+                                style={{
+                                    fontSize: 10,
+                                    color: "green",
+                                    marginBottom: 20,
+                                    marginTop: 10,
+                                    fontWeight: "bold",
+                                    padding: 6,
+                                    paddingHorizontal: 12,
+                                    borderRadius: 10,
+                                }}
+                            >
+                                Tap to plant
+                            </Text>
                         </TouchableOpacity>
                     );
                 }
@@ -156,7 +178,11 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 fontSize: 10,
                                 color: "#333",
                                 marginBottom: 20,
+                                marginTop: 10,
                                 fontWeight: "bold",
+                                padding: 6,
+                                paddingHorizontal: 12,
+                                borderRadius: 10,
                             }}
                         >
                             {plantName}

@@ -39,7 +39,7 @@ const FiveDayForecast: React.FC<FiveDayForecastProps> = ({
                     />
                     <Text
                         style={styles.temp}
-                    >{`${Math.round(day.low)}°/${Math.round(day.high)}°`}</Text>
+                    >{`${Math.round(day.low)}° / ${Math.round(day.high)}°`}</Text>
                 </View>
             ))}
         </View>
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     temp: {
-        fontSize: 14,
+        fontSize: 12,
         color: "#333",
     },
 });
