@@ -161,7 +161,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                         pointerEvents="none"
                         style={{
                             position: "absolute",
-                            top: -140,
+                            top: 100,
                             left: 0,
                             right: 0,
                             alignItems: "center",
@@ -173,8 +173,8 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                             autoPlay
                             loop
                             style={{
-                                width: 400,
-                                height: 400,
+                                width: 200,
+                                height: 200,
                                 opacity: 0.7,
                             }}
                         />
