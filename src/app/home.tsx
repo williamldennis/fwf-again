@@ -986,6 +986,13 @@ export default function Home() {
             return;
         }
 
+        // Close modal immediately for better UX
+        setShowPlantPicker(false);
+        const friendId = selectedFriendId;
+        const slotIdx = selectedSlot;
+        setSelectedFriendId(null);
+        setSelectedSlot(null);
+
         try {
             // Get current user
             const {
@@ -993,7 +1000,6 @@ export default function Home() {
             } = await supabase.auth.getUser();
             if (!user) {
                 console.error("[Plant] No authenticated user found");
-                setShowPlantPicker(false);
                 return;
             }
 
@@ -1001,8 +1007,8 @@ export default function Home() {
             const { data: slotPlants, error: slotError } = await supabase
                 .from("planted_plants")
                 .select("id")
-                .eq("garden_owner_id", selectedFriendId)
-                .eq("slot", selectedSlot)
+                .eq("garden_owner_id", friendId)
+                .eq("slot", slotIdx)
                 .is("harvested_at", null);
             if (slotError) {
                 console.error(
@@ -1010,28 +1016,26 @@ export default function Home() {
                     slotError
                 );
                 Alert.alert("Error", "Could not check slot occupancy");
-                setShowPlantPicker(false);
                 return;
             }
             if (slotPlants && slotPlants.length > 0) {
                 Alert.alert("Slot Occupied", "This pot is already occupied");
-                setShowPlantPicker(false);
                 return;
             }
 
             // Plant the seed
             console.log(
-                `[Plant] Planting new plant in garden ${selectedFriendId} slot ${selectedSlot} (plantId: ${plantId})`
+                `[Plant] Planting new plant in garden ${friendId} slot ${slotIdx} (plantId: ${plantId})`
             );
             const { data: plantedPlant, error: plantError } = await supabase
                 .from("planted_plants")
                 .insert({
-                    garden_owner_id: selectedFriendId,
+                    garden_owner_id: friendId,
                     planter_id: user.id,
                     plant_id: plantId,
                     current_stage: 2, // Start at stage 2 (dirt) immediately after planting
                     is_mature: false,
-                    slot: selectedSlot,
+                    slot: slotIdx,
                 })
                 .select()
                 .single();
@@ -1042,21 +1046,20 @@ export default function Home() {
                     "Error",
                     plantError.message || "Failed to plant seed"
                 );
-                setShowPlantPicker(false);
                 return;
             }
 
             console.log("[Plant] Successfully planted:", plantedPlant);
 
             // Refresh planted plants for this friend
-            const updatedPlants = await fetchPlantedPlants(selectedFriendId);
+            const updatedPlants = await fetchPlantedPlants(friendId);
             setPlantedPlants((prev) => ({
                 ...prev,
-                [selectedFriendId]: updatedPlants,
+                [friendId]: updatedPlants,
             }));
 
             // If planting in user's own garden, also refresh user's plants
-            if (selectedFriendId === currentUserId) {
+            if (friendId === currentUserId) {
                 const userPlants = await fetchPlantedPlants(currentUserId);
                 setPlantedPlants((prev) => ({
                     ...prev,
@@ -1066,16 +1069,9 @@ export default function Home() {
 
             // Update growth for all plants
             await updatePlantGrowth();
-
-            // Close the modal
-            setShowPlantPicker(false);
-            setSelectedFriendId(null);
-            setSelectedSlot(null);
         } catch (error) {
             console.error("[Plant] Error in handleSelectPlant:", error);
             Alert.alert("Error", "An unexpected error occurred");
-            setShowPlantPicker(false);
-            setSelectedSlot(null);
         }
     };
     const handlePlantDetailsPress = async (
