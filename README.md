@@ -13,10 +13,11 @@ TO DO
 [X] own garden card (you can't harvest your own -- it incentivizes needing friends to earn points)
 [X] add points
 [] android
-[] trim images
+[X] trim images
 [X] plant your own plants
 [] improve image size and dimensions
 [] check points acrrual for harvestER not gardener
+[] check plants are being planted correctly
 
 POLISH
 [] add name or username to sign up
