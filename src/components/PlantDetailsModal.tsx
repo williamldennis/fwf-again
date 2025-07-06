@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
     plantedInfo: {
         fontSize: 14,
         color: "#666",
-        marginBottom: 16,
+        marginBottom: 0,
         textAlign: "center",
     },
     harvestButton: {
@@ -697,8 +697,9 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     plantImage: {
-        width: 120,
-        height: 120,
+        marginTop: -36,
+        width: 220,
+        height: 220,
     },
     growthSection: {
         marginTop: 24,
