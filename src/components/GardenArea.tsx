@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Text, Alert } from "react-native";
 import { Image } from "expo-image";
 import { GardenAreaProps, GrowthStage } from "../types/garden";
 import { GrowthService } from "../services/growthService";
+import DirtParticles from "./DirtParticles";
 
 const plantStageImages: Record<string, Record<number, any>> = {
     sunflower: {
@@ -52,6 +53,49 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         onPlantDetailsPress, // New callback for plant details
     } = props;
 
+    // State for dirt particle animation
+    const [showParticles, setShowParticles] = useState(false);
+    const [particlePosition, setParticlePosition] = useState({ x: 0, y: 0 });
+    const previousPlantsRef = useRef<any[]>([]);
+
+    // Track when new plants are added and trigger animation
+    useEffect(() => {
+        const currentPlantCount = plants?.length || 0;
+        const previousPlantCount = previousPlantsRef.current.length;
+
+        // If we have more plants than before, a new plant was added
+        if (currentPlantCount > previousPlantCount) {
+            // Find the new plant (it will be the one without a slot in previous plants)
+            const newPlant = plants?.find(
+                (plant) =>
+                    !previousPlantsRef.current.some(
+                        (prevPlant) => prevPlant.id === plant.id
+                    )
+            );
+
+            if (newPlant && typeof newPlant.slot === "number") {
+                // Calculate position for the new plant's slot
+                const slotIndex = newPlant.slot;
+                const potX = slotIndex * 120 + 45; // Approximate pot center X
+                const potY = 45; // Approximate pot center Y
+
+                setParticlePosition({ x: potX, y: potY });
+
+                // Trigger animation with a small delay
+                setTimeout(() => {
+                    setShowParticles(true);
+                }, 1000);
+            }
+        }
+
+        // Update previous plants reference
+        previousPlantsRef.current = plants || [];
+    }, [plants]);
+
+    const handleParticleAnimationComplete = () => {
+        setShowParticles(false);
+    };
+
     // Map plants by slot for consistent rendering
     const slotMap: Record<number, any> = {};
     (plants || []).forEach((plant) => {
@@ -99,8 +143,15 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 padding: 0,
                 marginTop: 20,
                 marginBottom: 0,
+                position: "relative",
             }}
         >
+            {/* Dirt Particles Animation - Temporarily disabled for debugging */}
+            {/* <DirtParticles
+                visible={showParticles}
+                potPosition={particlePosition}
+                onAnimationComplete={handleParticleAnimationComplete}
+            /> */}
             {slots.map((plant, idx) => {
                 if (!plant) {
                     // Empty slot
