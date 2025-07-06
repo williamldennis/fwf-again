@@ -43,18 +43,76 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     friendWeather = "clear", // Default to clear if not provided
     planterName,
 }) => {
+    // Bounce animation for harvest-ready plants
+    const translateY = useSharedValue(0);
+
+    // useEffect hook - ALWAYS called with consistent dependencies
+    useEffect(() => {
+        // Only run animation logic if plant exists and is mature
+        if (plant && !plant.harvested_at) {
+            const plantName =
+                plant.plant?.name || plant.plant_name || "Unknown";
+            const plantObject = plant.plant || {
+                id: plant.plant_id,
+                name: plantName,
+                growth_time_hours: plant.growth_time_hours || 0,
+                image_path: plant.image_path || "",
+                created_at: plant.planted_at,
+            };
+
+            const isMature = GrowthService.isPlantMature(
+                plant,
+                plantObject,
+                friendWeather
+            );
+
+            if (isMature) {
+                // Create parabolic bounce animation using withRepeat and custom easing
+                translateY.value = withRepeat(
+                    withSequence(
+                        withTiming(-16, {
+                            duration: 400, // Quick jump up
+                            easing: Easing.out(Easing.quad),
+                        }),
+                        withTiming(0, {
+                            duration: 600, // Slower fall (gravity)
+                            easing: Easing.in(Easing.quad),
+                        })
+                    ),
+                    -1, // Infinite repeat
+                    false // Don't reverse, use the sequence as-is
+                );
+            } else {
+                // Stop animation and reset to normal
+                translateY.value = withTiming(0, { duration: 300 });
+            }
+        } else {
+            // Stop animation and reset to normal
+            translateY.value = withTiming(0, { duration: 300 });
+        }
+    }, [plant?.id, plant?.harvested_at, friendWeather]); // Stable dependencies
+
+    // Animated style hook - must be called before early return
+    const animatedImageStyle = useAnimatedStyle(() => ({
+        transform: [{ translateY: translateY.value }],
+    }));
+
+    // Early return after all hooks
     if (!plant) return null;
 
+    // Calculate values needed for the rest of the component
     const plantName = plant.plant?.name || plant.plant_name || "Unknown";
+    const plantObject = plant.plant || {
+        id: plant.plant_id,
+        name: plantName,
+        growth_time_hours: plant.growth_time_hours || 0,
+        image_path: plant.image_path || "",
+        created_at: plant.planted_at,
+    };
+
     // Use GrowthService to get the weather bonus multiplier for the current weather
     const weatherBonus = GrowthService.getWeatherBonus(
-        plant.plant || {
-            id: plant.plant_id,
-            name: plantName,
-            growth_time_hours: plant.growth_time_hours || 0,
-            image_path: plant.image_path || "",
-            created_at: plant.planted_at,
-        },
+        plantObject,
         friendWeather
     );
     // For debugging or display, keep the original weather_bonus object
@@ -63,20 +121,23 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     const growthTimeHours =
         plant.plant?.growth_time_hours || plant.growth_time_hours || 0;
 
-    // Create plant object for service calls
-    const plantObject = plant.plant || {
-        id: plant.plant_id,
-        name: plantName,
-        growth_time_hours: growthTimeHours,
+    // Update plantObject with weather bonus
+    const updatedPlantObject = {
+        ...plantObject,
         weather_bonus: weatherBonus,
-        image_path: plant.image_path || "",
-        created_at: plant.planted_at,
     };
+
+    // Check if plant is mature using GrowthService
+    const isMature = GrowthService.isPlantMature(
+        plant,
+        updatedPlantObject,
+        friendWeather
+    );
 
     // Use GrowthService for all stage calculations (includes weather effects)
     const growthCalculation = GrowthService.calculateGrowthStage(
         plant,
-        plantObject,
+        updatedPlantObject,
         friendWeather
     );
 
@@ -87,26 +148,19 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     // Use TimeCalculationService for consistent time calculations
     const timeToMaturity = TimeCalculationService.getTimeToMaturity(
         plant.planted_at,
-        plantObject,
+        updatedPlantObject,
         friendWeather
     );
 
     const formattedTimeToMaturity =
         TimeCalculationService.getFormattedTimeToMaturity(
             plant.planted_at,
-            plantObject,
+            updatedPlantObject,
             friendWeather
         );
 
     const formattedTimeSincePlanted =
         TimeCalculationService.getFormattedTimeSincePlanted(plant.planted_at);
-
-    // Check if plant is mature using GrowthService
-    const isMature = GrowthService.isPlantMature(
-        plant,
-        plantObject,
-        friendWeather
-    );
 
     // For display: only show mature image and 'Ready to Harvest' step if isMature
     const displayStage = isMature ? 5 : Math.min(currentStage, 4);
@@ -345,36 +399,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     };
 
     const weatherLabel = getWeatherDisplayName(friendWeather);
-
-    // Bounce animation for harvest-ready plants
-    const translateY = useSharedValue(0);
-
-    useEffect(() => {
-        if (isMature && !plant.harvested_at) {
-            // Create parabolic bounce animation using withRepeat and custom easing
-            translateY.value = withRepeat(
-                withSequence(
-                    withTiming(-16, {
-                        duration: 400, // Quick jump up
-                        easing: Easing.out(Easing.quad),
-                    }),
-                    withTiming(0, {
-                        duration: 600, // Slower fall (gravity)
-                        easing: Easing.in(Easing.quad),
-                    })
-                ),
-                -1, // Infinite repeat
-                false // Don't reverse, use the sequence as-is
-            );
-        } else {
-            // Stop animation and reset to normal
-            translateY.value = withTiming(0, { duration: 300 });
-        }
-    }, [isMature, plant.harvested_at]);
-
-    const animatedImageStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: translateY.value }],
-    }));
 
     // Debug logging for weather effect section
     console.log("Weather Effect Debug:", {
