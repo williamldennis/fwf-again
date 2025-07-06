@@ -892,8 +892,53 @@ export default function Home() {
             5 * 60 * 1000
         ); // 5 minutes
 
+        // Subscribe to changes in planted_plants
+        const subscription = supabase
+            .channel("public:planted_plants")
+            .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "planted_plants" },
+                async (payload) => {
+                    // Type guard for garden_owner_id
+                    const realtimeNewGardenOwnerId =
+                        payload.new &&
+                        typeof payload.new === "object" &&
+                        "garden_owner_id" in payload.new
+                            ? payload.new.garden_owner_id
+                            : undefined;
+                    const realtimeOldGardenOwnerId =
+                        payload.old &&
+                        typeof payload.old === "object" &&
+                        "garden_owner_id" in payload.old
+                            ? payload.old.garden_owner_id
+                            : undefined;
+                    const realtimeGardenOwnerId =
+                        realtimeNewGardenOwnerId || realtimeOldGardenOwnerId;
+                    if (
+                        !realtimeGardenOwnerId ||
+                        typeof realtimeGardenOwnerId !== "string"
+                    )
+                        return;
+                    console.log(
+                        "[Realtime] Change in garden:",
+                        realtimeGardenOwnerId,
+                        payload.eventType
+                    );
+                    // Only fetch the affected garden's plants
+                    const updatedPlants = await fetchPlantedPlants(
+                        realtimeGardenOwnerId
+                    );
+                    setPlantedPlants((prev) => ({
+                        ...prev,
+                        [realtimeGardenOwnerId]: updatedPlants,
+                    }));
+                }
+            )
+            .subscribe();
+
         return () => {
             clearInterval(growthInterval);
+            supabase.removeChannel(subscription);
         };
     }, []);
 
