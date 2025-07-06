@@ -503,6 +503,62 @@ export default function Home() {
         }
     };
 
+    const fetchAllPlantedPlantsBatch = async (userIds: string[]) => {
+        try {
+            console.log(
+                `[Plants] 🚀 Batch fetching plants for ${userIds.length} users...`
+            );
+
+            if (userIds.length === 0) {
+                console.log("[Plants] ℹ️ No user IDs provided for batch fetch");
+                return {};
+            }
+
+            const { data: allPlants, error } = await supabase
+                .from("planted_plants")
+                .select(
+                    `
+                    *,
+                    plant:plants(*)
+                `
+                )
+                .in("garden_owner_id", userIds)
+                .is("harvested_at", null) // Only show non-harvested plants
+                .order("planted_at", { ascending: false });
+
+            if (error) {
+                console.error("[Plants] ❌ Error in batch plant fetch:", error);
+                return {};
+            }
+
+            // Group plants by garden_owner_id
+            const plantsByUser: Record<string, any[]> = {};
+            allPlants?.forEach((plant) => {
+                const gardenOwnerId = plant.garden_owner_id;
+                if (!plantsByUser[gardenOwnerId]) {
+                    plantsByUser[gardenOwnerId] = [];
+                }
+                plantsByUser[gardenOwnerId].push(plant);
+            });
+
+            console.log(
+                `[Plants] ✅ Batch fetch completed: ${allPlants?.length || 0} total plants for ${Object.keys(plantsByUser).length} users`
+            );
+
+            // Log summary for each user
+            Object.entries(plantsByUser).forEach(([userId, plants]) => {
+                console.log(
+                    `[Plants] 🌱 User ${userId}: ${plants.length} plants`
+                );
+            });
+
+            return plantsByUser;
+        } catch (error) {
+            console.error("[Plants] ❌ Exception in batch plant fetch:", error);
+            return {};
+        }
+    };
+
     const fetchAvailablePlants = async () => {
         try {
             console.log(
@@ -847,7 +903,6 @@ export default function Home() {
 
             // Fetch planted plants for each friend and the current user
             console.log("[Loading] 🌱 Step 11: Fetching planted plants...");
-            const plantsData: Record<string, any[]> = {};
 
             // TEST: Direct query to check if Will's plants exist
             console.log(
@@ -867,25 +922,17 @@ export default function Home() {
                 );
             }
 
-            // Fetch current user's plants
+            // OPTIMIZATION: Batch fetch all plants instead of sequential queries
+            const allUserIds = [
+                user.id,
+                ...friendsWithNamesAndCities.map((friend) => friend.id),
+            ];
             console.log(
-                `[Loading] 👤 Fetching current user's plants: ${user.id}`
+                `[Loading] 🚀 Batch fetching plants for ${allUserIds.length} users (${friendsWithNamesAndCities.length} friends + current user)`
             );
-            const userPlants = await fetchPlantedPlants(user.id);
-            plantsData[user.id] = userPlants;
-            console.log(`[Loading] ✅ User plants: ${userPlants.length}`);
 
-            // Fetch friends' plants
-            console.log(
-                `[Loading] 👥 Fetching ${friendsWithNamesAndCities.length} friends' plants...`
-            );
-            for (const friend of friendsWithNamesAndCities) {
-                const plants = await fetchPlantedPlants(friend.id);
-                plantsData[friend.id] = plants;
-                console.log(
-                    `[Loading] 🌱 ${friend.contact_name}: ${plants.length} plants`
-                );
-            }
+            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
+
             console.log(
                 `[Loading] ✅ All plants loaded for ${Object.keys(plantsData).length} users`
             );
@@ -1234,51 +1281,39 @@ export default function Home() {
             }
         }
 
-        // Refresh all planted plants data after harvest
-        const plantsData: Record<string, any[]> = {};
-
-        // Refresh current user's plants
-        if (currentUserId) {
-            const userPlants = await fetchPlantedPlants(currentUserId);
-            plantsData[currentUserId] = userPlants;
+        // OPTIMIZATION: Use batch query to refresh all plants
+        if (currentUserId && friendsWeather.length > 0) {
+            const allUserIds = [
+                currentUserId,
+                ...friendsWeather.map((friend) => friend.id),
+            ];
             console.log(
-                "Refreshed plants for current user:",
-                userPlants.length
+                `[Harvest] 🚀 Batch refreshing plants for ${allUserIds.length} users...`
             );
-        }
 
-        // Refresh friends' plants
-        for (const friend of friendsWeather) {
-            const plants = await fetchPlantedPlants(friend.id);
-            plantsData[friend.id] = plants;
-            console.log(
-                `Refreshed plants for ${friend.contact_name}:`,
-                plants.length
-            );
+            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
+            setPlantedPlants(plantsData);
+            console.log("Plant data refresh completed");
         }
-        setPlantedPlants(plantsData);
-        console.log("Plant data refresh completed");
     };
 
     const handleRefreshGrowth = async () => {
         console.log("Manual growth refresh triggered");
         await updatePlantGrowth();
 
-        // Refresh all planted plants data
-        const plantsData: Record<string, any[]> = {};
+        // OPTIMIZATION: Use batch query to refresh all plants
+        if (currentUserId && friendsWeather.length > 0) {
+            const allUserIds = [
+                currentUserId,
+                ...friendsWeather.map((friend) => friend.id),
+            ];
+            console.log(
+                `[Growth] 🚀 Batch refreshing plants for ${allUserIds.length} users...`
+            );
 
-        // Refresh current user's plants
-        if (currentUserId) {
-            const userPlants = await fetchPlantedPlants(currentUserId);
-            plantsData[currentUserId] = userPlants;
+            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
+            setPlantedPlants(plantsData);
         }
-
-        // Refresh friends' plants
-        for (const friend of friendsWeather) {
-            const plants = await fetchPlantedPlants(friend.id);
-            plantsData[friend.id] = plants;
-        }
-        setPlantedPlants(plantsData);
 
         Alert.alert("Growth Updated", "Plant growth has been refreshed!");
     };
