@@ -370,6 +370,7 @@ export default function Home() {
 
     const updatePlantGrowth = async () => {
         try {
+            console.log("[Growth] 📈 Starting plant growth update...");
             // Get all planted plants that aren't mature
             const { data: allPlantedPlants, error } = await supabase
                 .from("planted_plants")
@@ -383,18 +384,19 @@ export default function Home() {
 
             if (error) {
                 console.error(
-                    "Error fetching planted plants for growth update:",
+                    "[Growth] ❌ Error fetching planted plants for growth update:",
                     error
                 );
                 return;
             }
 
             if (!allPlantedPlants || allPlantedPlants.length === 0) {
+                console.log("[Growth] ℹ️ No plants need growth updates");
                 return;
             }
 
             console.log(
-                `Updating growth for ${allPlantedPlants.length} plants`
+                `[Growth] 🌱 Updating growth for ${allPlantedPlants.length} plants`
             );
 
             // Group plants by garden owner to get their weather
@@ -453,9 +455,9 @@ export default function Home() {
                 }
             }
 
-            console.log("Plant growth update completed");
+            console.log("[Growth] ✅ Plant growth update completed");
         } catch (error) {
-            console.error("Error updating plant growth:", error);
+            console.error("[Growth] ❌ Error updating plant growth:", error);
         }
     };
 
@@ -503,50 +505,61 @@ export default function Home() {
 
     const fetchAvailablePlants = async () => {
         try {
+            console.log(
+                "[Plants] 🌱 Fetching available plants from database..."
+            );
             const { data: plants, error } = await supabase
                 .from("plants")
                 .select("*")
                 .order("name");
 
             if (error) {
-                console.error("Error fetching plants:", error);
+                console.error("[Plants] ❌ Error fetching plants:", error);
                 return;
             }
 
             if (plants) {
                 setAvailablePlants(plants);
-                console.log("Fetched plants:", plants);
+                console.log(
+                    `[Plants] ✅ Fetched ${plants.length} available plants`
+                );
             }
         } catch (error) {
-            console.error("Error fetching plants:", error);
+            console.error("[Plants] ❌ Error fetching plants:", error);
         }
     };
 
     const fetchProfileAndWeather = async () => {
+        console.log("[Loading] 🚀 Starting fetchProfileAndWeather...");
         setLoading(true);
         setError(null);
         try {
-            console.log("Starting fetchProfileAndWeather...");
+            console.log("[Loading] 📋 Step 1: Getting user session...");
             // Get user
             const {
                 data: { session },
             } = await supabase.auth.getSession();
             const user = session?.user;
             if (!user) {
+                console.log("[Loading] ❌ No user found in session");
                 setError("User not found.");
                 setLoading(false);
                 return;
             }
+            console.log(`[Loading] ✅ User authenticated: ${user.id}`);
 
             // Get current device location and update profile
+            console.log("[Loading] 📍 Step 2: Getting device location...");
             let updatedLatitude: number | null = null;
             let updatedLongitude: number | null = null;
 
             try {
                 // Check if we have location permission
+                console.log("[Loading] 🔐 Checking location permissions...");
                 const { status } =
                     await Location.getForegroundPermissionsAsync();
                 if (status === "granted") {
+                    console.log("[Loading] 📱 Getting current position...");
                     // Get current location
                     const location = await Location.getCurrentPositionAsync({
                         accuracy: Location.Accuracy.Balanced,
@@ -557,12 +570,13 @@ export default function Home() {
                     updatedLongitude = location.coords.longitude;
 
                     console.log(
-                        "Got current location:",
-                        updatedLatitude,
-                        updatedLongitude
+                        `[Loading] ✅ Got current location: ${updatedLatitude}, ${updatedLongitude}`
                     );
 
                     // Update the profile with new coordinates
+                    console.log(
+                        "[Loading] 💾 Updating profile with new location..."
+                    );
                     const { error: updateError } = await supabase
                         .from("profiles")
                         .update({
@@ -572,20 +586,29 @@ export default function Home() {
                         .eq("id", user.id);
 
                     if (updateError) {
-                        console.warn("Could not update location:", updateError);
+                        console.warn(
+                            "[Loading] ⚠️ Could not update location:",
+                            updateError
+                        );
                     } else {
-                        console.log("Successfully updated user location");
+                        console.log(
+                            "[Loading] ✅ Successfully updated user location"
+                        );
                     }
                 } else {
                     console.log(
-                        "Location permission not granted, using stored coordinates"
+                        "[Loading] ⚠️ Location permission not granted, using stored coordinates"
                     );
                 }
             } catch (locationError) {
-                console.warn("Could not get current location:", locationError);
+                console.warn(
+                    "[Loading] ❌ Could not get current location:",
+                    locationError
+                );
             }
 
             // Get profile (use updated coordinates if available, otherwise use stored)
+            console.log("[Loading] 👤 Step 3: Fetching user profile...");
             const { data: profile, error: profileError } = await supabase
                 .from("profiles")
                 .select("latitude,longitude,selfie_urls,points")
@@ -593,39 +616,58 @@ export default function Home() {
                 .single();
 
             if (profileError) {
-                console.error("Profile error:", profileError);
+                console.error("[Loading] ❌ Profile error:", profileError);
                 setError(`Profile error: ${profileError.message}`);
                 setLoading(false);
                 return;
             }
+
+            console.log(
+                `[Loading] ✅ Profile loaded: points=${profile?.points || 0}`
+            );
 
             // Use updated coordinates if we got them, otherwise use stored coordinates
             const latitude = updatedLatitude ?? profile?.latitude;
             const longitude = updatedLongitude ?? profile?.longitude;
 
             if (!latitude || !longitude) {
+                console.log("[Loading] ❌ No location coordinates found");
                 setError("Location not found.");
                 setLoading(false);
                 return;
             }
 
+            console.log(
+                `[Loading] 📍 Using coordinates: ${latitude}, ${longitude}`
+            );
+
             setSelfieUrls(profile.selfie_urls || null);
             setUserPoints(profile.points || 0);
 
             // Get user's timezone and local hour
+            console.log(
+                "[Loading] 🕐 Step 4: Calculating timezone and local time..."
+            );
             let localHour = 12;
             try {
                 const timezone = tzlookup(latitude, longitude);
                 const localTime = DateTime.now().setZone(timezone);
                 localHour = localTime.hour;
+                console.log(
+                    `[Loading] ✅ Timezone: ${timezone}, Local hour: ${localHour}`
+                );
             } catch (e) {
-                console.warn("Could not determine timezone from lat/lon", e);
+                console.warn(
+                    "[Loading] ⚠️ Could not determine timezone from lat/lon",
+                    e
+                );
             }
             setBgColor(getBackgroundColor(localHour));
 
             // Check if OpenWeather API key is available
+            console.log("[Loading] 🌤️ Step 5: Fetching current weather...");
             if (!OPENWEATHER_API_KEY) {
-                console.error("OpenWeather API key is missing");
+                console.error("[Loading] ❌ OpenWeather API key is missing");
                 setError("Weather API key not configured.");
                 setLoading(false);
                 return;
@@ -633,16 +675,22 @@ export default function Home() {
 
             // Fetch weather using the coordinates (updated or stored)
             const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
+            console.log("[Loading] 📡 Making weather API request...");
             const response = await fetch(url);
             const data = await response.json();
             if (data.cod && data.cod !== 200) {
                 throw new Error(`Weather API error: ${data.message}`);
             }
+            console.log(
+                `[Loading] ✅ Weather loaded: ${data.weather?.[0]?.main} ${data.main?.temp}°F`
+            );
             setWeather(data);
 
             // Fetch 3-hourly forecast using the same coordinates
+            console.log("[Loading] 📅 Step 6: Fetching weather forecast...");
             try {
                 const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
+                console.log("[Loading] 📡 Making forecast API request...");
                 const forecastRes = await fetch(forecastUrl);
                 const forecastData = await forecastRes.json();
                 if (forecastData.list && Array.isArray(forecastData.list)) {
@@ -658,12 +706,18 @@ export default function Home() {
                                   )
                             : ""
                     );
+                    console.log(
+                        `[Loading] ✅ Forecast loaded: ${forecastData.list.length} entries`
+                    );
                 }
             } catch (e) {
-                console.warn("Could not fetch forecast", e);
+                console.warn("[Loading] ⚠️ Could not fetch forecast", e);
             }
 
             // Update user's weather in Supabase
+            console.log(
+                "[Loading] 💾 Step 7: Updating user's weather in database..."
+            );
             await supabase
                 .from("profiles")
                 .update({
@@ -673,7 +727,9 @@ export default function Home() {
                     weather_updated_at: new Date().toISOString(),
                 })
                 .eq("id", user.id);
+            console.log("[Loading] ✅ Weather updated in database");
             // Fetch user's contacts with pagination
+            console.log("[Loading] 📞 Step 8: Fetching user's contacts...");
             let allContacts: any[] = [];
             let from = 0;
             const pageSize = 1000;
@@ -684,7 +740,10 @@ export default function Home() {
                     .eq("user_id", user.id)
                     .range(from, from + pageSize - 1);
                 if (contactsError) {
-                    console.error("Contacts fetch error:", contactsError);
+                    console.error(
+                        "[Loading] ❌ Contacts fetch error:",
+                        contactsError
+                    );
                     setError("Failed to fetch contacts.");
                     setLoading(false);
                     return;
@@ -699,8 +758,13 @@ export default function Home() {
                     break;
                 }
             }
-            console.log(`Total contacts retrieved: ${allContacts.length}`);
+            console.log(
+                `[Loading] ✅ Total contacts retrieved: ${allContacts.length}`
+            );
             // Create a mapping of E.164 phone numbers to contact names
+            console.log(
+                "[Loading] 🔍 Step 9: Processing contacts and finding friends..."
+            );
             const phoneToNameMap = new Map<string, string>();
             allContacts.forEach((contact: any) => {
                 // Use the full E.164 phone number (with +)
@@ -711,6 +775,10 @@ export default function Home() {
             );
             // Use the full E.164 numbers for matching
             const uniquePhones = Array.from(new Set(contactPhones));
+            console.log(
+                `[Loading] 📱 Unique phone numbers: ${uniquePhones.length}`
+            );
+
             // Batch into chunks of 500
             function chunkArray<T>(array: T[], size: number): T[][] {
                 const result: T[][] = [];
@@ -721,7 +789,12 @@ export default function Home() {
             }
             const BATCH_SIZE = 500;
             const phoneChunks = chunkArray<string>(uniquePhones, BATCH_SIZE);
+            console.log(
+                `[Loading] 📦 Batching into ${phoneChunks.length} chunks...`
+            );
+
             // Parallelize the queries
+            console.log("[Loading] 🔍 Searching for friends in database...");
             const friendResults = await Promise.all(
                 phoneChunks.map((chunk, idx) => {
                     return supabase
@@ -737,10 +810,19 @@ export default function Home() {
             for (const result of friendResults) {
                 if (result.data) allFriends = allFriends.concat(result.data);
             }
-            console.log(`Total friends found: ${allFriends.length}`);
+            console.log(
+                `[Loading] ✅ Total friends found: ${allFriends.length}`
+            );
             // Remove the current user from the results
             const filteredFriends = allFriends.filter((f) => f.id !== user.id);
+            console.log(
+                `[Loading] 👥 Filtered friends (excluding self): ${filteredFriends.length}`
+            );
+
             // Add contact names and city names to the friends data
+            console.log(
+                "[Loading] 🌍 Step 10: Getting city names for friends..."
+            );
             const friendsWithNamesAndCities = await Promise.all(
                 filteredFriends.map(async (friend) => {
                     const contactName = phoneToNameMap.get(friend.phone_number);
@@ -758,13 +840,19 @@ export default function Home() {
                     };
                 })
             );
+            console.log(
+                `[Loading] ✅ Friends with cities loaded: ${friendsWithNamesAndCities.length}`
+            );
             setFriendsWeather(friendsWithNamesAndCities);
 
             // Fetch planted plants for each friend and the current user
+            console.log("[Loading] 🌱 Step 11: Fetching planted plants...");
             const plantsData: Record<string, any[]> = {};
 
             // TEST: Direct query to check if Will's plants exist
-            console.log(`[Plants] Testing direct query for Will's plants...`);
+            console.log(
+                `[Loading] 🧪 Testing direct query for Will's plants...`
+            );
             const { data: testPlants, error: testError } = await supabase
                 .from("planted_plants")
                 .select("id, garden_owner_id, planted_at")
@@ -772,59 +860,89 @@ export default function Home() {
                 .is("harvested_at", null);
 
             if (testError) {
-                console.error(`[Plants] Test query error:`, testError);
+                console.error(`[Loading] ❌ Test query error:`, testError);
             } else {
                 console.log(
-                    `[Plants] Test query found ${testPlants?.length || 0} plants for Will`
+                    `[Loading] 🧪 Test query found ${testPlants?.length || 0} plants for Will`
                 );
             }
 
             // Fetch current user's plants
-            console.log(`[Plants] Current user ID: ${user.id}`);
+            console.log(
+                `[Loading] 👤 Fetching current user's plants: ${user.id}`
+            );
             const userPlants = await fetchPlantedPlants(user.id);
             plantsData[user.id] = userPlants;
+            console.log(`[Loading] ✅ User plants: ${userPlants.length}`);
 
             // Fetch friends' plants
+            console.log(
+                `[Loading] 👥 Fetching ${friendsWithNamesAndCities.length} friends' plants...`
+            );
             for (const friend of friendsWithNamesAndCities) {
                 const plants = await fetchPlantedPlants(friend.id);
                 plantsData[friend.id] = plants;
+                console.log(
+                    `[Loading] 🌱 ${friend.contact_name}: ${plants.length} plants`
+                );
             }
+            console.log(
+                `[Loading] ✅ All plants loaded for ${Object.keys(plantsData).length} users`
+            );
             setPlantedPlants(plantsData);
         } catch (err) {
-            console.error("Weather fetch error:", err);
+            console.error("[Loading] ❌ Weather fetch error:", err);
             setError(
                 `Failed to fetch weather: ${err instanceof Error ? err.message : "Unknown error"}`
             );
         } finally {
+            console.log("[Loading] 🎉 Loading process completed!");
             setLoading(false);
         }
     };
 
     useEffect(() => {
+        console.log("[App] 🚀 App initialization started...");
+
         // Get current user ID
         const getCurrentUser = async () => {
+            console.log("[App] 👤 Getting current user...");
             const {
                 data: { user },
             } = await supabase.auth.getUser();
             if (user) {
+                console.log(`[App] ✅ Current user: ${user.id}`);
                 setCurrentUserId(user.id);
+            } else {
+                console.log("[App] ❌ No authenticated user found");
             }
         };
 
-        getCurrentUser();
-        fetchAvailablePlants();
-        fetchProfileAndWeather();
-        updatePlantGrowth(); // Update plant growth on app load
+        const initializeApp = async () => {
+            await getCurrentUser();
+            console.log("[App] 🌱 Fetching available plants...");
+            await fetchAvailablePlants();
+            console.log("[App] 🌤️ Starting main data fetch...");
+            await fetchProfileAndWeather();
+            console.log("[App] 📈 Updating plant growth...");
+            await updatePlantGrowth(); // Update plant growth on app load
+            console.log("[App] ✅ App initialization completed!");
+        };
+
+        initializeApp();
 
         // Set up periodic growth updates (every 5 minutes)
+        console.log("[App] ⏰ Setting up periodic growth updates...");
         const growthInterval = setInterval(
             () => {
+                console.log("[App] 🔄 Running periodic growth update...");
                 updatePlantGrowth();
             },
             5 * 60 * 1000
         ); // 5 minutes
 
         // Subscribe to changes in planted_plants
+        console.log("[App] 📡 Setting up real-time subscription...");
         const subscription = supabase
             .channel("public:planted_plants")
             .on(
@@ -869,6 +987,7 @@ export default function Home() {
             .subscribe();
 
         return () => {
+            console.log("[App] 🧹 Cleaning up app resources...");
             clearInterval(growthInterval);
             supabase.removeChannel(subscription);
         };
