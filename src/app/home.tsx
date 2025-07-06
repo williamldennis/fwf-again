@@ -1280,7 +1280,6 @@ export default function Home() {
                         paddingBottom: 16,
                     }}
                     showsVerticalScrollIndicator={false}
-                    stickyHeaderIndices={[0]}
                     renderItem={({ item, index }) => {
                         // User card as first item
                         if (item.type === "user-card") {
