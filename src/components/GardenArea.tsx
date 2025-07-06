@@ -175,6 +175,37 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         .fill(null)
         .map((_, i) => slotMap[i] || null);
 
+    // Memoize stage calculations for all plants to prevent unnecessary re-renders
+    const plantStages = React.useMemo(() => {
+        const stages: Record<string, GrowthStage> = {};
+        slots.forEach((plant, idx) => {
+            if (plant) {
+                const plantName =
+                    plant.plant?.name || plant.plant_name || "Unknown";
+                const plantObject = plant.plant || {
+                    id: plant.plant_id,
+                    name: plantName,
+                    growth_time_hours: plant.growth_time_hours || 0,
+                    weather_bonus: plant.weather_bonus || {
+                        sunny: 1,
+                        cloudy: 1,
+                        rainy: 1,
+                    },
+                    image_path: plant.image_path || "",
+                    created_at: plant.planted_at,
+                };
+
+                const growthCalculation = GrowthService.calculateGrowthStage(
+                    plant,
+                    plantObject,
+                    weatherCondition
+                );
+                stages[plant.id] = growthCalculation.stage as GrowthStage;
+            }
+        });
+        return stages;
+    }, [slots, weatherCondition]);
+
     // Handler for empty slot tap
     const handleEmptySlotPress = (slotIdx: number) => {
         if (isGardenFull) {
@@ -374,29 +405,10 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                     );
                 }
 
-                // Calculate the current stage based on growth progress
+                // Get the memoized stage for this plant
                 const plantName =
                     plant.plant?.name || plant.plant_name || "Unknown";
-                const plantObject = plant.plant || {
-                    id: plant.plant_id,
-                    name: plantName,
-                    growth_time_hours: plant.growth_time_hours || 0,
-                    weather_bonus: plant.weather_bonus || {
-                        sunny: 1,
-                        cloudy: 1,
-                        rainy: 1,
-                    },
-                    image_path: plant.image_path || "",
-                    created_at: plant.planted_at,
-                };
-
-                // Use GrowthService to calculate the actual current stage
-                const growthCalculation = GrowthService.calculateGrowthStage(
-                    plant,
-                    plantObject,
-                    weatherCondition
-                );
-                const stage = growthCalculation.stage as GrowthStage;
+                const stage = plantStages[plant.id] || 2; // Default to dirt stage
 
                 return (
                     <AnimatedPlant

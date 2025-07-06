@@ -1051,24 +1051,20 @@ export default function Home() {
 
             console.log("[Plant] Successfully planted:", plantedPlant);
 
-            // Refresh planted plants for this friend
-            const updatedPlants = await fetchPlantedPlants(friendId);
+            // Optimize: Add the new plant directly to state instead of fetching
+            // This prevents the flickering from multiple database calls
+            const newPlant = {
+                ...plantedPlant,
+                plant: availablePlants.find((p) => p.id === plantId),
+            };
+
             setPlantedPlants((prev) => ({
                 ...prev,
-                [friendId]: updatedPlants,
+                [friendId]: [...(prev[friendId] || []), newPlant],
             }));
 
-            // If planting in user's own garden, also refresh user's plants
-            if (friendId === currentUserId) {
-                const userPlants = await fetchPlantedPlants(currentUserId);
-                setPlantedPlants((prev) => ({
-                    ...prev,
-                    [currentUserId]: userPlants,
-                }));
-            }
-
-            // Update growth for all plants
-            await updatePlantGrowth();
+            // Only update growth if needed (don't call updatePlantGrowth here)
+            // The real-time subscription will handle any necessary updates
         } catch (error) {
             console.error("[Plant] Error in handleSelectPlant:", error);
             Alert.alert("Error", "An unexpected error occurred");
