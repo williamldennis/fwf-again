@@ -2,32 +2,31 @@ import { useEffect, useState } from "react";
 import {
     View,
     Text,
-    ScrollView,
     Alert,
-    ActivityIndicator,
-    Image,
     TouchableOpacity,
-    Modal,
     FlatList,
     Dimensions,
     Share,
+    Image,
 } from "react-native";
 import { Stack, router } from "expo-router";
 import React from "react";
-import LottieView from "lottie-react-native";
 import { supabase } from "../utils/supabase";
 import { useHeaderHeight } from "@react-navigation/elements";
 // @ts-ignore
 import tzlookup from "tz-lookup";
 // @ts-ignore
 import { DateTime } from "luxon";
-import sunCloudTrans from "../../assets/images/sun-cloud-trans.png";
 import * as Contacts from "expo-contacts";
 import * as Location from "expo-location";
 import { parsePhoneNumberFromString, CountryCode } from "libphonenumber-js";
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
 import PlantDetailsModal from "../components/PlantDetailsModal";
+import UserCard from "../components/UserCard";
+import FriendCard from "../components/FriendCard";
+import AddFriendsCard from "../components/AddFriendsCard";
+import DropdownMenu from "../components/DropdownMenu";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import FiveDayForecast from "../components/FiveDayForecast";
@@ -93,74 +92,6 @@ const Avatar = ({ name, size = 40 }: { name: string; size?: number }) => {
         </View>
     );
 };
-
-// Add this function to map weather to selfie key
-const mapWeatherToSelfieKey = (weather: string) => {
-    switch (weather?.toLowerCase()) {
-        case "clear":
-            return "sunny";
-        case "clouds":
-            return "cloudy";
-        case "rain":
-        case "drizzle":
-        case "mist":
-        case "fog":
-        case "haze":
-            return "rainy";
-        case "snow":
-            return "snowy";
-        case "thunderstorm":
-            return "thunderstorm";
-        default:
-            return "sunny";
-    }
-};
-
-// Add Lottie animation mapping
-const getWeatherLottie = (weatherCondition: string) => {
-    switch (weatherCondition?.toLowerCase()) {
-        case "clear":
-            return require("../../assets/lottie/sunny.json");
-        case "clouds":
-            return require("../../assets/lottie/cloudy.json");
-        case "rain":
-        case "drizzle":
-        case "mist":
-        case "fog":
-        case "haze":
-            return require("../../assets/lottie/rainy.json");
-        case "snow":
-            return require("../../assets/lottie/snowy.json");
-        case "thunderstorm":
-            return require("../../assets/lottie/thunderstorm.json");
-        default:
-            return require("../../assets/lottie/sunny.json");
-    }
-};
-
-function getWeatherDescription(condition: string) {
-    switch (condition.toLowerCase()) {
-        case "clear":
-            return "clear";
-        case "clouds":
-            return "cloudy";
-        case "rain":
-            return "rainy";
-        case "snow":
-            return "snowy";
-        case "thunderstorm":
-            return "stormy";
-        case "drizzle":
-            return "drizzly";
-        case "mist":
-        case "fog":
-            return "foggy";
-        case "haze":
-            return "hazy";
-        default:
-            return condition.toLowerCase();
-    }
-}
 
 async function getCityFromCoords(lat: number, lon: number): Promise<string> {
     try {
@@ -261,7 +192,7 @@ export default function Home() {
     >({});
 
     // Helper to fetch and cache friend forecast
-    async function fetchFriendForecast(friend: any) {
+    const fetchFriendForecast = async (friend: any) => {
         if (!friend.latitude || !friend.longitude) return;
         if (friendForecasts[friend.id]) return; // Already cached
         try {
@@ -277,7 +208,7 @@ export default function Home() {
         } catch (e) {
             // Ignore errors for now
         }
-    }
+    };
 
     // Logout handler
     const handleLogout = async () => {
@@ -1284,507 +1215,50 @@ export default function Home() {
                         // User card as first item
                         if (item.type === "user-card") {
                             return (
-                                <View
-                                    style={{
-                                        alignItems: "center",
-                                        marginTop: 16,
-                                        marginBottom: 20,
-                                        zIndex: 1,
-                                    }}
-                                >
-                                    <View
-                                        style={{
-                                            width: cardWidth,
-                                            borderRadius: 20,
-                                            shadowColor: "#000",
-                                            shadowOffset: {
-                                                width: 0,
-                                                height: 2,
-                                            },
-                                            shadowOpacity: 0.08,
-                                            shadowRadius: 8,
-                                            elevation: 3,
-                                            alignItems: "center",
-                                            overflow: "visible",
-                                            borderWidth: 0.5,
-                                            borderColor: "#DEEFFF",
-                                            marginBottom: 0,
-                                            marginTop: 30,
-                                            backgroundColor: "#DFEFFF",
-                                        }}
-                                    >
-                                        <Text
-                                            style={{
-                                                fontWeight: "bold",
-                                                fontSize: 18,
-                                                textAlign: "center",
-                                                marginTop: 20,
-                                                marginBottom: 20,
-                                            }}
-                                        >
-                                            Your Garden
-                                        </Text>
-                                        <Text
-                                            style={{
-                                                position: "absolute",
-                                                top: 20,
-                                                right: 20,
-                                                fontSize: 16,
-                                                fontWeight: "bold",
-                                                color: "#007AFF",
-                                            }}
-                                        >
-                                            {userPoints}pts
-                                        </Text>
-                                        <View
-                                            style={{
-                                                width: "90%",
-                                                backgroundColor: "#fff",
-                                                borderRadius: 16,
-                                                alignItems: "center",
-                                                paddingVertical: 0,
-                                                paddingHorizontal: 0,
-                                                position: "relative",
-                                                marginBottom: 14,
-                                                borderWidth: 0.5,
-                                                borderColor: "#DEEFFF",
-                                            }}
-                                        >
-                                            {/* Lottie animation floating above, centered */}
-                                            {weather &&
-                                                weather.weather &&
-                                                weather.weather[0] && (
-                                                    <View
-                                                        pointerEvents="none"
-                                                        style={{
-                                                            position:
-                                                                "absolute",
-                                                            top: -140,
-                                                            left: 0,
-                                                            right: 0,
-                                                            alignItems:
-                                                                "center",
-                                                            zIndex: 3,
-                                                        }}
-                                                    >
-                                                        <LottieView
-                                                            source={getWeatherLottie(
-                                                                weather
-                                                                    .weather[0]
-                                                                    .main
-                                                            )}
-                                                            autoPlay
-                                                            loop
-                                                            style={{
-                                                                width: 400,
-                                                                height: 400,
-                                                                opacity: 0.7,
-                                                            }}
-                                                        />
-                                                    </View>
-                                                )}
-                                            {/* Selfie */}
-                                            <Image
-                                                source={{
-                                                    uri:
-                                                        selfieUrls &&
-                                                        weather &&
-                                                        weather.weather &&
-                                                        mapWeatherToSelfieKey(
-                                                            weather.weather[0]
-                                                                .main
-                                                        )
-                                                            ? selfieUrls[
-                                                                  mapWeatherToSelfieKey(
-                                                                      weather
-                                                                          .weather[0]
-                                                                          .main
-                                                                  )
-                                                              ]
-                                                            : undefined,
-                                                }}
-                                                style={{
-                                                    width: 80,
-                                                    height: 80,
-                                                    borderRadius: 40,
-                                                    resizeMode: "cover",
-                                                    backgroundColor: "#eee",
-                                                    marginTop: 32, // space for Lottie
-                                                    marginBottom: 30,
-                                                }}
-                                            />
-                                            {/* Weather text */}
-                                            <Text
-                                                style={{
-                                                    fontSize: 16,
-                                                    color: "#333",
-                                                    textAlign: "center",
-                                                    marginBottom: 60,
-                                                }}
-                                            >
-                                                It&apos;s{" "}
-                                                <Text
-                                                    style={{
-                                                        fontWeight: "bold",
-                                                    }}
-                                                >
-                                                    {weather &&
-                                                    weather.main &&
-                                                    weather.main.temp
-                                                        ? Math.round(
-                                                              weather.main.temp
-                                                          )
-                                                        : "--"}
-                                                    °
-                                                </Text>{" "}
-                                                and{" "}
-                                                <Text
-                                                    style={{
-                                                        fontWeight: "bold",
-                                                    }}
-                                                >
-                                                    {weather &&
-                                                    weather.weather &&
-                                                    weather.weather[0]
-                                                        ? getWeatherDescription(
-                                                              weather.weather[0]
-                                                                  .main
-                                                          )
-                                                        : "--"}
-                                                </Text>{" "}
-                                                in{" "}
-                                                <Text
-                                                    style={{
-                                                        fontWeight: "bold",
-                                                    }}
-                                                >
-                                                    {weather && weather.name
-                                                        ? weather.name
-                                                        : "--"}
-                                                </Text>
-                                            </Text>
-                                            {/* User's Garden */}
-                                            <GardenArea
-                                                gardenOwnerId={
-                                                    currentUserId || ""
-                                                }
-                                                plants={
-                                                    plantedPlants[
-                                                        currentUserId || ""
-                                                    ] || []
-                                                }
-                                                weatherCondition={
-                                                    weather &&
-                                                    weather.weather &&
-                                                    weather.weather[0]
-                                                        ? weather.weather[0]
-                                                              .main
-                                                        : "clear"
-                                                }
-                                                onPlantPress={(slotIdx) =>
-                                                    handlePlantPress(
-                                                        currentUserId || "",
-                                                        slotIdx
-                                                    )
-                                                }
-                                                onPlantDetailsPress={
-                                                    handlePlantDetailsPress
-                                                }
-                                                isGardenFull={
-                                                    (
-                                                        plantedPlants[
-                                                            currentUserId || ""
-                                                        ] || []
-                                                    ).length >= 3
-                                                }
-                                            />
-                                        </View>
-                                        <FiveDayForecast
-                                            forecastData={userFiveDayData}
-                                        />
-                                    </View>
-                                    {loading && (
-                                        <View
-                                            style={{
-                                                position: "absolute",
-                                                top: 60,
-                                                left: 0,
-                                                right: 0,
-                                                alignItems: "center",
-                                                zIndex: 10,
-                                            }}
-                                        >
-                                            <ActivityIndicator size="large" />
-                                            <Text
-                                                style={{
-                                                    color: "#333",
-                                                    marginTop: 8,
-                                                }}
-                                            >
-                                                Loading weather...
-                                            </Text>
-                                        </View>
-                                    )}
-                                    {error && !loading && (
-                                        <View
-                                            style={{
-                                                position: "absolute",
-                                                top: 60,
-                                                left: 0,
-                                                right: 0,
-                                                alignItems: "center",
-                                                zIndex: 10,
-                                            }}
-                                        >
-                                            <Text style={{ color: "#ff4444" }}>
-                                                {error}
-                                            </Text>
-                                        </View>
-                                    )}
-                                </View>
+                                <UserCard
+                                    weather={weather}
+                                    selfieUrls={selfieUrls}
+                                    userPoints={userPoints}
+                                    currentUserId={currentUserId}
+                                    plantedPlants={plantedPlants}
+                                    onPlantPress={handlePlantPress}
+                                    onPlantDetailsPress={
+                                        handlePlantDetailsPress
+                                    }
+                                    forecastData={userFiveDayData}
+                                    loading={loading}
+                                    error={error}
+                                    cardWidth={cardWidth}
+                                />
                             );
                         }
 
-                        // Friend cards (existing logic)
-                        const friend = item;
-                        if (friend.type === "add-friends") {
+                        // Add friends card
+                        if (item.type === "add-friends") {
                             return (
-                                <TouchableOpacity
-                                    onPress={async () => {
+                                <AddFriendsCard
+                                    onShare={async () => {
                                         await Share.share({
                                             message:
                                                 "I want to be your Fair Weather Friend\nhttp://willdennis.com",
                                         });
                                     }}
-                                    style={{
-                                        width: cardWidth,
-                                        backgroundColor: "#fffbe6",
-                                        borderRadius: 16,
-                                        padding: 16,
-                                        alignItems: "center",
-                                        shadowColor: "#000",
-                                        shadowOffset: { width: 0, height: 2 },
-                                        shadowOpacity: 0.08,
-                                        shadowRadius: 4,
-                                        elevation: 2,
-                                        justifyContent: "center",
-                                        overflow: "visible",
-                                        height: 240, // Match the height of friend cards
-                                        pointerEvents: "auto",
-                                        zIndex: 100,
-                                    }}
-                                >
-                                    <Image
-                                        source={sunCloudTrans}
-                                        style={{
-                                            width: 80,
-                                            height: 80,
-                                            marginBottom: 16,
-                                        }}
-                                        resizeMode="contain"
-                                    />
-                                    <Text
-                                        style={{
-                                            color: "#666",
-                                            textAlign: "center",
-                                            fontSize: 14,
-                                            marginBottom: 12,
-                                        }}
-                                    >
-                                        Invite your friends to see their weather
-                                    </Text>
-                                    <View
-                                        style={{
-                                            backgroundColor: "#fffbe6",
-                                            borderRadius: 20,
-                                            borderWidth: 2,
-                                            borderColor: "#FFD700",
-                                            paddingVertical: 8,
-                                            paddingHorizontal: 20,
-                                        }}
-                                    >
-                                        <Text
-                                            style={{
-                                                color: "#222",
-                                                fontWeight: "bold",
-                                                fontSize: 16,
-                                            }}
-                                        >
-                                            Add Friends
-                                        </Text>
-                                    </View>
-                                </TouchableOpacity>
+                                    cardWidth={cardWidth}
+                                />
                             );
                         }
+
+                        // Friend cards
                         return (
-                            <View
-                                style={{
-                                    width: cardWidth, // dynamic width based on screen size
-                                    backgroundColor: "#DFEFFF",
-                                    borderRadius: 20,
-                                    shadowColor: "#000",
-                                    shadowOffset: { width: 0, height: 2 },
-                                    shadowOpacity: 0.08,
-                                    shadowRadius: 8,
-                                    elevation: 3,
-                                    marginBottom: 16,
-                                    alignItems: "center",
-                                    overflow: "visible",
-                                    borderWidth: 0.5,
-                                    borderColor: "#DEEFFF",
-                                    pointerEvents: "auto",
-                                    zIndex: 100,
-                                }}
-                            >
-                                {/* Name at top */}
-                                <Text
-                                    style={{
-                                        fontWeight: "bold",
-                                        fontSize: 18,
-                                        textAlign: "center",
-                                        marginTop: 20,
-                                        marginBottom: 20,
-                                    }}
-                                >
-                                    {friend.contact_name || "Unknown"}'s Garden
-                                </Text>
-                                <Text
-                                    style={{
-                                        position: "absolute",
-                                        top: 20,
-                                        right: 20,
-                                        fontSize: 16,
-                                        fontWeight: "bold",
-                                        color: "#007AFF",
-                                    }}
-                                >
-                                    {friend.points || 0}pts
-                                </Text>
-                                {/* Inner card */}
-                                <View
-                                    style={{
-                                        width: "90%",
-                                        backgroundColor: "#fff",
-                                        borderRadius: 16,
-                                        alignItems: "center",
-                                        paddingVertical: 0,
-                                        paddingHorizontal: 0,
-                                        position: "relative",
-                                        marginBottom: 14,
-                                        borderWidth: 0.5,
-                                        borderColor: "#DEEFFF",
-                                    }}
-                                >
-                                    {/* Lottie animation floating above, centered */}
-                                    {friend.weather_condition && (
-                                        <View
-                                            pointerEvents="none"
-                                            style={{
-                                                position: "absolute",
-                                                top: -140,
-                                                left: 0,
-                                                right: 0,
-                                                alignItems: "center",
-                                                zIndex: 3,
-                                            }}
-                                        >
-                                            <LottieView
-                                                source={getWeatherLottie(
-                                                    friend.weather_condition
-                                                )}
-                                                autoPlay
-                                                loop
-                                                style={{
-                                                    width: 400,
-                                                    height: 400,
-                                                    opacity: 0.7,
-                                                }}
-                                            />
-                                        </View>
-                                    )}
-                                    {/* Selfie */}
-                                    <Image
-                                        source={{
-                                            uri:
-                                                friend.selfie_urls &&
-                                                mapWeatherToSelfieKey(
-                                                    friend.weather_condition
-                                                )
-                                                    ? friend.selfie_urls[
-                                                          mapWeatherToSelfieKey(
-                                                              friend.weather_condition
-                                                          )
-                                                      ]
-                                                    : undefined,
-                                        }}
-                                        style={{
-                                            width: 80,
-                                            height: 80,
-                                            borderRadius: 40,
-                                            resizeMode: "cover",
-                                            backgroundColor: "#eee",
-                                            marginTop: 32, // space for Lottie
-                                            marginBottom: 30,
-                                        }}
-                                    />
-                                    {/* Weather text */}
-                                    <Text
-                                        style={{
-                                            fontSize: 16,
-                                            color: "#333",
-                                            textAlign: "center",
-                                            marginBottom: 70,
-                                        }}
-                                    >
-                                        It&apos;s{" "}
-                                        <Text style={{ fontWeight: "bold" }}>
-                                            {friend.weather_temp
-                                                ? Math.round(
-                                                      friend.weather_temp
-                                                  )
-                                                : "--"}
-                                            °
-                                        </Text>{" "}
-                                        and{" "}
-                                        <Text style={{ fontWeight: "bold" }}>
-                                            {getWeatherDescription(
-                                                friend.weather_condition || ""
-                                            )}
-                                        </Text>{" "}
-                                        in{" "}
-                                        <Text style={{ fontWeight: "bold" }}>
-                                            {friend.city_name}
-                                        </Text>
-                                    </Text>
-                                    {/* Plants */}
-                                    <GardenArea
-                                        gardenOwnerId={friend.id}
-                                        plants={plantedPlants[friend.id] || []}
-                                        weatherCondition={
-                                            friend.weather_condition
-                                        }
-                                        onPlantPress={(slotIdx) =>
-                                            handlePlantPress(friend.id, slotIdx)
-                                        }
-                                        onPlantDetailsPress={
-                                            handlePlantDetailsPress
-                                        }
-                                        isGardenFull={
-                                            (plantedPlants[friend.id] || [])
-                                                .length >= 3
-                                        }
-                                    />
-                                </View>
-                                {(() => {
-                                    fetchFriendForecast(friend);
-                                    return null;
-                                })()}
-                                <FiveDayForecast
-                                    forecastData={
-                                        friendForecasts[friend.id] || []
-                                    }
-                                />
-                            </View>
+                            <FriendCard
+                                friend={item}
+                                plantedPlants={plantedPlants}
+                                onPlantPress={handlePlantPress}
+                                onPlantDetailsPress={handlePlantDetailsPress}
+                                forecastData={friendForecasts[item.id] || []}
+                                cardWidth={cardWidth}
+                                onFetchForecast={fetchFriendForecast}
+                            />
                         );
                     }}
                     ListEmptyComponent={
@@ -1795,115 +1269,15 @@ export default function Home() {
                 />
             </View>
 
-            {/* Dropdown Menu Modal */}
-            <Modal
+            {/* Dropdown Menu */}
+            <DropdownMenu
                 visible={showMenu}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setShowMenu(false)}
-            >
-                <TouchableOpacity
-                    style={{
-                        flex: 1,
-                        backgroundColor: "rgba(0,0,0,0.5)",
-                    }}
-                    activeOpacity={1}
-                    onPress={() => setShowMenu(false)}
-                >
-                    <View
-                        style={{
-                            flex: 1,
-                            justifyContent: "flex-start",
-                            alignItems: "flex-start",
-                            paddingTop: 100,
-                            paddingLeft: 20,
-                        }}
-                    >
-                        <View
-                            style={{
-                                backgroundColor: "white",
-                                borderRadius: 8,
-                                padding: 16,
-                                shadowColor: "#000",
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.25,
-                                shadowRadius: 3.84,
-                                elevation: 5,
-                                minWidth: 150,
-                            }}
-                        >
-                            <TouchableOpacity
-                                onPress={() => {
-                                    setShowMenu(false);
-                                    router.replace("/selfie");
-                                }}
-                                style={{
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 16,
-                                    borderBottomWidth: 1,
-                                    borderBottomColor: "#f0f0f0",
-                                }}
-                            >
-                                <Text style={{ fontSize: 16, color: "#333" }}>
-                                    Retake Selfies
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => {
-                                    setShowMenu(false);
-                                    handleRefreshContacts();
-                                }}
-                                disabled={refreshingContacts}
-                                style={{
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 16,
-                                    borderBottomWidth: 1,
-                                    borderBottomColor: "#f0f0f0",
-                                    opacity: refreshingContacts ? 0.5 : 1,
-                                }}
-                            >
-                                <Text style={{ fontSize: 16, color: "#333" }}>
-                                    {refreshingContacts
-                                        ? "Refreshing..."
-                                        : "Refresh Contacts"}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => {
-                                    setShowMenu(false);
-                                    handleRefreshGrowth();
-                                }}
-                                style={{
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 16,
-                                    borderBottomWidth: 1,
-                                    borderBottomColor: "#f0f0f0",
-                                }}
-                            >
-                                <Text style={{ fontSize: 16, color: "#333" }}>
-                                    Refresh Plant Growth
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => {
-                                    setShowMenu(false);
-                                    handleLogout();
-                                }}
-                                style={{
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 16,
-                                }}
-                            >
-                                <Text
-                                    style={{ fontSize: 16, color: "#ff4444" }}
-                                >
-                                    Logout
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+                onClose={() => setShowMenu(false)}
+                onRefreshContacts={handleRefreshContacts}
+                onRefreshGrowth={handleRefreshGrowth}
+                onLogout={handleLogout}
+                refreshingContacts={refreshingContacts}
+            />
             {/* PLANT PICKER MODAL */}
             <PlantPicker
                 visible={showPlantPicker}
