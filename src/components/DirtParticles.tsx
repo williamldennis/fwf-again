@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
         position: "absolute",
         width: 10,
         height: 10,
-        backgroundColor: "#8B4513", // Saddle brown color for dirt
+        backgroundColor: "#281307", // Saddle brown color for dirt
         borderRadius: 5,
         // Add some texture with a darker center
         shadowColor: "#654321",
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
         elevation: 4,
         // Add a subtle border for more definition
         borderWidth: 1,
-        borderColor: "#654321",
+        borderColor: "#1E1002",
     },
 });
 
