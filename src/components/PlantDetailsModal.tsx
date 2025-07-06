@@ -9,6 +9,7 @@ import {
     Alert,
 } from "react-native";
 import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
 // @ts-ignore
 import { DateTime } from "luxon";
 import { supabase } from "../utils/supabase";
@@ -129,6 +130,13 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         if (!canHarvest || !isMature) {
             console.log("[Harvest] Blocked:", { canHarvest, isMature });
             return;
+        }
+
+        // Add haptic feedback when user taps harvest button
+        try {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        } catch (error) {
+            console.log("[Haptics] Could not trigger haptic feedback:", error);
         }
 
         try {

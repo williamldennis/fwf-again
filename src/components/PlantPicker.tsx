@@ -8,6 +8,7 @@ import {
     StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
 import { Plant, PlantPickerProps } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 
@@ -37,6 +38,15 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
     weatherCondition,
     plants,
 }) => {
+    // Haptic feedback when selecting a plant
+    const handlePlantSelection = async (plantId: string) => {
+        try {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        } catch (error) {
+            console.log("[Haptics] Could not trigger haptic feedback:", error);
+        }
+        onSelectPlant(plantId);
+    };
     // Preload images when component mounts
     React.useEffect(() => {
         plants.forEach((plant) => {
@@ -86,7 +96,9 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
                             renderItem={({ item }) => (
                                 <TouchableOpacity
                                     style={styles.plantRow}
-                                    onPress={() => onSelectPlant(item.id)}
+                                    onPress={() =>
+                                        handlePlantSelection(item.id)
+                                    }
                                 >
                                     <Image
                                         source={getPlantImageSource(
