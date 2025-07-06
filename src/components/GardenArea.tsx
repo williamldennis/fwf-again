@@ -111,6 +111,21 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 contentFit="contain"
                                 cachePolicy="memory-disk"
                             />
+                            <Text
+                                style={{
+                                    fontSize: 10,
+                                    color: "green",
+                                    marginBottom: 20,
+                                    marginTop: 10,
+                                    fontWeight: "bold",
+                                    // backgroundColor: "green",
+                                    padding: 6,
+                                    paddingHorizontal: 12,
+                                    borderRadius: 10,
+                                }}
+                            >
+                                Tap to plant
+                            </Text>
                         </TouchableOpacity>
                     );
                 }
@@ -156,7 +171,12 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 fontSize: 10,
                                 color: "#333",
                                 marginBottom: 20,
+                                marginTop: 10,
                                 fontWeight: "bold",
+                                // backgroundColor: "lightgray",
+                                padding: 6,
+                                paddingHorizontal: 12,
+                                borderRadius: 10,
                             }}
                         >
                             {plantName}
