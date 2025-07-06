@@ -102,7 +102,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                     // Slot 1: slotWidth to 2*slotWidth (center at slotWidth + slotWidth/2)
                     // Slot 2: 2*slotWidth to 3*slotWidth (center at 2*slotWidth + slotWidth/2)
                     const potX = slotIndex * slotWidth + slotWidth / 2;
-                    const potY = 45; // Center of the pot image (90px height / 2)
+                    const potY = -45; // Raise particles up by 100px from center of pot (45 - 100 = -55)
 
                     setParticlePosition({ x: potX, y: potY });
                     console.log(
