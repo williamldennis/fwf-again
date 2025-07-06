@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
     Modal,
     View,
@@ -9,6 +9,14 @@ import {
     Alert,
 } from "react-native";
 import { Image } from "expo-image";
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withRepeat,
+    withTiming,
+    withSequence,
+    Easing,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 // @ts-ignore
 import { DateTime } from "luxon";
@@ -338,6 +346,36 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
     const weatherLabel = getWeatherDisplayName(friendWeather);
 
+    // Bounce animation for harvest-ready plants
+    const translateY = useSharedValue(0);
+
+    useEffect(() => {
+        if (isMature && !plant.harvested_at) {
+            // Create parabolic bounce animation using withRepeat and custom easing
+            translateY.value = withRepeat(
+                withSequence(
+                    withTiming(-16, {
+                        duration: 400, // Quick jump up
+                        easing: Easing.out(Easing.quad),
+                    }),
+                    withTiming(0, {
+                        duration: 600, // Slower fall (gravity)
+                        easing: Easing.in(Easing.quad),
+                    })
+                ),
+                -1, // Infinite repeat
+                false // Don't reverse, use the sequence as-is
+            );
+        } else {
+            // Stop animation and reset to normal
+            translateY.value = withTiming(0, { duration: 300 });
+        }
+    }, [isMature, plant.harvested_at]);
+
+    const animatedImageStyle = useAnimatedStyle(() => ({
+        transform: [{ translateY: translateY.value }],
+    }));
+
     // Debug logging for weather effect section
     console.log("Weather Effect Debug:", {
         friendWeather,
@@ -375,15 +413,32 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                 {planterName}
                             </Text>
                             <View style={styles.imageContainer}>
-                                <Image
-                                    source={getPlantImage(
-                                        plantName,
-                                        displayStage
-                                    )}
-                                    style={styles.plantImage}
-                                    contentFit="contain"
-                                    cachePolicy="memory-disk"
-                                />
+                                <Animated.View style={animatedImageStyle}>
+                                    <Image
+                                        source={getPlantImage(
+                                            plantName,
+                                            displayStage
+                                        )}
+                                        style={[
+                                            styles.plantImage,
+                                            {
+                                                shadowColor: "#FFAE00",
+                                                shadowOffset: {
+                                                    width: 0,
+                                                    height: 0,
+                                                },
+                                                shadowOpacity:
+                                                    isMature &&
+                                                    !plant.harvested_at
+                                                        ? 0.6
+                                                        : 0,
+                                                shadowRadius: 10,
+                                            },
+                                        ]}
+                                        contentFit="contain"
+                                        cachePolicy="memory-disk"
+                                    />
+                                </Animated.View>
                             </View>
                             {/* 3. Harvest Button */}
                             {canHarvest && (
