@@ -43,8 +43,9 @@ export class GrowthService {
     const weatherBonus = this.getWeatherBonus(plant, friendWeather);
     const adjustedHours = hoursElapsed * weatherBonus;
     
-    // Calculate total growth time needed
-    const totalGrowthHours = plant.growth_time_hours;
+    // TESTING: Accelerate growth to 5 minutes (0.083 hours) for faster testing
+    const totalGrowthHours = 0.083; // 5 minutes instead of plant.growth_time_hours
+    // const totalGrowthHours = plant.growth_time_hours; // ORIGINAL: Use actual plant growth time
     
     // Calculate progress percentage (0-100)
     const progress = Math.min(100, (adjustedHours / totalGrowthHours) * 100);

@@ -529,6 +529,7 @@ export default function Home() {
 
     const fetchPlantedPlants = async (friendId: string) => {
         try {
+            console.log(`[Plants] Fetching plants for user: ${friendId}`);
             const { data: plants, error } = await supabase
                 .from("planted_plants")
                 .select(
@@ -542,13 +543,28 @@ export default function Home() {
                 .order("planted_at", { ascending: false });
 
             if (error) {
-                console.error("Error fetching planted plants:", error);
+                console.error(
+                    `[Plants] Error fetching plants for ${friendId}:`,
+                    error
+                );
                 return [];
             }
 
+            console.log(
+                `[Plants] Found ${plants?.length || 0} plants for user ${friendId}`
+            );
+            if (plants && plants.length > 0) {
+                console.log(
+                    `[Plants] Plant IDs:`,
+                    plants.map((p) => p.id)
+                );
+            }
             return plants || [];
         } catch (error) {
-            console.error("Error fetching planted plants:", error);
+            console.error(
+                `[Plants] Exception fetching plants for ${friendId}:`,
+                error
+            );
             return [];
         }
     };
@@ -815,7 +831,24 @@ export default function Home() {
             // Fetch planted plants for each friend and the current user
             const plantsData: Record<string, any[]> = {};
 
+            // TEST: Direct query to check if Will's plants exist
+            console.log(`[Plants] Testing direct query for Will's plants...`);
+            const { data: testPlants, error: testError } = await supabase
+                .from("planted_plants")
+                .select("id, garden_owner_id, planted_at")
+                .eq("garden_owner_id", "35955916-f479-4721-86f8-54057258c8b4")
+                .is("harvested_at", null);
+
+            if (testError) {
+                console.error(`[Plants] Test query error:`, testError);
+            } else {
+                console.log(
+                    `[Plants] Test query found ${testPlants?.length || 0} plants for Will`
+                );
+            }
+
             // Fetch current user's plants
+            console.log(`[Plants] Current user ID: ${user.id}`);
             const userPlants = await fetchPlantedPlants(user.id);
             plantsData[user.id] = userPlants;
 
