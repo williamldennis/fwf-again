@@ -52,17 +52,25 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         onPlantDetailsPress, // New callback for plant details
     } = props;
 
+    // Map plants by slot for consistent rendering
+    const slotMap: Record<number, any> = {};
+    (plants || []).forEach((plant) => {
+        if (typeof plant.slot === "number") {
+            slotMap[plant.slot] = plant;
+        }
+    });
+
     // Fill up to 3 slots with either a plant or null (for empty)
     const slots = Array(SLOT_COUNT)
         .fill(null)
-        .map((_, i) => plants[i] || null);
+        .map((_, i) => slotMap[i] || null);
 
     // Handler for empty slot tap
-    const handleEmptySlotPress = () => {
+    const handleEmptySlotPress = (slotIdx: number) => {
         if (isGardenFull) {
             // No log needed here
         } else {
-            onPlantPress();
+            onPlantPress(slotIdx);
         }
     };
 
@@ -98,7 +106,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                     return (
                         <TouchableOpacity
                             key={`empty-${idx}`}
-                            onPress={handleEmptySlotPress}
+                            onPress={() => handleEmptySlotPress(idx)}
                             style={{
                                 flex: 1,
                                 alignItems: "center",

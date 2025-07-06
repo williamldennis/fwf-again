@@ -241,6 +241,7 @@ export default function Home() {
     const [selectedFriendId, setSelectedFriendId] = useState<string | null>(
         null
     );
+    const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
     const [selectedPlant, setSelectedPlant] = useState<any>(null);
     const [availablePlants, setAvailablePlants] = useState<Plant[]>([]);
     const [plantedPlants, setPlantedPlants] = useState<Record<string, any[]>>(
@@ -1042,14 +1043,14 @@ export default function Home() {
     const friendsData = [...friendsWeather, { type: "add-friends" }];
 
     // Handler for planting
-    const handlePlantPress = (friendId: string) => {
-        console.log("handlePlantPress called", friendId);
+    const handlePlantPress = (friendId: string, slotIdx: number) => {
         setSelectedFriendId(friendId);
+        setSelectedSlot(slotIdx);
         setShowPlantPicker(true);
     };
     const handleSelectPlant = async (plantId: string) => {
-        if (!selectedFriendId) {
-            console.error("[Plant] No friend selected for planting");
+        if (!selectedFriendId || selectedSlot === null) {
+            console.error("[Plant] No friend or slot selected for planting");
             setShowPlantPicker(false);
             return;
         }
@@ -1065,38 +1066,31 @@ export default function Home() {
                 return;
             }
 
-            // Check if garden is full (max 3 plants)
-            console.log(
-                `[Plant] Checking active plant count for garden: ${selectedFriendId}`
-            );
-            const { data: plantCount, error: countError } = await supabase
+            // Check if slot is already occupied
+            const { data: slotPlants, error: slotError } = await supabase
                 .from("planted_plants")
-                .select("id", { count: "exact" })
+                .select("id")
                 .eq("garden_owner_id", selectedFriendId)
+                .eq("slot", selectedSlot)
                 .is("harvested_at", null);
-
-            if (countError) {
+            if (slotError) {
                 console.error(
-                    "[Plant] Error checking garden capacity:",
-                    countError
+                    "[Plant] Error checking slot occupancy:",
+                    slotError
                 );
-                Alert.alert("Error", "Could not check garden capacity");
+                Alert.alert("Error", "Could not check slot occupancy");
                 setShowPlantPicker(false);
                 return;
             }
-
-            const activePlantCount = plantCount ? plantCount.length : 0;
-            console.log(`[Plant] Active plant count: ${activePlantCount}`);
-
-            if (activePlantCount >= 3) {
-                Alert.alert("Garden Full", "This garden already has 3 plants");
+            if (slotPlants && slotPlants.length > 0) {
+                Alert.alert("Slot Occupied", "This pot is already occupied");
                 setShowPlantPicker(false);
                 return;
             }
 
             // Plant the seed
             console.log(
-                `[Plant] Planting new plant in garden ${selectedFriendId} (plantId: ${plantId})`
+                `[Plant] Planting new plant in garden ${selectedFriendId} slot ${selectedSlot} (plantId: ${plantId})`
             );
             const { data: plantedPlant, error: plantError } = await supabase
                 .from("planted_plants")
@@ -1106,6 +1100,7 @@ export default function Home() {
                     plant_id: plantId,
                     current_stage: 2, // Start at stage 2 (dirt) immediately after planting
                     is_mature: false,
+                    slot: selectedSlot,
                 })
                 .select()
                 .single();
@@ -1145,10 +1140,12 @@ export default function Home() {
             // Close the modal
             setShowPlantPicker(false);
             setSelectedFriendId(null);
+            setSelectedSlot(null);
         } catch (error) {
             console.error("[Plant] Error in handleSelectPlant:", error);
             Alert.alert("Error", "An unexpected error occurred");
             setShowPlantPicker(false);
+            setSelectedSlot(null);
         }
     };
     const handlePlantDetailsPress = async (
@@ -1485,9 +1482,10 @@ export default function Home() {
                                                               .main
                                                         : "clear"
                                                 }
-                                                onPlantPress={() =>
+                                                onPlantPress={(slotIdx) =>
                                                     handlePlantPress(
-                                                        currentUserId || ""
+                                                        currentUserId || "",
+                                                        slotIdx
                                                     )
                                                 }
                                                 onPlantDetailsPress={
@@ -1766,8 +1764,8 @@ export default function Home() {
                                         weatherCondition={
                                             friend.weather_condition
                                         }
-                                        onPlantPress={() =>
-                                            handlePlantPress(friend.id)
+                                        onPlantPress={(slotIdx) =>
+                                            handlePlantPress(friend.id, slotIdx)
                                         }
                                         onPlantDetailsPress={
                                             handlePlantDetailsPress
