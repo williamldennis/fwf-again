@@ -57,7 +57,7 @@ export class GrowthService {
     if (progress >= 0) stage = 2; // Dirt (immediate after planting)
     if (progress >= 20) stage = 3; // Sprout
     if (progress >= 40) stage = 4; // Adolescent
-    if (progress >= 70) stage = 5; // Mature
+    if (progress >= 100) stage = 5; // Mature (only at 100% - ready to harvest)
     
     // Check if plant should advance to next stage
     const currentStageProgress = this.getStageProgress(stage);
@@ -83,7 +83,7 @@ export class GrowthService {
       case 2: return 0;   // Dirt (immediate after planting)
       case 3: return 20;  // Sprout
       case 4: return 40;  // Adolescent
-      case 5: return 70;  // Mature
+      case 5: return 100; // Mature (only at 100% - ready to harvest)
       default: return 0;
     }
   }

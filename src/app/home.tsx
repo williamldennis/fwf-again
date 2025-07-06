@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
     View,
     Text,
@@ -95,11 +95,73 @@ const Avatar = ({ name, size = 40 }: { name: string; size?: number }) => {
 
 async function getCityFromCoords(lat: number, lon: number): Promise<string> {
     try {
+        // First try to get detailed location info from React Native Location API
+        try {
+            const location = await Location.reverseGeocodeAsync({
+                latitude: lat,
+                longitude: lon,
+            });
+
+            if (location && location.length > 0) {
+                const place = location[0];
+                console.log("[Location] 📍 React Native location data:", place);
+
+                // Try to get neighborhood/city name
+                if (place.district) {
+                    return place.district; // Often gives neighborhood names
+                }
+                if (place.city) {
+                    return place.city;
+                }
+                if (place.subregion) {
+                    return place.subregion;
+                }
+                if (place.region) {
+                    return place.region;
+                }
+            }
+        } catch (locationError) {
+            console.log(
+                "[Location] ⚠️ React Native location failed, falling back to OpenWeather:",
+                locationError
+            );
+        }
+
+        // Fallback to OpenWeather geocoding
         const response = await fetch(
-            `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${OPENWEATHER_API_KEY}`
+            `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=5&appid=${OPENWEATHER_API_KEY}`
         );
         const data = await response.json();
-        if (data && data[0]) {
+
+        if (data && data.length > 0) {
+            // Look for the most specific city name
+            for (const location of data) {
+                // Prefer local names if available
+                if (location.local_names && location.local_names.en) {
+                    return location.local_names.en;
+                }
+
+                // Check if this is a city/town (not county/state)
+                if (
+                    location.name &&
+                    !location.name.toLowerCase().includes("county")
+                ) {
+                    // If it's a city, return it
+                    if (location.type === "city" || location.type === "town") {
+                        return location.name;
+                    }
+
+                    // If no type specified but name doesn't contain 'county', it's likely a city
+                    if (
+                        !location.type &&
+                        !location.name.toLowerCase().includes("county")
+                    ) {
+                        return location.name;
+                    }
+                }
+            }
+
+            // Fallback to the first result's name if no better option found
             return data[0].name;
         }
         return "Unknown";
@@ -121,6 +183,7 @@ const WEATHER_CARD_HEIGHT = 540; // adjust as needed for your weather card heigh
 // Utility to aggregate 3-hourly forecast to 5 daily objects
 function aggregateToFiveDay(forecastList: any[]): any[] {
     if (!forecastList || forecastList.length === 0) return [];
+
     const days: {
         [date: string]: {
             date: string;
@@ -129,25 +192,74 @@ function aggregateToFiveDay(forecastList: any[]): any[] {
             icon: string;
         };
     } = {};
+
     forecastList.forEach((item: any) => {
-        const date = item.dt_txt.split(" ")[0];
-        if (!days[date]) {
-            days[date] = {
-                date,
-                high: item.main.temp_max,
-                low: item.main.temp_min,
-                icon: item.weather[0].icon,
-            };
-        } else {
-            days[date].high = Math.max(days[date].high, item.main.temp_max);
-            days[date].low = Math.min(days[date].low, item.main.temp_min);
+        // Validate item structure
+        if (!item || !item.main || !item.weather || !item.weather[0]) {
+            console.warn("[Forecast] Skipping invalid forecast item:", item);
+            return;
         }
-        // Use the icon from the midday forecast if possible
-        const hour = parseInt(item.dt_txt.split(" ")[1].split(":")[0], 10);
-        if (hour === 12) {
-            days[date].icon = item.weather[0].icon;
+
+        // Handle both old API format (dt_txt) and new OneCall API format (dt)
+        let date: string;
+        let hour: number;
+
+        try {
+            if (item.dt_txt && typeof item.dt_txt === "string") {
+                // Old API format
+                const parts = item.dt_txt.split(" ");
+                if (parts.length >= 2) {
+                    date = parts[0];
+                    hour = parseInt(parts[1].split(":")[0], 10);
+                } else {
+                    console.warn(
+                        "[Forecast] Invalid dt_txt format:",
+                        item.dt_txt
+                    );
+                    return;
+                }
+            } else if (item.dt && typeof item.dt === "number") {
+                // New OneCall API format
+                const dateObj = new Date(item.dt * 1000);
+                date = dateObj.toISOString().split("T")[0];
+                hour = dateObj.getHours();
+            } else {
+                // Skip items without valid date
+                console.warn("[Forecast] No valid date found in item:", item);
+                return;
+            }
+
+            if (!days[date]) {
+                days[date] = {
+                    date,
+                    high: item.main.temp_max || item.main.temp || 0,
+                    low: item.main.temp_min || item.main.temp || 0,
+                    icon: item.weather[0].icon || "01d",
+                };
+            } else {
+                days[date].high = Math.max(
+                    days[date].high,
+                    item.main.temp_max || item.main.temp || 0
+                );
+                days[date].low = Math.min(
+                    days[date].low,
+                    item.main.temp_min || item.main.temp || 0
+                );
+            }
+            // Use the icon from the midday forecast if possible
+            if (hour === 12) {
+                days[date].icon = item.weather[0].icon || "01d";
+            }
+        } catch (error) {
+            console.warn(
+                "[Forecast] Error processing forecast item:",
+                error,
+                item
+            );
+            return;
         }
     });
+
     // Return only the first 5 days
     return Object.values(days).slice(0, 5);
 }
@@ -184,7 +296,14 @@ export default function Home() {
     const [userPoints, setUserPoints] = useState<number>(0);
 
     // User's 5-day forecast data
-    const userFiveDayData = aggregateToFiveDay(forecast);
+    const userFiveDayData = useMemo(() => {
+        try {
+            return aggregateToFiveDay(forecast);
+        } catch (error) {
+            console.warn("[Forecast] Error aggregating forecast data:", error);
+            return [];
+        }
+    }, [forecast]);
 
     // Friend forecast cache
     const [friendForecasts, setFriendForecasts] = useState<
@@ -370,6 +489,7 @@ export default function Home() {
 
     const updatePlantGrowth = async () => {
         try {
+            console.log("[Growth] 📈 Starting plant growth update...");
             // Get all planted plants that aren't mature
             const { data: allPlantedPlants, error } = await supabase
                 .from("planted_plants")
@@ -383,18 +503,19 @@ export default function Home() {
 
             if (error) {
                 console.error(
-                    "Error fetching planted plants for growth update:",
+                    "[Growth] ❌ Error fetching planted plants for growth update:",
                     error
                 );
                 return;
             }
 
             if (!allPlantedPlants || allPlantedPlants.length === 0) {
+                console.log("[Growth] ℹ️ No plants need growth updates");
                 return;
             }
 
             console.log(
-                `Updating growth for ${allPlantedPlants.length} plants`
+                `[Growth] 🌱 Updating growth for ${allPlantedPlants.length} plants`
             );
 
             // Group plants by garden owner to get their weather
@@ -453,9 +574,9 @@ export default function Home() {
                 }
             }
 
-            console.log("Plant growth update completed");
+            console.log("[Growth] ✅ Plant growth update completed");
         } catch (error) {
-            console.error("Error updating plant growth:", error);
+            console.error("[Growth] ❌ Error updating plant growth:", error);
         }
     };
 
@@ -501,52 +622,226 @@ export default function Home() {
         }
     };
 
+    const fetchAllPlantedPlantsBatch = async (userIds: string[]) => {
+        try {
+            console.log(
+                `[Plants] 🚀 Batch fetching plants for ${userIds.length} users...`
+            );
+
+            if (userIds.length === 0) {
+                console.log("[Plants] ℹ️ No user IDs provided for batch fetch");
+                return {};
+            }
+
+            const { data: allPlants, error } = await supabase
+                .from("planted_plants")
+                .select(
+                    `
+                    *,
+                    plant:plants(*)
+                `
+                )
+                .in("garden_owner_id", userIds)
+                .is("harvested_at", null) // Only show non-harvested plants
+                .order("planted_at", { ascending: false });
+
+            if (error) {
+                console.error("[Plants] ❌ Error in batch plant fetch:", error);
+                return {};
+            }
+
+            // Group plants by garden_owner_id
+            const plantsByUser: Record<string, any[]> = {};
+            allPlants?.forEach((plant) => {
+                const gardenOwnerId = plant.garden_owner_id;
+                if (!plantsByUser[gardenOwnerId]) {
+                    plantsByUser[gardenOwnerId] = [];
+                }
+                plantsByUser[gardenOwnerId].push(plant);
+            });
+
+            console.log(
+                `[Plants] ✅ Batch fetch completed: ${allPlants?.length || 0} total plants for ${Object.keys(plantsByUser).length} users`
+            );
+
+            // Log summary for each user
+            Object.entries(plantsByUser).forEach(([userId, plants]) => {
+                console.log(
+                    `[Plants] 🌱 User ${userId}: ${plants.length} plants`
+                );
+            });
+
+            return plantsByUser;
+        } catch (error) {
+            console.error("[Plants] ❌ Exception in batch plant fetch:", error);
+            return {};
+        }
+    };
+
     const fetchAvailablePlants = async () => {
         try {
+            console.log(
+                "[Plants] 🌱 Fetching available plants from database..."
+            );
             const { data: plants, error } = await supabase
                 .from("plants")
                 .select("*")
                 .order("name");
 
             if (error) {
-                console.error("Error fetching plants:", error);
+                console.error("[Plants] ❌ Error fetching plants:", error);
                 return;
             }
 
             if (plants) {
                 setAvailablePlants(plants);
-                console.log("Fetched plants:", plants);
+                console.log(
+                    `[Plants] ✅ Fetched ${plants.length} available plants`
+                );
             }
         } catch (error) {
-            console.error("Error fetching plants:", error);
+            console.error("[Plants] ❌ Error fetching plants:", error);
+        }
+    };
+
+    const fetchWeatherData = async (latitude: number, longitude: number) => {
+        try {
+            console.log(
+                "[Weather] 🌤️ Fetching weather data with OneCall API..."
+            );
+
+            if (!OPENWEATHER_API_KEY) {
+                throw new Error("OpenWeather API key is missing");
+            }
+
+            // Use OneCall API to get current weather, hourly forecast, and daily forecast in one request
+            const url = `https://api.openweathermap.org/data/3.0/onecall?lat=${latitude}&lon=${longitude}&units=imperial&exclude=minutely,alerts&appid=${OPENWEATHER_API_KEY}`;
+
+            console.log("[Weather] 📡 Making OneCall API request...");
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.cod && data.cod !== 200) {
+                throw new Error(`Weather API error: ${data.message}`);
+            }
+
+            // Get city name from coordinates
+            console.log("[Weather] 🏙️ Fetching city name...");
+            const cityName = await getCityFromCoords(latitude, longitude);
+            console.log(`[Weather] ✅ City name: ${cityName}`);
+
+            // Log the full geocoding response for debugging
+            try {
+                const geoResponse = await fetch(
+                    `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=5&appid=${OPENWEATHER_API_KEY}`
+                );
+                const geoData = await geoResponse.json();
+                console.log(
+                    "[Weather] 🔍 Full geocoding data:",
+                    JSON.stringify(geoData, null, 2)
+                );
+            } catch (e) {
+                console.log("[Weather] ⚠️ Could not log geocoding data:", e);
+            }
+
+            // Extract current weather
+            const currentWeather = {
+                name: cityName, // Add city name to weather data
+                main: {
+                    temp: data.current.temp,
+                    feels_like: data.current.feels_like,
+                    humidity: data.current.humidity,
+                    pressure: data.current.pressure,
+                },
+                weather: [
+                    {
+                        main: data.current.weather[0].main,
+                        description: data.current.weather[0].description,
+                        icon: data.current.weather[0].icon,
+                    },
+                ],
+                wind: {
+                    speed: data.current.wind_speed,
+                    deg: data.current.wind_deg,
+                },
+                dt: data.current.dt,
+                dt_txt: new Date(data.current.dt * 1000).toISOString(),
+            };
+
+            // Convert hourly forecast to 3-hourly format (matching the old API structure)
+            const hourlyForecast =
+                data.hourly?.slice(0, 40).map((hour: any) => ({
+                    dt: hour.dt,
+                    dt_txt: new Date(hour.dt * 1000).toISOString(),
+                    main: {
+                        temp: hour.temp,
+                        feels_like: hour.feels_like,
+                        humidity: hour.humidity,
+                        pressure: hour.pressure,
+                        temp_min: hour.temp,
+                        temp_max: hour.temp,
+                    },
+                    weather: [
+                        {
+                            main: hour.weather[0].main,
+                            description: hour.weather[0].description,
+                            icon: hour.weather[0].icon,
+                        },
+                    ],
+                    wind: {
+                        speed: hour.wind_speed,
+                        deg: hour.wind_deg,
+                    },
+                })) || [];
+
+            console.log(
+                `[Weather] ✅ Weather loaded: ${currentWeather.weather[0].main} ${currentWeather.main.temp}°F in ${cityName}`
+            );
+            console.log(
+                `[Weather] ✅ Forecast loaded: ${hourlyForecast.length} entries`
+            );
+
+            return {
+                current: currentWeather,
+                forecast: hourlyForecast,
+            };
+        } catch (error) {
+            console.error("[Weather] ❌ Error fetching weather data:", error);
+            throw error;
         }
     };
 
     const fetchProfileAndWeather = async () => {
+        console.log("[Loading] 🚀 Starting fetchProfileAndWeather...");
         setLoading(true);
         setError(null);
         try {
-            console.log("Starting fetchProfileAndWeather...");
+            console.log("[Loading] 📋 Step 1: Getting user session...");
             // Get user
             const {
                 data: { session },
             } = await supabase.auth.getSession();
             const user = session?.user;
             if (!user) {
+                console.log("[Loading] ❌ No user found in session");
                 setError("User not found.");
                 setLoading(false);
                 return;
             }
+            console.log(`[Loading] ✅ User authenticated: ${user.id}`);
 
             // Get current device location and update profile
+            console.log("[Loading] 📍 Step 2: Getting device location...");
             let updatedLatitude: number | null = null;
             let updatedLongitude: number | null = null;
 
             try {
                 // Check if we have location permission
+                console.log("[Loading] 🔐 Checking location permissions...");
                 const { status } =
                     await Location.getForegroundPermissionsAsync();
                 if (status === "granted") {
+                    console.log("[Loading] 📱 Getting current position...");
                     // Get current location
                     const location = await Location.getCurrentPositionAsync({
                         accuracy: Location.Accuracy.Balanced,
@@ -557,12 +852,13 @@ export default function Home() {
                     updatedLongitude = location.coords.longitude;
 
                     console.log(
-                        "Got current location:",
-                        updatedLatitude,
-                        updatedLongitude
+                        `[Loading] ✅ Got current location: ${updatedLatitude}, ${updatedLongitude}`
                     );
 
                     // Update the profile with new coordinates
+                    console.log(
+                        "[Loading] 💾 Updating profile with new location..."
+                    );
                     const { error: updateError } = await supabase
                         .from("profiles")
                         .update({
@@ -572,20 +868,29 @@ export default function Home() {
                         .eq("id", user.id);
 
                     if (updateError) {
-                        console.warn("Could not update location:", updateError);
+                        console.warn(
+                            "[Loading] ⚠️ Could not update location:",
+                            updateError
+                        );
                     } else {
-                        console.log("Successfully updated user location");
+                        console.log(
+                            "[Loading] ✅ Successfully updated user location"
+                        );
                     }
                 } else {
                     console.log(
-                        "Location permission not granted, using stored coordinates"
+                        "[Loading] ⚠️ Location permission not granted, using stored coordinates"
                     );
                 }
             } catch (locationError) {
-                console.warn("Could not get current location:", locationError);
+                console.warn(
+                    "[Loading] ❌ Could not get current location:",
+                    locationError
+                );
             }
 
             // Get profile (use updated coordinates if available, otherwise use stored)
+            console.log("[Loading] 👤 Step 3: Fetching user profile...");
             const { data: profile, error: profileError } = await supabase
                 .from("profiles")
                 .select("latitude,longitude,selfie_urls,points")
@@ -593,87 +898,109 @@ export default function Home() {
                 .single();
 
             if (profileError) {
-                console.error("Profile error:", profileError);
+                console.error("[Loading] ❌ Profile error:", profileError);
                 setError(`Profile error: ${profileError.message}`);
                 setLoading(false);
                 return;
             }
+
+            console.log(
+                `[Loading] ✅ Profile loaded: points=${profile?.points || 0}`
+            );
 
             // Use updated coordinates if we got them, otherwise use stored coordinates
             const latitude = updatedLatitude ?? profile?.latitude;
             const longitude = updatedLongitude ?? profile?.longitude;
 
             if (!latitude || !longitude) {
+                console.log("[Loading] ❌ No location coordinates found");
                 setError("Location not found.");
                 setLoading(false);
                 return;
             }
 
+            console.log(
+                `[Loading] 📍 Using coordinates: ${latitude}, ${longitude}`
+            );
+
             setSelfieUrls(profile.selfie_urls || null);
             setUserPoints(profile.points || 0);
 
             // Get user's timezone and local hour
+            console.log(
+                "[Loading] 🕐 Step 4: Calculating timezone and local time..."
+            );
             let localHour = 12;
             try {
                 const timezone = tzlookup(latitude, longitude);
                 const localTime = DateTime.now().setZone(timezone);
                 localHour = localTime.hour;
+                console.log(
+                    `[Loading] ✅ Timezone: ${timezone}, Local hour: ${localHour}`
+                );
             } catch (e) {
-                console.warn("Could not determine timezone from lat/lon", e);
+                console.warn(
+                    "[Loading] ⚠️ Could not determine timezone from lat/lon",
+                    e
+                );
             }
             setBgColor(getBackgroundColor(localHour));
 
-            // Check if OpenWeather API key is available
-            if (!OPENWEATHER_API_KEY) {
-                console.error("OpenWeather API key is missing");
-                setError("Weather API key not configured.");
+            // OPTIMIZATION: Fetch weather and forecast in a single API call
+            console.log(
+                "[Loading] 🌤️ Step 5: Fetching weather and forecast data..."
+            );
+            let weatherData: any;
+            try {
+                weatherData = await fetchWeatherData(latitude, longitude);
+
+                // Set current weather
+                setWeather(weatherData.current);
+
+                // Set forecast data
+                setForecast(weatherData.forecast);
+
+                // Set forecast summary
+                setForecastSummary(
+                    weatherData.forecast[0]?.weather?.[0]?.description
+                        ? weatherData.forecast[0].weather[0].description
+                              .charAt(0)
+                              .toUpperCase() +
+                              weatherData.forecast[0].weather[0].description.slice(
+                                  1
+                              )
+                        : ""
+                );
+
+                console.log(
+                    "[Loading] ✅ Weather and forecast loaded in single request"
+                );
+
+                // Update user's weather in Supabase
+                console.log(
+                    "[Loading] 💾 Step 7: Updating user's weather in database..."
+                );
+                await supabase
+                    .from("profiles")
+                    .update({
+                        weather_temp: weatherData.current.main.temp,
+                        weather_condition: weatherData.current.weather[0].main,
+                        weather_icon: weatherData.current.weather[0].icon,
+                        weather_updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", user.id);
+                console.log("[Loading] ✅ Weather updated in database");
+            } catch (error) {
+                console.error(
+                    "[Loading] ❌ Error fetching weather data:",
+                    error
+                );
+                setError("Failed to fetch weather data.");
                 setLoading(false);
                 return;
             }
-
-            // Fetch weather using the coordinates (updated or stored)
-            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            if (data.cod && data.cod !== 200) {
-                throw new Error(`Weather API error: ${data.message}`);
-            }
-            setWeather(data);
-
-            // Fetch 3-hourly forecast using the same coordinates
-            try {
-                const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
-                const forecastRes = await fetch(forecastUrl);
-                const forecastData = await forecastRes.json();
-                if (forecastData.list && Array.isArray(forecastData.list)) {
-                    setForecast(forecastData.list);
-                    // Simple summary from first entry
-                    setForecastSummary(
-                        forecastData.list[0]?.weather?.[0]?.description
-                            ? forecastData.list[0].weather[0].description
-                                  .charAt(0)
-                                  .toUpperCase() +
-                                  forecastData.list[0].weather[0].description.slice(
-                                      1
-                                  )
-                            : ""
-                    );
-                }
-            } catch (e) {
-                console.warn("Could not fetch forecast", e);
-            }
-
-            // Update user's weather in Supabase
-            await supabase
-                .from("profiles")
-                .update({
-                    weather_temp: data.main.temp,
-                    weather_condition: data.weather[0].main,
-                    weather_icon: data.weather[0].icon,
-                    weather_updated_at: new Date().toISOString(),
-                })
-                .eq("id", user.id);
             // Fetch user's contacts with pagination
+            console.log("[Loading] 📞 Step 6: Fetching user's contacts...");
             let allContacts: any[] = [];
             let from = 0;
             const pageSize = 1000;
@@ -684,7 +1011,10 @@ export default function Home() {
                     .eq("user_id", user.id)
                     .range(from, from + pageSize - 1);
                 if (contactsError) {
-                    console.error("Contacts fetch error:", contactsError);
+                    console.error(
+                        "[Loading] ❌ Contacts fetch error:",
+                        contactsError
+                    );
                     setError("Failed to fetch contacts.");
                     setLoading(false);
                     return;
@@ -699,8 +1029,13 @@ export default function Home() {
                     break;
                 }
             }
-            console.log(`Total contacts retrieved: ${allContacts.length}`);
+            console.log(
+                `[Loading] ✅ Total contacts retrieved: ${allContacts.length}`
+            );
             // Create a mapping of E.164 phone numbers to contact names
+            console.log(
+                "[Loading] 🔍 Step 7: Processing contacts and finding friends..."
+            );
             const phoneToNameMap = new Map<string, string>();
             allContacts.forEach((contact: any) => {
                 // Use the full E.164 phone number (with +)
@@ -711,6 +1046,10 @@ export default function Home() {
             );
             // Use the full E.164 numbers for matching
             const uniquePhones = Array.from(new Set(contactPhones));
+            console.log(
+                `[Loading] 📱 Unique phone numbers: ${uniquePhones.length}`
+            );
+
             // Batch into chunks of 500
             function chunkArray<T>(array: T[], size: number): T[][] {
                 const result: T[][] = [];
@@ -721,7 +1060,12 @@ export default function Home() {
             }
             const BATCH_SIZE = 500;
             const phoneChunks = chunkArray<string>(uniquePhones, BATCH_SIZE);
+            console.log(
+                `[Loading] 📦 Batching into ${phoneChunks.length} chunks...`
+            );
+
             // Parallelize the queries
+            console.log("[Loading] 🔍 Searching for friends in database...");
             const friendResults = await Promise.all(
                 phoneChunks.map((chunk, idx) => {
                     return supabase
@@ -737,10 +1081,19 @@ export default function Home() {
             for (const result of friendResults) {
                 if (result.data) allFriends = allFriends.concat(result.data);
             }
-            console.log(`Total friends found: ${allFriends.length}`);
+            console.log(
+                `[Loading] ✅ Total friends found: ${allFriends.length}`
+            );
             // Remove the current user from the results
             const filteredFriends = allFriends.filter((f) => f.id !== user.id);
+            console.log(
+                `[Loading] 👥 Filtered friends (excluding self): ${filteredFriends.length}`
+            );
+
             // Add contact names and city names to the friends data
+            console.log(
+                "[Loading] 🌍 Step 8: Getting city names for friends..."
+            );
             const friendsWithNamesAndCities = await Promise.all(
                 filteredFriends.map(async (friend) => {
                     const contactName = phoneToNameMap.get(friend.phone_number);
@@ -758,13 +1111,18 @@ export default function Home() {
                     };
                 })
             );
+            console.log(
+                `[Loading] ✅ Friends with cities loaded: ${friendsWithNamesAndCities.length}`
+            );
             setFriendsWeather(friendsWithNamesAndCities);
 
             // Fetch planted plants for each friend and the current user
-            const plantsData: Record<string, any[]> = {};
+            console.log("[Loading] 🌱 Step 9: Fetching planted plants...");
 
             // TEST: Direct query to check if Will's plants exist
-            console.log(`[Plants] Testing direct query for Will's plants...`);
+            console.log(
+                `[Loading] 🧪 Testing direct query for Will's plants...`
+            );
             const { data: testPlants, error: testError } = await supabase
                 .from("planted_plants")
                 .select("id, garden_owner_id, planted_at")
@@ -772,59 +1130,81 @@ export default function Home() {
                 .is("harvested_at", null);
 
             if (testError) {
-                console.error(`[Plants] Test query error:`, testError);
+                console.error(`[Loading] ❌ Test query error:`, testError);
             } else {
                 console.log(
-                    `[Plants] Test query found ${testPlants?.length || 0} plants for Will`
+                    `[Loading] 🧪 Test query found ${testPlants?.length || 0} plants for Will`
                 );
             }
 
-            // Fetch current user's plants
-            console.log(`[Plants] Current user ID: ${user.id}`);
-            const userPlants = await fetchPlantedPlants(user.id);
-            plantsData[user.id] = userPlants;
+            // OPTIMIZATION: Batch fetch all plants instead of sequential queries
+            const allUserIds = [
+                user.id,
+                ...friendsWithNamesAndCities.map((friend) => friend.id),
+            ];
+            console.log(
+                `[Loading] 🚀 Batch fetching plants for ${allUserIds.length} users (${friendsWithNamesAndCities.length} friends + current user)`
+            );
 
-            // Fetch friends' plants
-            for (const friend of friendsWithNamesAndCities) {
-                const plants = await fetchPlantedPlants(friend.id);
-                plantsData[friend.id] = plants;
-            }
+            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
+
+            console.log(
+                `[Loading] ✅ All plants loaded for ${Object.keys(plantsData).length} users`
+            );
             setPlantedPlants(plantsData);
         } catch (err) {
-            console.error("Weather fetch error:", err);
+            console.error("[Loading] ❌ Weather fetch error:", err);
             setError(
                 `Failed to fetch weather: ${err instanceof Error ? err.message : "Unknown error"}`
             );
         } finally {
+            console.log("[Loading] 🎉 Loading process completed!");
             setLoading(false);
         }
     };
 
     useEffect(() => {
+        console.log("[App] 🚀 App initialization started...");
+
         // Get current user ID
         const getCurrentUser = async () => {
+            console.log("[App] 👤 Getting current user...");
             const {
                 data: { user },
             } = await supabase.auth.getUser();
             if (user) {
+                console.log(`[App] ✅ Current user: ${user.id}`);
                 setCurrentUserId(user.id);
+            } else {
+                console.log("[App] ❌ No authenticated user found");
             }
         };
 
-        getCurrentUser();
-        fetchAvailablePlants();
-        fetchProfileAndWeather();
-        updatePlantGrowth(); // Update plant growth on app load
+        const initializeApp = async () => {
+            await getCurrentUser();
+            console.log("[App] 🌱 Fetching available plants...");
+            await fetchAvailablePlants();
+            console.log("[App] 🌤️ Starting main data fetch...");
+            await fetchProfileAndWeather();
+            console.log("[App] 📈 Updating plant growth...");
+            await updatePlantGrowth(); // Update plant growth on app load
+            console.log("[App] ✅ App initialization completed!");
+        };
+
+        initializeApp();
 
         // Set up periodic growth updates (every 5 minutes)
+        console.log("[App] ⏰ Setting up periodic growth updates...");
         const growthInterval = setInterval(
             () => {
+                console.log("[App] 🔄 Running periodic growth update...");
                 updatePlantGrowth();
             },
             5 * 60 * 1000
         ); // 5 minutes
 
         // Subscribe to changes in planted_plants
+        console.log("[App] 📡 Setting up real-time subscription...");
         const subscription = supabase
             .channel("public:planted_plants")
             .on(
@@ -869,6 +1249,7 @@ export default function Home() {
             .subscribe();
 
         return () => {
+            console.log("[App] 🧹 Cleaning up app resources...");
             clearInterval(growthInterval);
             supabase.removeChannel(subscription);
         };
@@ -986,6 +1367,13 @@ export default function Home() {
             return;
         }
 
+        // Close modal immediately for better UX
+        setShowPlantPicker(false);
+        const friendId = selectedFriendId;
+        const slotIdx = selectedSlot;
+        setSelectedFriendId(null);
+        setSelectedSlot(null);
+
         try {
             // Get current user
             const {
@@ -993,7 +1381,6 @@ export default function Home() {
             } = await supabase.auth.getUser();
             if (!user) {
                 console.error("[Plant] No authenticated user found");
-                setShowPlantPicker(false);
                 return;
             }
 
@@ -1001,8 +1388,8 @@ export default function Home() {
             const { data: slotPlants, error: slotError } = await supabase
                 .from("planted_plants")
                 .select("id")
-                .eq("garden_owner_id", selectedFriendId)
-                .eq("slot", selectedSlot)
+                .eq("garden_owner_id", friendId)
+                .eq("slot", slotIdx)
                 .is("harvested_at", null);
             if (slotError) {
                 console.error(
@@ -1010,28 +1397,26 @@ export default function Home() {
                     slotError
                 );
                 Alert.alert("Error", "Could not check slot occupancy");
-                setShowPlantPicker(false);
                 return;
             }
             if (slotPlants && slotPlants.length > 0) {
                 Alert.alert("Slot Occupied", "This pot is already occupied");
-                setShowPlantPicker(false);
                 return;
             }
 
             // Plant the seed
             console.log(
-                `[Plant] Planting new plant in garden ${selectedFriendId} slot ${selectedSlot} (plantId: ${plantId})`
+                `[Plant] Planting new plant in garden ${friendId} slot ${slotIdx} (plantId: ${plantId})`
             );
             const { data: plantedPlant, error: plantError } = await supabase
                 .from("planted_plants")
                 .insert({
-                    garden_owner_id: selectedFriendId,
+                    garden_owner_id: friendId,
                     planter_id: user.id,
                     plant_id: plantId,
                     current_stage: 2, // Start at stage 2 (dirt) immediately after planting
                     is_mature: false,
-                    slot: selectedSlot,
+                    slot: slotIdx,
                 })
                 .select()
                 .single();
@@ -1042,41 +1427,28 @@ export default function Home() {
                     "Error",
                     plantError.message || "Failed to plant seed"
                 );
-                setShowPlantPicker(false);
                 return;
             }
 
             console.log("[Plant] Successfully planted:", plantedPlant);
-            Alert.alert("Success", "Plant planted successfully!");
 
-            // Refresh planted plants for this friend
-            const updatedPlants = await fetchPlantedPlants(selectedFriendId);
+            // Optimize: Add the new plant directly to state instead of fetching
+            // This prevents the flickering from multiple database calls
+            const newPlant = {
+                ...plantedPlant,
+                plant: availablePlants.find((p) => p.id === plantId),
+            };
+
             setPlantedPlants((prev) => ({
                 ...prev,
-                [selectedFriendId]: updatedPlants,
+                [friendId]: [...(prev[friendId] || []), newPlant],
             }));
 
-            // If planting in user's own garden, also refresh user's plants
-            if (selectedFriendId === currentUserId) {
-                const userPlants = await fetchPlantedPlants(currentUserId);
-                setPlantedPlants((prev) => ({
-                    ...prev,
-                    [currentUserId]: userPlants,
-                }));
-            }
-
-            // Update growth for all plants
-            await updatePlantGrowth();
-
-            // Close the modal
-            setShowPlantPicker(false);
-            setSelectedFriendId(null);
-            setSelectedSlot(null);
+            // Only update growth if needed (don't call updatePlantGrowth here)
+            // The real-time subscription will handle any necessary updates
         } catch (error) {
             console.error("[Plant] Error in handleSelectPlant:", error);
             Alert.alert("Error", "An unexpected error occurred");
-            setShowPlantPicker(false);
-            setSelectedSlot(null);
         }
     };
     const handlePlantDetailsPress = async (
@@ -1124,51 +1496,39 @@ export default function Home() {
             }
         }
 
-        // Refresh all planted plants data after harvest
-        const plantsData: Record<string, any[]> = {};
-
-        // Refresh current user's plants
-        if (currentUserId) {
-            const userPlants = await fetchPlantedPlants(currentUserId);
-            plantsData[currentUserId] = userPlants;
+        // OPTIMIZATION: Use batch query to refresh all plants
+        if (currentUserId && friendsWeather.length > 0) {
+            const allUserIds = [
+                currentUserId,
+                ...friendsWeather.map((friend) => friend.id),
+            ];
             console.log(
-                "Refreshed plants for current user:",
-                userPlants.length
+                `[Harvest] 🚀 Batch refreshing plants for ${allUserIds.length} users...`
             );
-        }
 
-        // Refresh friends' plants
-        for (const friend of friendsWeather) {
-            const plants = await fetchPlantedPlants(friend.id);
-            plantsData[friend.id] = plants;
-            console.log(
-                `Refreshed plants for ${friend.contact_name}:`,
-                plants.length
-            );
+            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
+            setPlantedPlants(plantsData);
+            console.log("Plant data refresh completed");
         }
-        setPlantedPlants(plantsData);
-        console.log("Plant data refresh completed");
     };
 
     const handleRefreshGrowth = async () => {
         console.log("Manual growth refresh triggered");
         await updatePlantGrowth();
 
-        // Refresh all planted plants data
-        const plantsData: Record<string, any[]> = {};
+        // OPTIMIZATION: Use batch query to refresh all plants
+        if (currentUserId && friendsWeather.length > 0) {
+            const allUserIds = [
+                currentUserId,
+                ...friendsWeather.map((friend) => friend.id),
+            ];
+            console.log(
+                `[Growth] 🚀 Batch refreshing plants for ${allUserIds.length} users...`
+            );
 
-        // Refresh current user's plants
-        if (currentUserId) {
-            const userPlants = await fetchPlantedPlants(currentUserId);
-            plantsData[currentUserId] = userPlants;
+            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
+            setPlantedPlants(plantsData);
         }
-
-        // Refresh friends' plants
-        for (const friend of friendsWeather) {
-            const plants = await fetchPlantedPlants(friend.id);
-            plantsData[friend.id] = plants;
-        }
-        setPlantedPlants(plantsData);
 
         Alert.alert("Growth Updated", "Plant growth has been refreshed!");
     };
