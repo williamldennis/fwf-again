@@ -162,8 +162,9 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     const formattedTimeSincePlanted =
         TimeCalculationService.getFormattedTimeSincePlanted(plant.planted_at);
 
-    // For display: only show mature image and 'Ready to Harvest' step if isMature
-    const displayStage = isMature ? 5 : Math.min(currentStage, 4);
+    // For display: ensure we never show stage 1 (empty pot) for planted plants
+    // Stage 1 = empty pot, Stage 2 = dirt, Stage 3+ = plant growth
+    const displayStage = isMature ? 5 : Math.max(2, Math.min(currentStage, 4));
 
     // Check if current user can harvest (anyone can harvest now)
     const canHarvest = currentUserId && !plant.harvested_at;
