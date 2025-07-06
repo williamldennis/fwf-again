@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Text, Alert } from "react-native";
 import { Image } from "expo-image";
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withRepeat,
+    withTiming,
+    withSequence,
+    Easing,
+} from "react-native-reanimated";
 import { GardenAreaProps, GrowthStage } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import DirtParticles from "./DirtParticles";
@@ -190,6 +198,123 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         return plantStageImages[plantKey]?.[stage] || dirtImg;
     };
 
+    // Animated Plant Component with harvest-ready bounce and glow
+    const AnimatedPlant: React.FC<{
+        plant: any;
+        plantName: string;
+        stage: GrowthStage;
+        onPress: () => void;
+    }> = ({ plant, plantName, stage, onPress }) => {
+        const scale = useSharedValue(1);
+        const glowOpacity = useSharedValue(0);
+
+        // Check if plant is ready for harvest
+        const isReadyForHarvest = plant.is_mature && !plant.harvested_at;
+
+        // Start bounce and glow animations if plant is ready for harvest
+        useEffect(() => {
+            if (isReadyForHarvest) {
+                // Scale bounce animation
+                scale.value = withRepeat(
+                    withSequence(
+                        withTiming(1.1, {
+                            duration: 800,
+                            easing: Easing.out(Easing.quad),
+                        }),
+                        withTiming(1, {
+                            duration: 800,
+                            easing: Easing.in(Easing.quad),
+                        })
+                    ),
+                    -1, // Infinite repeat
+                    true // Reverse
+                );
+
+                // Glow pulse animation
+                glowOpacity.value = withRepeat(
+                    withSequence(
+                        withTiming(0.8, {
+                            duration: 800,
+                            easing: Easing.out(Easing.quad),
+                        }),
+                        withTiming(0.2, {
+                            duration: 800,
+                            easing: Easing.in(Easing.quad),
+                        })
+                    ),
+                    -1, // Infinite repeat
+                    true // Reverse
+                );
+            } else {
+                // Stop animations and reset to normal
+                scale.value = withTiming(1, { duration: 300 });
+                glowOpacity.value = withTiming(0, { duration: 300 });
+            }
+        }, [isReadyForHarvest]);
+
+        const animatedStyle = useAnimatedStyle(() => ({
+            transform: [{ scale: scale.value }],
+        }));
+
+        const glowStyle = useAnimatedStyle(() => ({
+            opacity: glowOpacity.value,
+        }));
+
+        return (
+            <TouchableOpacity
+                onPress={onPress}
+                style={{ flex: 1, alignItems: "center" }}
+            >
+                <Animated.View style={animatedStyle}>
+                    {/* Subtle glow outline effect */}
+                    <Animated.View
+                        style={[
+                            {
+                                position: "absolute",
+                                width: 90,
+                                height: 90,
+                                shadowColor: "#FFAE00",
+                                shadowOffset: { width: 0, height: 0 },
+                                shadowOpacity: 1,
+                                shadowRadius: 10,
+                                elevation: 10,
+                                zIndex: -1,
+                            },
+                            glowStyle,
+                        ]}
+                    >
+                        <Image
+                            source={getImageForPlant(plantName, stage)}
+                            style={{ width: 90, height: 90 }}
+                            contentFit="contain"
+                            cachePolicy="memory-disk"
+                        />
+                    </Animated.View>
+                    <Image
+                        source={getImageForPlant(plantName, stage)}
+                        style={{ width: 90, height: 90 }}
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                    />
+                </Animated.View>
+                <Text
+                    style={{
+                        fontSize: 10,
+                        color: "#333",
+                        marginBottom: 20,
+                        marginTop: 10,
+                        fontWeight: "bold",
+                        padding: 6,
+                        paddingHorizontal: 12,
+                        borderRadius: 10,
+                    }}
+                >
+                    {plantName}
+                </Text>
+            </TouchableOpacity>
+        );
+    };
+
     return (
         <View
             ref={containerRef}
@@ -274,32 +399,13 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 const stage = growthCalculation.stage as GrowthStage;
 
                 return (
-                    <TouchableOpacity
+                    <AnimatedPlant
                         key={plant.id || `plant-${idx}`}
+                        plant={plant}
+                        plantName={plantName}
+                        stage={stage}
                         onPress={() => handlePlantPress(plant)}
-                        style={{ flex: 1, alignItems: "center" }}
-                    >
-                        <Image
-                            source={getImageForPlant(plantName, stage)}
-                            style={{ width: 90, height: 90 }}
-                            contentFit="contain"
-                            cachePolicy="memory-disk"
-                        />
-                        <Text
-                            style={{
-                                fontSize: 10,
-                                color: "#333",
-                                marginBottom: 20,
-                                marginTop: 10,
-                                fontWeight: "bold",
-                                padding: 6,
-                                paddingHorizontal: 12,
-                                borderRadius: 10,
-                            }}
-                        >
-                            {plantName}
-                        </Text>
-                    </TouchableOpacity>
+                    />
                 );
             })}
         </View>
