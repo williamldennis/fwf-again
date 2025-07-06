@@ -56,7 +56,9 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
     // State for dirt particle animation
     const [showParticles, setShowParticles] = useState(false);
     const [particlePosition, setParticlePosition] = useState({ x: 0, y: 0 });
+    const [containerWidth, setContainerWidth] = useState(300); // Default width
     const previousPlantsRef = useRef<any[]>([]);
+    const containerRef = useRef<View>(null);
 
     // Track when new plants are added and trigger animation
     useEffect(() => {
@@ -74,26 +76,82 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
             );
 
             if (newPlant && typeof newPlant.slot === "number") {
-                // Calculate position for the new plant's slot
-                const slotIndex = newPlant.slot;
-                const potX = slotIndex * 120 + 45; // Approximate pot center X
-                const potY = 45; // Approximate pot center Y
+                // Wait for container width to be measured before triggering animation
+                const triggerAnimation = () => {
+                    const slotIndex = newPlant.slot;
 
-                setParticlePosition({ x: potX, y: potY });
+                    // Debug: Log the actual container width and slot calculations
+                    console.log(
+                        `[Particles] Debug - Container width: ${containerWidth}, Slot index: ${slotIndex}`
+                    );
 
-                // Trigger animation with a small delay
-                setTimeout(() => {
-                    setShowParticles(true);
-                }, 1000);
+                    // Use a fallback width if container hasn't been measured yet
+                    const effectiveWidth =
+                        containerWidth > 0 ? containerWidth : 300;
+                    console.log(
+                        `[Particles] Using effective width: ${effectiveWidth}`
+                    );
+
+                    // Calculate pot position based on the actual layout
+                    // Container uses space-between with flex: 1 for each slot
+                    // Each slot takes up 1/3 of the container width
+                    const slotWidth = effectiveWidth / 3;
+
+                    // Calculate the center of each slot
+                    // Slot 0: 0 to slotWidth (center at slotWidth/2)
+                    // Slot 1: slotWidth to 2*slotWidth (center at slotWidth + slotWidth/2)
+                    // Slot 2: 2*slotWidth to 3*slotWidth (center at 2*slotWidth + slotWidth/2)
+                    const potX = slotIndex * slotWidth + slotWidth / 2;
+                    const potY = 45; // Center of the pot image (90px height / 2)
+
+                    setParticlePosition({ x: potX, y: potY });
+                    console.log(
+                        `[Particles] Setting position for slot ${slotIndex}: x=${potX}, y=${potY} (containerWidth=${containerWidth}, slotWidth=${slotWidth})`
+                    );
+                    console.log(
+                        `[Particles] Slot ${slotIndex} range: ${slotIndex * slotWidth} to ${(slotIndex + 1) * slotWidth}, center at ${potX}`
+                    );
+
+                    // Trigger animation with a small delay
+                    setTimeout(() => {
+                        console.log(
+                            `[GardenArea ${gardenOwnerId}] Triggering particles for slot ${slotIndex} at position ${potX},${potY}`
+                        );
+                        setShowParticles(true);
+                    }, 500);
+                };
+
+                // If container width is already measured, trigger immediately
+                if (containerWidth > 0) {
+                    triggerAnimation();
+                } else {
+                    // Wait for container width to be measured, then trigger
+                    const checkWidth = () => {
+                        if (containerWidth > 0) {
+                            triggerAnimation();
+                        } else {
+                            // Check again in 50ms
+                            setTimeout(checkWidth, 50);
+                        }
+                    };
+                    checkWidth();
+                }
             }
         }
 
         // Update previous plants reference
         previousPlantsRef.current = plants || [];
-    }, [plants]);
+    }, [plants, containerWidth]);
 
     const handleParticleAnimationComplete = () => {
         setShowParticles(false);
+    };
+
+    // Measure container width when layout changes
+    const handleLayout = (event: any) => {
+        const { width } = event.nativeEvent.layout;
+        setContainerWidth(width);
+        console.log(`[Particles] Container width measured: ${width}`);
     };
 
     // Map plants by slot for consistent rendering
@@ -134,6 +192,8 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
 
     return (
         <View
+            ref={containerRef}
+            onLayout={handleLayout}
             style={{
                 flexDirection: "row",
                 justifyContent: "space-between",
@@ -146,12 +206,13 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 position: "relative",
             }}
         >
-            {/* Dirt Particles Animation - Temporarily disabled for debugging */}
-            {/* <DirtParticles
+            {/* Dirt Particles Animation */}
+            <DirtParticles
+                key={`particles-${gardenOwnerId}-${particlePosition.x}-${particlePosition.y}`}
                 visible={showParticles}
                 potPosition={particlePosition}
                 onAnimationComplete={handleParticleAnimationComplete}
-            /> */}
+            />
             {slots.map((plant, idx) => {
                 if (!plant) {
                     // Empty slot

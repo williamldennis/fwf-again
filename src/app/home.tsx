@@ -1047,7 +1047,6 @@ export default function Home() {
             }
 
             console.log("[Plant] Successfully planted:", plantedPlant);
-            Alert.alert("Success", "Plant planted successfully!");
 
             // Refresh planted plants for this friend
             const updatedPlants = await fetchPlantedPlants(selectedFriendId);

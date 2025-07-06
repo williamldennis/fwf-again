@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import Animated, {
     useSharedValue,
@@ -31,10 +31,15 @@ export const DirtParticles: React.FC<DirtParticlesProps> = ({
 }) => {
     const particles = useRef<Particle[]>([]);
     const animationCompleteCount = useRef(0);
+    const [forceUpdate, setForceUpdate] = useState(0);
 
     // Generate particles when animation starts
     useEffect(() => {
+        console.log(`[DirtParticles] visible prop changed to: ${visible}`);
         if (visible) {
+            console.log(
+                `[DirtParticles] Creating particles at position: x=${potPosition.x}, y=${potPosition.y}`
+            );
             animationCompleteCount.current = 0;
             particles.current = Array.from({ length: 8 }, (_, index) => ({
                 id: index,
@@ -44,6 +49,9 @@ export const DirtParticles: React.FC<DirtParticlesProps> = ({
                 opacity: 1,
                 rotation: Math.random() * 360,
             }));
+
+            // Force a re-render to ensure particles are visible
+            setForceUpdate((prev: number) => prev + 1);
         }
     }, [visible, potPosition]);
 
@@ -57,10 +65,10 @@ export const DirtParticles: React.FC<DirtParticlesProps> = ({
     if (!visible) return null;
 
     return (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <View style={styles.container} pointerEvents="none">
             {particles.current.map((particle) => (
                 <DirtParticle
-                    key={particle.id}
+                    key={`${particle.id}-${forceUpdate}`}
                     particle={particle}
                     onComplete={handleParticleComplete}
                 />
@@ -85,6 +93,17 @@ const DirtParticle: React.FC<DirtParticleProps> = ({
     const rotation = useSharedValue(particle.rotation);
 
     useEffect(() => {
+        console.log(
+            `[DirtParticle] Starting animation for particle at ${particle.x}, ${particle.y}`
+        );
+
+        // Reset animation values
+        translateX.value = 0;
+        translateY.value = 0;
+        scale.value = particle.scale;
+        opacity.value = 1;
+        rotation.value = particle.rotation;
+
         // Random direction and distance
         const angle = Math.random() * Math.PI * 2; // 0 to 2π
         const distance = 30 + Math.random() * 40; // 30 to 70 pixels
@@ -142,7 +161,7 @@ const DirtParticle: React.FC<DirtParticleProps> = ({
                 easing: Easing.out(Easing.quad),
             })
         );
-    }, []);
+    }, [particle.x, particle.y, particle.scale, particle.rotation]);
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [
@@ -154,6 +173,9 @@ const DirtParticle: React.FC<DirtParticleProps> = ({
         opacity: opacity.value,
     }));
 
+    console.log(
+        `[DirtParticle] Rendering particle at left=${particle.x}, top=${particle.y}`
+    );
     return (
         <Animated.View
             style={[
@@ -169,6 +191,14 @@ const DirtParticle: React.FC<DirtParticleProps> = ({
 };
 
 const styles = StyleSheet.create({
+    container: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: "none",
+    },
     particle: {
         position: "absolute",
         width: 6,
