@@ -266,7 +266,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     const getPlantImage = (plantName: string, stage: number) => {
         if (stage === 2) return require("../../assets/images/plants/dirt.png");
 
-        const plantNameLower = plantName.toLowerCase();
+        // Convert plant name to match the image mapping keys
+        const plantNameLower = plantName.toLowerCase().replace(/\s+/g, "_");
         const plantStageImages: Record<string, Record<number, any>> = {
             sunflower: {
                 3: require("../../assets/images/plants/sunflower/sprout.png"),

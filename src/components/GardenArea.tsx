@@ -83,7 +83,8 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
 
     const getImageForPlant = (plantName: string, stage: GrowthStage) => {
         if (stage === 2) return dirtImg;
-        const plantKey = plantName.toLowerCase();
+        // Convert plant name to match the image mapping keys
+        const plantKey = plantName.toLowerCase().replace(/\s+/g, "_");
         return plantStageImages[plantKey]?.[stage] || dirtImg;
     };
 
