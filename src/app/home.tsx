@@ -971,7 +971,7 @@ export default function Home() {
     };
     const handleSelectPlant = async (plantId: string) => {
         if (!selectedFriendId) {
-            console.error("No friend selected for planting");
+            console.error("[Plant] No friend selected for planting");
             setShowPlantPicker(false);
             return;
         }
@@ -982,32 +982,44 @@ export default function Home() {
                 data: { user },
             } = await supabase.auth.getUser();
             if (!user) {
-                console.error("No authenticated user found");
+                console.error("[Plant] No authenticated user found");
                 setShowPlantPicker(false);
                 return;
             }
 
             // Check if garden is full (max 3 plants)
+            console.log(
+                `[Plant] Checking active plant count for garden: ${selectedFriendId}`
+            );
             const { data: plantCount, error: countError } = await supabase
                 .from("planted_plants")
                 .select("id", { count: "exact" })
                 .eq("garden_owner_id", selectedFriendId)
-                .eq("is_mature", false);
+                .is("harvested_at", null);
 
             if (countError) {
-                console.error("Error checking garden capacity:", countError);
+                console.error(
+                    "[Plant] Error checking garden capacity:",
+                    countError
+                );
                 Alert.alert("Error", "Could not check garden capacity");
                 setShowPlantPicker(false);
                 return;
             }
 
-            if (plantCount && plantCount.length >= 3) {
+            const activePlantCount = plantCount ? plantCount.length : 0;
+            console.log(`[Plant] Active plant count: ${activePlantCount}`);
+
+            if (activePlantCount >= 3) {
                 Alert.alert("Garden Full", "This garden already has 3 plants");
                 setShowPlantPicker(false);
                 return;
             }
 
             // Plant the seed
+            console.log(
+                `[Plant] Planting new plant in garden ${selectedFriendId} (plantId: ${plantId})`
+            );
             const { data: plantedPlant, error: plantError } = await supabase
                 .from("planted_plants")
                 .insert({
@@ -1021,13 +1033,16 @@ export default function Home() {
                 .single();
 
             if (plantError) {
-                console.error("Error planting seed:", plantError);
-                Alert.alert("Error", "Failed to plant seed");
+                console.error("[Plant] Failed to plant:", plantError);
+                Alert.alert(
+                    "Error",
+                    plantError.message || "Failed to plant seed"
+                );
                 setShowPlantPicker(false);
                 return;
             }
 
-            console.log("Successfully planted:", plantedPlant);
+            console.log("[Plant] Successfully planted:", plantedPlant);
             Alert.alert("Success", "Plant planted successfully!");
 
             // Refresh planted plants for this friend
@@ -1053,7 +1068,7 @@ export default function Home() {
             setShowPlantPicker(false);
             setSelectedFriendId(null);
         } catch (error) {
-            console.error("Error in handleSelectPlant:", error);
+            console.error("[Plant] Error in handleSelectPlant:", error);
             Alert.alert("Error", "An unexpected error occurred");
             setShowPlantPicker(false);
         }

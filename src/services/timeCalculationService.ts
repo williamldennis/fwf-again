@@ -7,24 +7,12 @@ export class TimeCalculationService {
    */
   static getTimeElapsedHours(plantedAt: string): number {
     // Parse the timestamp manually to avoid timezone conversion
-    // plantedAt format: "2025-07-04T16:40:10.603888"
     const plantedDate = new Date(plantedAt + 'Z'); // Force UTC interpretation
     const currentDate = new Date();
-    
-    console.log('TimeCalculationService.getTimeElapsedHours Debug:', {
-      plantedAt,
-      plantedAtUTC: plantedDate.toISOString(),
-      currentTimeUTC: currentDate.toISOString(),
-      plantedAtTime: plantedDate.getTime(),
-      currentTimeMs: currentDate.getTime(),
-      timeElapsed: currentDate.getTime() - plantedDate.getTime(),
-      timeElapsedHours: (currentDate.getTime() - plantedDate.getTime()) / (1000 * 60 * 60)
-    });
-    
+    // Only log if needed for plant/harvest investigation
+    // (No log here by default)
     const timeElapsed = currentDate.getTime() - plantedDate.getTime();
     const hoursElapsed = timeElapsed / (1000 * 60 * 60);
-    
-    // Ensure we don't return negative values (handle timezone issues)
     return Math.max(0, hoursElapsed);
   }
 
@@ -38,28 +26,10 @@ export class TimeCalculationService {
   ): number {
     const hoursElapsed = this.getTimeElapsedHours(plantedAt);
     const weatherBonus = GrowthService.getWeatherBonus(plant, friendWeather);
-    
-    // Debug logging
-    console.log('TimeCalculationService Debug:', {
-      plantName: plant.name,
-      baseTime: plant.growth_time_hours,
-      friendWeather,
-      weatherBonus,
-      hoursElapsed,
-      plantWeatherBonus: plant.weather_bonus
-    });
-    
-    // Simple: How much real time is left given current weather?
-    // If weather bonus is 1.5x, then 1 hour of real time = 1.5 hours of growth
+    // Only log if needed for plant/harvest investigation
+    // (No log here by default)
     const totalRealTimeNeeded = plant.growth_time_hours / weatherBonus;
     const remainingRealTime = totalRealTimeNeeded - hoursElapsed;
-    
-    console.log('TimeCalculationService Result:', {
-      totalRealTimeNeeded,
-      remainingRealTime,
-      finalResult: Math.max(0, remainingRealTime)
-    });
-    
     return Math.max(0, remainingRealTime);
   }
 

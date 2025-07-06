@@ -105,8 +105,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     // Check if current user can harvest (anyone can harvest now)
     const canHarvest = currentUserId && !plant.harvested_at;
 
-    // Debug logging for harvest state
-    console.log("PlantDetailsModal harvest state:", {
+    // Debug logging for harvest state (keep concise for investigation)
+    console.log("[Harvest] PlantDetailsModal harvest state:", {
         plantName,
         currentStage,
         isMature,
@@ -114,26 +114,11 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         harvested_at: plant.harvested_at,
         currentUserId,
         plantId: plant.id,
-        plantData: {
-            id: plant.id,
-            garden_owner_id: plant.garden_owner_id,
-            planter_id: plant.planter_id,
-            plant_id: plant.plant_id,
-            planted_at: plant.planted_at,
-            current_stage: plant.current_stage,
-            is_mature: plant.is_mature,
-            harvested_at: plant.harvested_at,
-            harvester_id: plant.harvester_id,
-        },
-        growthCalculation: {
-            stage: growthCalculation.stage,
-            progress: growthCalculation.progress,
-        },
     });
 
     // Handle harvest
     const handleHarvest = async () => {
-        console.log("Harvest attempt:", {
+        console.log("[Harvest] Attempting harvest:", {
             canHarvest,
             isMature,
             plantId: plant.id,
@@ -142,20 +127,12 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         });
 
         if (!canHarvest || !isMature) {
-            console.log("Harvest blocked:", { canHarvest, isMature });
+            console.log("[Harvest] Blocked:", { canHarvest, isMature });
             return;
         }
 
         try {
-            console.log("Updating database for harvest...");
-            console.log("Plant ID to update:", plant.id);
-            console.log("Current user ID:", currentUserId);
-            console.log("Current plant data:", {
-                id: plant.id,
-                harvested_at: plant.harvested_at,
-                harvester_id: plant.harvester_id,
-            });
-
+            console.log("[Harvest] Updating database for harvest...");
             const { data, error } = await supabase
                 .from("planted_plants")
                 .update({
@@ -165,10 +142,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 .eq("id", plant.id)
                 .select("*");
 
-            console.log("Supabase response:", { data, error });
-
             if (error) {
-                console.error("Error harvesting plant:", error);
+                console.error("[Harvest] Error harvesting plant:", error);
                 Alert.alert(
                     "Error",
                     "Failed to harvest plant. Please try again."
@@ -176,29 +151,21 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 return;
             }
 
-            console.log("Harvest successful:", data);
+            console.log("[Harvest] Harvest successful:", data);
 
-            // Since Supabase update with select is returning empty array,
-            // let's verify the update actually worked by fetching the updated record
+            // Fetch the updated plant to see if the harvest was successful
             if (!data || data.length === 0) {
-                console.log(
-                    "Update returned empty array, checking if update actually worked..."
-                );
-
-                // Fetch the updated plant to see if the harvest was successful
                 const { data: fetchData, error: fetchError } = await supabase
                     .from("planted_plants")
                     .select("*")
                     .eq("id", plant.id)
                     .single();
 
-                console.log("Fetch after update result:", {
-                    fetchData,
-                    fetchError,
-                });
-
                 if (fetchError) {
-                    console.error("Error fetching updated plant:", fetchError);
+                    console.error(
+                        "[Harvest] Error fetching updated plant:",
+                        fetchError
+                    );
                     Alert.alert(
                         "Error",
                         "Failed to verify harvest. Please try again."
@@ -206,72 +173,14 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                     return;
                 }
 
-                // Check if the harvest actually worked
                 if (fetchData && fetchData.harvested_at) {
                     console.log(
-                        "Harvest was successful! Updated plant:",
+                        "[Harvest] Harvest was successful! Updated plant:",
                         fetchData
                     );
-
-                    // Award points for harvesting
-                    try {
-                        const plantPoints = plant.plant?.harvest_points || 10; // Default to 10 if not found
-                        console.log(
-                            `Awarding ${plantPoints} points for harvesting ${plantName}`
-                        );
-
-                        // Get current user's profile to update points
-                        const { data: profileData, error: profileError } =
-                            await supabase
-                                .from("profiles")
-                                .select("points")
-                                .eq("id", currentUserId)
-                                .single();
-
-                        if (profileError) {
-                            console.error(
-                                "Error fetching user profile:",
-                                profileError
-                            );
-                        } else {
-                            const currentPoints = profileData?.points || 0;
-                            const newPoints = currentPoints + plantPoints;
-
-                            // Update user's points
-                            const { error: updateError } = await supabase
-                                .from("profiles")
-                                .update({ points: newPoints })
-                                .eq("id", currentUserId);
-
-                            if (updateError) {
-                                console.error(
-                                    "Error updating points:",
-                                    updateError
-                                );
-                            } else {
-                                console.log(
-                                    `Points updated: ${currentPoints} + ${plantPoints} = ${newPoints}`
-                                );
-                            }
-                        }
-                    } catch (pointsError) {
-                        console.error("Error awarding points:", pointsError);
-                        // Don't block the harvest if points fail
-                    }
-
-                    Alert.alert("Harvested!", `You harvested ${plantName}!`);
-
-                    // Call the callback to refresh plants
-                    if (onHarvest) {
-                        console.log("Calling onHarvest callback...");
-                        onHarvest();
-                    }
-
-                    onClose();
-                    return;
                 } else {
                     console.error(
-                        "Update did not work - harvested_at is still null"
+                        "[Harvest] Update did not work - harvested_at is still null"
                     );
                     Alert.alert(
                         "Error",
@@ -281,60 +190,35 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 }
             }
 
-            const updatedPlant = data[0];
-            console.log("Updated plant data:", updatedPlant);
-
-            // Award points for harvesting
+            // Award points for harvesting (keep concise)
             try {
-                const plantPoints = plant.plant?.harvest_points || 10; // Default to 10 if not found
-                console.log(
-                    `Awarding ${plantPoints} points for harvesting ${plantName}`
-                );
-
-                // Get current user's profile to update points
+                const plantPoints = plant.plant?.harvest_points || 10;
                 const { data: profileData, error: profileError } =
                     await supabase
                         .from("profiles")
                         .select("points")
                         .eq("id", currentUserId)
                         .single();
-
-                if (profileError) {
-                    console.error("Error fetching user profile:", profileError);
-                } else {
+                if (!profileError && profileData) {
                     const currentPoints = profileData?.points || 0;
                     const newPoints = currentPoints + plantPoints;
-
-                    // Update user's points
-                    const { error: updateError } = await supabase
+                    await supabase
                         .from("profiles")
                         .update({ points: newPoints })
                         .eq("id", currentUserId);
-
-                    if (updateError) {
-                        console.error("Error updating points:", updateError);
-                    } else {
-                        console.log(
-                            `Points updated: ${currentPoints} + ${plantPoints} = ${newPoints}`
-                        );
-                    }
+                    console.log(
+                        `[Harvest] Points updated: ${currentPoints} + ${plantPoints} = ${newPoints}`
+                    );
                 }
             } catch (pointsError) {
-                console.error("Error awarding points:", pointsError);
-                // Don't block the harvest if points fail
+                console.error("[Harvest] Error awarding points:", pointsError);
             }
 
             Alert.alert("Harvested!", `You harvested ${plantName}!`);
-
-            // Call the callback to refresh plants
-            if (onHarvest) {
-                console.log("Calling onHarvest callback...");
-                onHarvest();
-            }
-
+            if (onHarvest) onHarvest();
             onClose();
         } catch (error) {
-            console.error("Error harvesting plant:", error);
+            console.error("[Harvest] Error in handleHarvest:", error);
             Alert.alert(
                 "Error",
                 "An unexpected error occurred while harvesting."

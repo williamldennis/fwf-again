@@ -43,7 +43,6 @@ const dirtImg = require("../../assets/images/plants/dirt.png");
 const SLOT_COUNT = 3;
 
 export const GardenArea: React.FC<GardenAreaProps> = (props) => {
-    console.log("GardenArea rendered", props);
     const {
         gardenOwnerId,
         plants,
@@ -61,7 +60,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
     // Handler for empty slot tap
     const handleEmptySlotPress = () => {
         if (isGardenFull) {
-            Alert.alert("Garden is full", "Check back tomorrow.");
+            // No log needed here
         } else {
             onPlantPress();
         }
@@ -118,7 +117,6 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                     marginBottom: 20,
                                     marginTop: 10,
                                     fontWeight: "bold",
-                                    // backgroundColor: "green",
                                     padding: 6,
                                     paddingHorizontal: 12,
                                     borderRadius: 10,
@@ -173,7 +171,6 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 marginBottom: 20,
                                 marginTop: 10,
                                 fontWeight: "bold",
-                                // backgroundColor: "lightgray",
                                 padding: 6,
                                 paddingHorizontal: 12,
                                 borderRadius: 10,

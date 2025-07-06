@@ -37,26 +37,17 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
     weatherCondition,
     plants,
 }) => {
-    console.log("🎨 PlantPicker rendered", { visible, plants });
-
     // Preload images when component mounts
     React.useEffect(() => {
-        console.log("🔄 Preloading plant images...");
         plants.forEach((plant) => {
             const imageSource = getPlantImageSource(plant.image_path);
-            console.log(`📸 Preloading: ${plant.name}`);
         });
     }, [plants]);
 
     // Debug: Check if images are preloaded
     React.useEffect(() => {
         if (visible) {
-            console.log("🔍 PlantPicker opened - checking image cache...");
-            plants.forEach((plant) => {
-                console.log(
-                    `📸 Plant: ${plant.name}, Image path: ${plant.image_path}`
-                );
-            });
+            // No logging needed here
         }
     }, [visible, plants]);
     return (
