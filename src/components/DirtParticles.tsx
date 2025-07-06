@@ -35,11 +35,7 @@ export const DirtParticles: React.FC<DirtParticlesProps> = ({
 
     // Generate particles when animation starts
     useEffect(() => {
-        console.log(`[DirtParticles] visible prop changed to: ${visible}`);
         if (visible) {
-            console.log(
-                `[DirtParticles] Creating particles at position: x=${potPosition.x}, y=${potPosition.y}`
-            );
             animationCompleteCount.current = 0;
             particles.current = Array.from({ length: 12 }, (_, index) => ({
                 id: index,
@@ -93,10 +89,6 @@ const DirtParticle: React.FC<DirtParticleProps> = ({
     const rotation = useSharedValue(particle.rotation);
 
     useEffect(() => {
-        console.log(
-            `[DirtParticle] Starting animation for particle at ${particle.x}, ${particle.y}`
-        );
-
         // Reset animation values
         translateX.value = 0;
         translateY.value = 0;
@@ -131,10 +123,6 @@ const DirtParticle: React.FC<DirtParticleProps> = ({
         // Create a sequence: up then down
         const shootUpDistance = -upwardVelocity; // Negative = UP
         const fallDownDistance = Math.abs(shootUpDistance) + 100; // Fall further than the peak
-
-        console.log(
-            `[DirtParticle] Shooting UP: ${shootUpDistance}px, then falling: ${fallDownDistance}px`
-        );
 
         // Use sequence to go up then down
         translateY.value = withDelay(
@@ -203,9 +191,6 @@ const DirtParticle: React.FC<DirtParticleProps> = ({
     const adjustedX = particle.x + 50; // Account for left: -50px container offset
     const adjustedY = particle.y + 240; // Account for top: -300px container offset and adjust for pot position
 
-    console.log(
-        `[DirtParticle] Rendering particle at left=${adjustedX}, top=${adjustedY} (original: ${particle.x}, ${particle.y})`
-    );
     return (
         <Animated.View
             style={[
