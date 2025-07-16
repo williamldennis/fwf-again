@@ -34,8 +34,19 @@ import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
 import { WeatherService } from "../services/weatherService";
 import { ContactsService } from "../services/contactsService";
+import { Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { GardenService } from "../services/gardenService";
+
+type FlatListItem =
+    | { type: "user-card"; id: "user-card" }
+    | { type: "add-friends" }
+    | Friend;
+
+// Helper function to check if an item is a Friend
+const isFriend = (item: FlatListItem): item is Friend => {
+    return "id" in item && "contact_name" in item && !("type" in item);
+};
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -543,6 +554,28 @@ export default function Home() {
         );
     }
 
+    const flatListData: FlatListItem[] = [
+        { type: "user-card", id: "user-card" },
+        ...friends,
+        { type: "add-friends" },
+    ];
+
+    // Debug: Log friends data
+    console.log("[Home] 🔍 Debug - Friends count:", friends.length);
+    console.log(
+        "[Home] 🔍 Debug - Friends IDs:",
+        friends.map((f) => ({
+            id: f.id,
+            name: f.contact_name,
+            phone: f.phone_number,
+        }))
+    );
+    console.log("[Home] 🔍 Debug - FlatList data count:", flatListData.length);
+    console.log(
+        "[Home] 🔍 Debug - FlatList item types:",
+        flatListData.map((item) => ("type" in item ? item.type : "friend"))
+    );
+
     return (
         <>
             <Stack.Screen
@@ -582,13 +615,12 @@ export default function Home() {
 
                 {/* Single FlatList containing both user card and friends */}
                 <FlatList
-                    data={[
-                        { type: "user-card", id: "user-card" },
-                        ...friendsListData,
-                    ]}
-                    keyExtractor={(item, idx) =>
-                        item.id || item.type || idx.toString()
-                    }
+                    data={flatListData}
+                    keyExtractor={(item, idx) => {
+                        if ("id" in item) return item.id;
+                        if ("type" in item) return item.type;
+                        return idx.toString();
+                    }}
                     style={{ flex: 1 }}
                     contentContainerStyle={{
                         paddingHorizontal: 16,
@@ -596,8 +628,18 @@ export default function Home() {
                     }}
                     showsVerticalScrollIndicator={false}
                     renderItem={({ item, index }) => {
+                        console.log(
+                            `[Home] 🔍 Debug - Rendering item ${index}:`,
+                            "type" in item
+                                ? item.type
+                                : `friend: ${item.contact_name}`
+                        );
+
                         // User card as first item
-                        if (item.type === "user-card") {
+                        if ("type" in item && item.type === "user-card") {
+                            console.log(
+                                "[Home] 🔍 Debug - Rendering user card"
+                            );
                             return (
                                 <UserCard
                                     weather={weather}
@@ -618,7 +660,10 @@ export default function Home() {
                         }
 
                         // Add friends card
-                        if (item.type === "add-friends") {
+                        if ("type" in item && item.type === "add-friends") {
+                            console.log(
+                                "[Home] 🔍 Debug - Rendering add friends card"
+                            );
                             return (
                                 <AddFriendsCard
                                     onShare={async () => {
@@ -633,17 +678,33 @@ export default function Home() {
                         }
 
                         // Friend cards
-                        return (
-                            <FriendCard
-                                friend={item}
-                                plantedPlants={plantedPlants}
-                                onPlantPress={handlePlantPress}
-                                onPlantDetailsPress={handlePlantDetailsPress}
-                                forecastData={friendForecasts[item.id] || []}
-                                cardWidth={cardWidth}
-                                onFetchForecast={fetchFriendForecast}
-                            />
+                        if (isFriend(item)) {
+                            console.log(
+                                "[Home] 🔍 Debug - Rendering friend card for:",
+                                item.contact_name
+                            );
+                            return (
+                                <FriendCard
+                                    friend={item}
+                                    plantedPlants={plantedPlants}
+                                    onPlantPress={handlePlantPress}
+                                    onPlantDetailsPress={
+                                        handlePlantDetailsPress
+                                    }
+                                    forecastData={
+                                        friendForecasts[item.id] || []
+                                    }
+                                    cardWidth={cardWidth}
+                                    onFetchForecast={fetchFriendForecast}
+                                />
+                            );
+                        }
+
+                        console.log(
+                            "[Home] 🔍 Debug - Item not matched, returning null"
                         );
+                        // Fallback (should never reach here)
+                        return null;
                     }}
                     ListEmptyComponent={
                         <View style={{ padding: 20, alignItems: "center" }}>
