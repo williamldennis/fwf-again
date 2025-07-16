@@ -101,11 +101,12 @@ useWeatherData (weather only - already exists)
 - Handle real-time subscriptions properly
 - Return: `{ plantedPlants, updateSingleGarden, updateAllGardens, updateGrowth, loading, error }`
 
-### Step 5: Create `useAvailablePlants` Hook (Lazy Load)
+### Step 5: Create `useAvailablePlants` Hook (Lazy Load) ✅ COMPLETED
 
 - Load available plants only when PlantPicker opens
 - Cache after first load
-- Return: `{ availablePlants, fetchPlants, loading, error }`
+- Return: `{ availablePlants, fetchPlants, refreshPlants, loading, error, hasLoaded }`
+- **Status:** Hook created with comprehensive tests passing (11/11 tests)
 
 ### Step 6: Update `useWeatherData` Hook
 
