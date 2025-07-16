@@ -105,6 +105,9 @@ export default function Home() {
     const {
         currentUserId,
         availablePlants,
+        friendsData,
+        plantedPlants,
+        userProfile,
         loading: appLoading,
         error: appError,
         isInitialized,
@@ -127,10 +130,6 @@ export default function Home() {
     } = useWeatherData();
 
     // Local state for UI interactions
-    const [friendsWeather, setFriendsWeather] = useState<any[]>([]);
-    const [selfieUrls, setSelfieUrls] = useState<Record<string, string> | null>(
-        null
-    );
     const [showMenu, setShowMenu] = useState(false);
     const [refreshingContacts, setRefreshingContacts] = useState(false);
     const headerHeight = useHeaderHeight();
@@ -143,12 +142,8 @@ export default function Home() {
     );
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
     const [selectedPlant, setSelectedPlant] = useState<any>(null);
-    const [plantedPlants, setPlantedPlants] = useState<Record<string, any[]>>(
-        {}
-    );
     const [selectedPlanterName, setSelectedPlanterName] =
         useState<string>("Unknown");
-    const [userPoints, setUserPoints] = useState<number>(0);
 
     // User's 5-day forecast data
     const userFiveDayData = useMemo(() => {
@@ -229,134 +224,19 @@ export default function Home() {
         initializeApp();
     }, [initializeApp]);
 
-    // Fetch user profile data when app is initialized
+    // Set forecast summary when weather data is available
     useEffect(() => {
-        if (isInitialized && currentUserId) {
-            fetchUserProfileData();
-        }
-    }, [isInitialized, currentUserId]);
-
-    // Fetch user profile data (selfie URLs, points, etc.)
-    const fetchUserProfileData = async () => {
-        if (!currentUserId) return;
-
-        try {
-            const { data: profile, error } = await supabase
-                .from("profiles")
-                .select("selfie_urls,points")
-                .eq("id", currentUserId)
-                .single();
-
-            if (error) {
-                console.error("[Profile] Error fetching profile:", error);
-                return;
-            }
-
-            setSelfieUrls(profile.selfie_urls || null);
-            setUserPoints(profile.points || 0);
-        } catch (err) {
-            console.error("[Profile] Error fetching profile data:", err);
-        }
-    };
-
-    // Fetch friends data when app is initialized
-    useEffect(() => {
-        if (isInitialized && currentUserId) {
-            fetchFriendsData();
-        }
-    }, [isInitialized, currentUserId]);
-
-    // Fetch friends data
-    const fetchFriendsData = async () => {
-        if (!currentUserId) return;
-
-        try {
-            console.log("[Friends] 📞 Fetching user's contacts...");
-            const allContacts =
-                await ContactsService.fetchUserContacts(currentUserId);
-            console.log(
-                `[Friends] ✅ Total contacts retrieved: ${allContacts.length}`
-            );
-
-            console.log(
-                "[Friends] 🔍 Processing contacts and finding friends..."
-            );
-            const friendsWithNamesAndCities =
-                await ContactsService.findFriendsFromContacts(
-                    allContacts,
-                    currentUserId
-                );
-            console.log(
-                `[Friends] ✅ Friends with cities loaded: ${friendsWithNamesAndCities.length}`
-            );
-            setFriendsWeather(friendsWithNamesAndCities);
-
-            // Fetch planted plants for each friend and the current user
-            console.log("[Friends] 🌱 Fetching planted plants...");
-            const allUserIds = [
-                currentUserId,
-                ...friendsWithNamesAndCities.map((friend) => friend.id),
-            ];
-            console.log(
-                `[Friends] 🚀 Batch fetching plants for ${allUserIds.length} users`
-            );
-
-            const plantsData =
-                await GardenService.fetchAllPlantedPlantsBatch(allUserIds);
-            console.log(
-                `[Friends] ✅ All plants loaded for ${Object.keys(plantsData).length} users`
-            );
-            setPlantedPlants(plantsData);
-        } catch (err) {
-            console.error("[Friends] ❌ Error fetching friends data:", err);
-        }
-    };
-
-    // Fetch weather data when user location is available
-    useEffect(() => {
-        if (isInitialized && currentUserId) {
-            fetchUserWeatherData();
-        }
-    }, [isInitialized, currentUserId]);
-
-    // Fetch user weather data
-    const fetchUserWeatherData = async () => {
-        if (!currentUserId) return;
-
-        try {
-            // Get user's current location from profile
-            const { data: profile, error } = await supabase
-                .from("profiles")
-                .select("latitude,longitude")
-                .eq("id", currentUserId)
-                .single();
-
-            if (error || !profile?.latitude || !profile?.longitude) {
-                console.warn("[Weather] No location data available for user");
-                return;
-            }
-
-            // Fetch weather data using our hook
-            await fetchWeatherData(profile.latitude, profile.longitude);
-
-            // Set forecast summary
-            if (forecast.length > 0) {
-                setForecastSummary(
-                    forecast[0]?.weather?.[0]?.description
-                        ? forecast[0].weather[0].description
-                              .charAt(0)
-                              .toUpperCase() +
-                              forecast[0].weather[0].description.slice(1)
-                        : ""
-                );
-            }
-        } catch (err) {
-            console.error(
-                "[Weather] ❌ Error fetching user weather data:",
-                err
+        if (forecast.length > 0) {
+            setForecastSummary(
+                forecast[0]?.weather?.[0]?.description
+                    ? forecast[0].weather[0].description
+                          .charAt(0)
+                          .toUpperCase() +
+                          forecast[0].weather[0].description.slice(1)
+                    : ""
             );
         }
-    };
+    }, [forecast]);
 
     // Combined loading state
     const isLoading = appLoading || weatherLoading;
@@ -460,7 +340,7 @@ export default function Home() {
     }
 
     // Before rendering FlatList:
-    const friendsData = [...friendsWeather, { type: "add-friends" }];
+    const friendsListData = [...friendsData, { type: "add-friends" }];
 
     // Handler for planting
     const handlePlantPress = (friendId: string, slotIdx: number) => {
@@ -526,13 +406,8 @@ export default function Home() {
             });
 
             if (newPlant) {
-                setPlantedPlants((prev) => ({
-                    ...prev,
-                    [selectedFriendId]: [
-                        ...(prev[selectedFriendId] || []),
-                        newPlant,
-                    ],
-                }));
+                // Refresh data to get updated plants
+                await refreshData();
             }
         } catch (error: any) {
             if (error.message === "Slot Occupied") {
@@ -572,53 +447,16 @@ export default function Home() {
     const handlePlantHarvested = async () => {
         console.log("handlePlantHarvested called - refreshing plant data...");
 
-        // Refresh user's points after harvest
-        if (currentUserId) {
-            try {
-                const points =
-                    await GardenService.refreshUserPoints(currentUserId);
-                setUserPoints(points);
-                console.log("Updated user points:", points);
-            } catch (error) {
-                console.error("Error refreshing user points:", error);
-            }
-        }
-
-        // Refresh all plants
-        if (currentUserId && friendsWeather.length > 0) {
-            const allUserIds = [
-                currentUserId,
-                ...friendsWeather.map((friend) => friend.id),
-            ];
-            console.log(
-                `[Harvest] 🚀 Batch refreshing plants for ${allUserIds.length} users...`
-            );
-
-            const plantsData =
-                await GardenService.fetchAllPlantedPlantsBatch(allUserIds);
-            setPlantedPlants(plantsData);
-            console.log("Plant data refresh completed");
-        }
+        // Refresh all data after harvest
+        await refreshData();
     };
 
     const handleRefreshGrowth = async () => {
         console.log("Manual growth refresh triggered");
         await GardenService.updatePlantGrowth();
 
-        // Refresh all plants
-        if (currentUserId && friendsWeather.length > 0) {
-            const allUserIds = [
-                currentUserId,
-                ...friendsWeather.map((friend) => friend.id),
-            ];
-            console.log(
-                `[Growth] 🚀 Batch refreshing plants for ${allUserIds.length} users...`
-            );
-
-            const plantsData =
-                await GardenService.fetchAllPlantedPlantsBatch(allUserIds);
-            setPlantedPlants(plantsData);
-        }
+        // Refresh all data
+        await refreshData();
 
         Alert.alert("Growth Updated", "Plant growth has been refreshed!");
     };
@@ -703,7 +541,7 @@ export default function Home() {
                 <FlatList
                     data={[
                         { type: "user-card", id: "user-card" },
-                        ...friendsData,
+                        ...friendsListData,
                     ]}
                     keyExtractor={(item, idx) =>
                         item.id || item.type || idx.toString()
@@ -720,8 +558,8 @@ export default function Home() {
                             return (
                                 <UserCard
                                     weather={weather}
-                                    selfieUrls={selfieUrls}
-                                    userPoints={userPoints}
+                                    selfieUrls={userProfile?.selfieUrls || null}
+                                    userPoints={userProfile?.points || 0}
                                     currentUserId={currentUserId}
                                     plantedPlants={plantedPlants}
                                     onPlantPress={handlePlantPress}

@@ -1,0 +1,1 @@
+module.exports = jest.fn(() => "America/New_York"); 

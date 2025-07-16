@@ -12,6 +12,14 @@ import { DateTime } from "luxon";
 export interface AppInitializationState {
     currentUserId: string | null;
     availablePlants: any[];
+    friendsData: any[];
+    plantedPlants: Record<string, any[]>;
+    userProfile: {
+        selfieUrls: Record<string, string> | null;
+        points: number;
+        latitude: number | null;
+        longitude: number | null;
+    } | null;
     loading: boolean;
     error: string | null;
     isInitialized: boolean;
@@ -26,6 +34,14 @@ export interface AppInitializationActions {
 export const useAppInitialization = (): AppInitializationState & AppInitializationActions => {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [availablePlants, setAvailablePlants] = useState<any[]>([]);
+    const [friendsData, setFriendsData] = useState<any[]>([]);
+    const [plantedPlants, setPlantedPlants] = useState<Record<string, any[]>>({});
+    const [userProfile, setUserProfile] = useState<{
+        selfieUrls: Record<string, string> | null;
+        points: number;
+        latitude: number | null;
+        longitude: number | null;
+    } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
@@ -172,6 +188,16 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
 
             console.log(`[Loading] ✅ All plants loaded for ${Object.keys(plantsData).length} users`);
 
+            // Set the consolidated data
+            setFriendsData(friendsWithNamesAndCities);
+            setPlantedPlants(plantsData);
+            setUserProfile({
+                selfieUrls: profile.selfie_urls || null,
+                points: profile.points || 0,
+                latitude,
+                longitude,
+            });
+
             console.log("[Loading] 🎉 Loading process completed!");
             setIsInitialized(true);
         } catch (err) {
@@ -305,6 +331,9 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
         // State
         currentUserId,
         availablePlants,
+        friendsData,
+        plantedPlants,
+        userProfile,
         loading,
         error,
         isInitialized,
