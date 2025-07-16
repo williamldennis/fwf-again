@@ -33,6 +33,7 @@ import { TimeCalculationService } from "../services/timeCalculationService";
 import { WeatherService } from "../services/weatherService";
 import { ContactsService } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
+import { GardenService } from "../services/gardenService";
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 
@@ -218,227 +219,21 @@ export default function Home() {
         }
     };
 
-    const updatePlantGrowth = async () => {
-        try {
-            console.log("[Growth] 📈 Starting plant growth update...");
-            // Get all planted plants that aren't mature
-            const { data: allPlantedPlants, error } = await supabase
-                .from("planted_plants")
-                .select(
-                    `
-                    *,
-                    plant:plants(*)
-                `
-                )
-                .eq("is_mature", false);
+    // Replace with GardenService usage:
 
-            if (error) {
-                console.error(
-                    "[Growth] ❌ Error fetching planted plants for growth update:",
-                    error
-                );
-                return;
-            }
-
-            if (!allPlantedPlants || allPlantedPlants.length === 0) {
-                console.log("[Growth] ℹ️ No plants need growth updates");
-                return;
-            }
-
-            console.log(
-                `[Growth] 🌱 Updating growth for ${allPlantedPlants.length} plants`
-            );
-
-            // Group plants by garden owner to get their weather
-            const plantsByGarden = new Map<string, any[]>();
-            allPlantedPlants.forEach((plant) => {
-                const gardenOwnerId = plant.garden_owner_id;
-                if (!plantsByGarden.has(gardenOwnerId)) {
-                    plantsByGarden.set(gardenOwnerId, []);
-                }
-                plantsByGarden.get(gardenOwnerId)!.push(plant);
-            });
-
-            // Update each garden's plants
-            for (const [gardenOwnerId, plants] of plantsByGarden) {
-                // Get the garden owner's current weather
-                const { data: gardenOwner } = await supabase
-                    .from("profiles")
-                    .select("weather_condition")
-                    .eq("id", gardenOwnerId)
-                    .single();
-
-                const weatherCondition =
-                    gardenOwner?.weather_condition || "clear";
-
-                // Calculate growth for each plant in this garden
-                for (const plantedPlant of plants) {
-                    const plant = plantedPlant.plant;
-                    if (!plant) continue;
-
-                    const growthCalculation =
-                        GrowthService.calculateGrowthStage(
-                            plantedPlant,
-                            plant,
-                            weatherCondition
-                        );
-
-                    // Update maturity status based on calculated growth
-                    const isMature =
-                        growthCalculation.stage === 5 &&
-                        growthCalculation.progress >= 100;
-
-                    // Only update maturity status if it changed
-                    if (isMature !== plantedPlant.is_mature) {
-                        console.log(
-                            `Updating plant ${plantedPlant.id} maturity: ${plantedPlant.is_mature} -> ${isMature} (stage: ${growthCalculation.stage}, progress: ${growthCalculation.progress}%)`
-                        );
-
-                        // Update the plant in database
-                        await supabase
-                            .from("planted_plants")
-                            .update({
-                                is_mature: isMature,
-                            })
-                            .eq("id", plantedPlant.id);
-                    }
-                }
-            }
-
-            console.log("[Growth] ✅ Plant growth update completed");
-        } catch (error) {
-            console.error("[Growth] ❌ Error updating plant growth:", error);
-        }
+    // In initializeApp:
+    const initializeApp = async () => {
+        await getCurrentUser();
+        console.log("[App] 🌱 Fetching available plants...");
+        await GardenService.fetchAvailablePlants().then(setAvailablePlants);
+        console.log("[App] 🌤️ Starting main data fetch...");
+        await fetchProfileAndWeather();
+        console.log("[App] 📈 Updating plant growth...");
+        await GardenService.updatePlantGrowth(); // Update plant growth on app load
+        console.log("[App] ✅ App initialization completed!");
     };
 
-    const fetchPlantedPlants = async (friendId: string) => {
-        try {
-            console.log(`[Plants] Fetching plants for user: ${friendId}`);
-            const { data: plants, error } = await supabase
-                .from("planted_plants")
-                .select(
-                    `
-                    *,
-                    plant:plants(*)
-                `
-                )
-                .eq("garden_owner_id", friendId)
-                .is("harvested_at", null) // Only show non-harvested plants
-                .order("planted_at", { ascending: false });
-
-            if (error) {
-                console.error(
-                    `[Plants] Error fetching plants for ${friendId}:`,
-                    error
-                );
-                return [];
-            }
-
-            console.log(
-                `[Plants] Found ${plants?.length || 0} plants for user ${friendId}`
-            );
-            if (plants && plants.length > 0) {
-                console.log(
-                    `[Plants] Plant IDs:`,
-                    plants.map((p) => p.id)
-                );
-            }
-            return plants || [];
-        } catch (error) {
-            console.error(
-                `[Plants] Exception fetching plants for ${friendId}:`,
-                error
-            );
-            return [];
-        }
-    };
-
-    const fetchAllPlantedPlantsBatch = async (userIds: string[]) => {
-        try {
-            console.log(
-                `[Plants] 🚀 Batch fetching plants for ${userIds.length} users...`
-            );
-
-            if (userIds.length === 0) {
-                console.log("[Plants] ℹ️ No user IDs provided for batch fetch");
-                return {};
-            }
-
-            const { data: allPlants, error } = await supabase
-                .from("planted_plants")
-                .select(
-                    `
-                    *,
-                    plant:plants(*)
-                `
-                )
-                .in("garden_owner_id", userIds)
-                .is("harvested_at", null) // Only show non-harvested plants
-                .order("planted_at", { ascending: false });
-
-            if (error) {
-                console.error("[Plants] ❌ Error in batch plant fetch:", error);
-                return {};
-            }
-
-            // Group plants by garden_owner_id
-            const plantsByUser: Record<string, any[]> = {};
-            allPlants?.forEach((plant) => {
-                const gardenOwnerId = plant.garden_owner_id;
-                if (!plantsByUser[gardenOwnerId]) {
-                    plantsByUser[gardenOwnerId] = [];
-                }
-                plantsByUser[gardenOwnerId].push(plant);
-            });
-
-            console.log(
-                `[Plants] ✅ Batch fetch completed: ${allPlants?.length || 0} total plants for ${Object.keys(plantsByUser).length} users`
-            );
-
-            // Log summary for each user
-            Object.entries(plantsByUser).forEach(([userId, plants]) => {
-                console.log(
-                    `[Plants] 🌱 User ${userId}: ${plants.length} plants`
-                );
-            });
-
-            return plantsByUser;
-        } catch (error) {
-            console.error("[Plants] ❌ Exception in batch plant fetch:", error);
-            return {};
-        }
-    };
-
-    const fetchAvailablePlants = async () => {
-        try {
-            console.log(
-                "[Plants] 🌱 Fetching available plants from database..."
-            );
-            const { data: plants, error } = await supabase
-                .from("plants")
-                .select("*")
-                .order("name");
-
-            if (error) {
-                console.error("[Plants] ❌ Error fetching plants:", error);
-                return;
-            }
-
-            if (plants) {
-                setAvailablePlants(plants);
-                console.log(
-                    `[Plants] ✅ Fetched ${plants.length} available plants`
-                );
-            }
-        } catch (error) {
-            console.error("[Plants] ❌ Error fetching plants:", error);
-        }
-    };
-
-    const fetchWeatherData = async (latitude: number, longitude: number) => {
-        return WeatherService.fetchWeatherData(latitude, longitude);
-    };
-
+    // In fetchProfileAndWeather:
     const fetchProfileAndWeather = async () => {
         console.log("[Loading] 🚀 Starting fetchProfileAndWeather...");
         setLoading(true);
@@ -580,7 +375,10 @@ export default function Home() {
             );
             let weatherData: any;
             try {
-                weatherData = await fetchWeatherData(latitude, longitude);
+                weatherData = await WeatherService.fetchWeatherData(
+                    latitude,
+                    longitude
+                );
 
                 // Set current weather
                 setWeather(weatherData.current);
@@ -673,7 +471,8 @@ export default function Home() {
                 `[Loading] 🚀 Batch fetching plants for ${allUserIds.length} users (${friendsWithNamesAndCities.length} friends + current user)`
             );
 
-            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
+            const plantsData =
+                await GardenService.fetchAllPlantedPlantsBatch(allUserIds);
 
             console.log(
                 `[Loading] ✅ All plants loaded for ${Object.keys(plantsData).length} users`
@@ -690,33 +489,22 @@ export default function Home() {
         }
     };
 
+    // Get current user ID
+    const getCurrentUser = async () => {
+        console.log("[App] 👤 Getting current user...");
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+            console.log(`[App] ✅ Current user: ${user.id}`);
+            setCurrentUserId(user.id);
+        } else {
+            console.log("[App] ❌ No authenticated user found");
+        }
+    };
+
     useEffect(() => {
         console.log("[App] 🚀 App initialization started...");
-
-        // Get current user ID
-        const getCurrentUser = async () => {
-            console.log("[App] 👤 Getting current user...");
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            if (user) {
-                console.log(`[App] ✅ Current user: ${user.id}`);
-                setCurrentUserId(user.id);
-            } else {
-                console.log("[App] ❌ No authenticated user found");
-            }
-        };
-
-        const initializeApp = async () => {
-            await getCurrentUser();
-            console.log("[App] 🌱 Fetching available plants...");
-            await fetchAvailablePlants();
-            console.log("[App] 🌤️ Starting main data fetch...");
-            await fetchProfileAndWeather();
-            console.log("[App] 📈 Updating plant growth...");
-            await updatePlantGrowth(); // Update plant growth on app load
-            console.log("[App] ✅ App initialization completed!");
-        };
 
         initializeApp();
 
@@ -725,7 +513,7 @@ export default function Home() {
         const growthInterval = setInterval(
             () => {
                 console.log("[App] 🔄 Running periodic growth update...");
-                updatePlantGrowth();
+                GardenService.updatePlantGrowth();
             },
             5 * 60 * 1000
         ); // 5 minutes
@@ -764,9 +552,10 @@ export default function Home() {
                         payload.eventType
                     );
                     // Only fetch the affected garden's plants
-                    const updatedPlants = await fetchPlantedPlants(
-                        realtimeGardenOwnerId
-                    );
+                    const updatedPlants =
+                        await GardenService.fetchPlantedPlants(
+                            realtimeGardenOwnerId
+                        );
                     setPlantedPlants((prev) => ({
                         ...prev,
                         [realtimeGardenOwnerId]: updatedPlants,
@@ -935,47 +724,33 @@ export default function Home() {
             console.log(
                 `[Plant] Planting new plant in garden ${friendId} slot ${slotIdx} (plantId: ${plantId})`
             );
-            const { data: plantedPlant, error: plantError } = await supabase
-                .from("planted_plants")
-                .insert({
-                    garden_owner_id: friendId,
-                    planter_id: user.id,
-                    plant_id: plantId,
-                    current_stage: 2, // Start at stage 2 (dirt) immediately after planting
-                    is_mature: false,
-                    slot: slotIdx,
-                })
-                .select()
-                .single();
+            const newPlant = await GardenService.plantSeed({
+                friendId: selectedFriendId,
+                slotIdx: selectedSlot,
+                plantId,
+                userId: user.id,
+                availablePlants,
+            });
 
-            if (plantError) {
-                console.error("[Plant] Failed to plant:", plantError);
-                Alert.alert(
-                    "Error",
-                    plantError.message || "Failed to plant seed"
-                );
-                return;
+            if (newPlant) {
+                setPlantedPlants((prev) => ({
+                    ...prev,
+                    [selectedFriendId]: [
+                        ...(prev[selectedFriendId] || []),
+                        newPlant,
+                    ],
+                }));
             }
-
-            console.log("[Plant] Successfully planted:", plantedPlant);
-
-            // Optimize: Add the new plant directly to state instead of fetching
-            // This prevents the flickering from multiple database calls
-            const newPlant = {
-                ...plantedPlant,
-                plant: availablePlants.find((p) => p.id === plantId),
-            };
-
-            setPlantedPlants((prev) => ({
-                ...prev,
-                [friendId]: [...(prev[friendId] || []), newPlant],
-            }));
 
             // Only update growth if needed (don't call updatePlantGrowth here)
             // The real-time subscription will handle any necessary updates
-        } catch (error) {
-            console.error("[Plant] Error in handleSelectPlant:", error);
-            Alert.alert("Error", "An unexpected error occurred");
+        } catch (error: any) {
+            if (error.message === "Slot Occupied") {
+                Alert.alert("Slot Occupied", "This pot is already occupied");
+            } else {
+                Alert.alert("Error", error.message || "Failed to plant seed");
+            }
+            return;
         }
     };
     const handlePlantDetailsPress = async (
@@ -1009,15 +784,10 @@ export default function Home() {
         // Refresh user's points after harvest
         if (currentUserId) {
             try {
-                const { data: profile } = await supabase
-                    .from("profiles")
-                    .select("points")
-                    .eq("id", currentUserId)
-                    .single();
-                if (profile) {
-                    setUserPoints(profile.points || 0);
-                    console.log("Updated user points:", profile.points);
-                }
+                const points =
+                    await GardenService.refreshUserPoints(currentUserId);
+                setUserPoints(points);
+                console.log("Updated user points:", points);
             } catch (error) {
                 console.error("Error refreshing user points:", error);
             }
@@ -1033,7 +803,8 @@ export default function Home() {
                 `[Harvest] 🚀 Batch refreshing plants for ${allUserIds.length} users...`
             );
 
-            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
+            const plantsData =
+                await GardenService.fetchAllPlantedPlantsBatch(allUserIds);
             setPlantedPlants(plantsData);
             console.log("Plant data refresh completed");
         }
@@ -1041,7 +812,7 @@ export default function Home() {
 
     const handleRefreshGrowth = async () => {
         console.log("Manual growth refresh triggered");
-        await updatePlantGrowth();
+        await GardenService.updatePlantGrowth();
 
         // OPTIMIZATION: Use batch query to refresh all plants
         if (currentUserId && friendsWeather.length > 0) {
@@ -1053,7 +824,8 @@ export default function Home() {
                 `[Growth] 🚀 Batch refreshing plants for ${allUserIds.length} users...`
             );
 
-            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
+            const plantsData =
+                await GardenService.fetchAllPlantedPlantsBatch(allUserIds);
             setPlantedPlants(plantsData);
         }
 
