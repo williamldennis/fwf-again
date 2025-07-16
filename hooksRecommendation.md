@@ -108,10 +108,11 @@ useWeatherData (weather only - already exists)
 - Return: `{ availablePlants, fetchPlants, refreshPlants, loading, error, hasLoaded }`
 - **Status:** Hook created with comprehensive tests passing (11/11 tests)
 
-### Step 6: Update `useWeatherData` Hook
+### Step 6: Update `useWeatherData` Hook ✅ COMPLETED
 
 - Accept location as parameter instead of depending on `useAppInitialization`
-- Return: `{ weather, forecast, fetchWeather, loading, error }`
+- Return: `{ weather, forecast, fetchWeatherData, refreshWeather, loading, error }`
+- **Status:** Hook refactored for independence, all tests passing (11/11)
 
 ### Step 7: Simplify `useAppInitialization` (or remove entirely)
 

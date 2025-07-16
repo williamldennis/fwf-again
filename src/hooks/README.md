@@ -2,22 +2,16 @@
 
 This directory contains custom React hooks that extract business logic from components to improve testability and reusability.
 
-## useAppInitialization
+## useAuth
 
 ### Overview
 
-The `useAppInitialization` hook extracts the app initialization logic from the `home.tsx` component. It handles:
-
-- User authentication
-- Available plants fetching
-- Main data fetching (weather, contacts, friends, garden data)
-- Plant growth updates
-- Background sync setup (periodic updates and real-time subscriptions)
+The `useAuth` hook handles user authentication and session management.
 
 ### Benefits
 
 - ✅ **Testability**: Isolated business logic that can be unit tested independently
-- ✅ **Reusability**: Can be used in other components that need app initialization
+- ✅ **Reusability**: Can be used in other components that need authentication
 - ✅ **Maintainability**: Clear separation of concerns
 - ✅ **Error Handling**: Centralized error management
 - ✅ **Loading States**: Consistent loading state management
@@ -25,25 +19,24 @@ The `useAppInitialization` hook extracts the app initialization logic from the `
 ### Usage
 
 ```typescript
-import { useAppInitialization } from '../hooks/useAppInitialization';
+import { useAuth } from '../hooks/useAuth';
 
-function Home() {
+function Login() {
   const {
     // State
     currentUserId,
-    availablePlants,
     loading,
     error,
-    isInitialized,
+    isAuthenticated,
 
     // Actions
-    initializeApp,
-    refreshData,
+    login,
+    logout,
     clearError,
-  } = useAppInitialization();
+  } = useAuth();
 
   useEffect(() => {
-    initializeApp();
+    login();
   }, []);
 
   if (loading) {
@@ -67,47 +60,424 @@ function Home() {
 #### State
 
 - `currentUserId: string | null` - The authenticated user's ID
-- `availablePlants: any[]` - List of available plants for planting
 - `loading: boolean` - Whether the app is currently loading
 - `error: string | null` - Current error message, if any
-- `isInitialized: boolean` - Whether the app has completed initialization
+- `isAuthenticated: boolean` - Whether the user is currently authenticated
 
 #### Actions
 
-- `initializeApp(): Promise<void>` - Initialize the app (fetch user, plants, data)
-- `refreshData(): Promise<void>` - Refresh all app data
+- `login(): Promise<void>` - Initiate user login
+- `logout(): void` - Clear user session and authentication state
 - `clearError(): void` - Clear the current error state
 
 ### Testing
 
 The hook includes comprehensive tests covering:
 
-- ✅ Successful initialization
-- ✅ Error handling (no user, network errors, etc.)
-- ✅ Background sync setup
+- ✅ Successful login
+- ✅ Error handling (network errors, etc.)
+- ✅ Session management
 - ✅ Cleanup on unmount
-- ✅ Data refresh functionality
 
 Run the tests with:
 
 ```bash
-npm test -- --testPathPattern=useAppInitialization.test.ts
+npm test -- --testPathPattern=useAuth.test.ts
 ```
 
-### Migration from home.tsx
+## useUserProfile
 
-This hook extracts the following logic from `home.tsx`:
+### Overview
 
-1. **User Authentication**: `getCurrentUser()` function
-2. **App Initialization**: `initializeApp()` function
-3. **Data Fetching**: `fetchProfileAndWeather()` function
-4. **Background Sync**: Periodic growth updates and real-time subscriptions
-5. **State Management**: Loading, error, and initialization states
+The `useUserProfile` hook fetches and manages user profile data.
 
-### Future Improvements
+### Benefits
 
-- Add caching for weather and forecast data
-- Implement request deduplication
-- Add optimistic updates for better UX
-- Add retry logic for failed requests
-- Add offline support
+- ✅ **Testability**: Isolated business logic that can be unit tested independently
+- ✅ **Reusability**: Can be used in other components that need user profile data
+- ✅ **Maintainability**: Clear separation of concerns
+- ✅ **Error Handling**: Centralized error management
+- ✅ **Loading States**: Consistent loading state management
+
+### Usage
+
+```typescript
+import { useUserProfile } from '../hooks/useUserProfile';
+
+function Profile() {
+  const {
+    // State
+    userProfile,
+    loading,
+    error,
+
+    // Actions
+    fetchProfile,
+    clearError,
+  } = useUserProfile();
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return <ErrorMessage error={error} onRetry={clearError} />;
+  }
+
+  return (
+    <div>
+      {/* Your component JSX */}
+    </div>
+  );
+}
+```
+
+### API
+
+#### State
+
+- `userProfile: any | null` - The fetched user profile data
+- `loading: boolean` - Whether the app is currently loading
+- `error: string | null` - Current error message, if any
+
+#### Actions
+
+- `fetchProfile(): Promise<void>` - Fetch the user's profile data
+- `clearError(): void` - Clear the current error state
+
+### Testing
+
+The hook includes comprehensive tests covering:
+
+- ✅ Successful profile fetch
+- ✅ Error handling (network errors, etc.)
+- ✅ Loading states
+- ✅ Cleanup on unmount
+
+Run the tests with:
+
+```bash
+npm test -- --testPathPattern=useUserProfile.test.ts
+```
+
+## useFriends
+
+### Overview
+
+The `useFriends` hook fetches and manages user friends data.
+
+### Benefits
+
+- ✅ **Testability**: Isolated business logic that can be unit tested independently
+- ✅ **Reusability**: Can be used in other components that need user friends data
+- ✅ **Maintainability**: Clear separation of concerns
+- ✅ **Error Handling**: Centralized error management
+- ✅ **Loading States**: Consistent loading state management
+
+### Usage
+
+```typescript
+import { useFriends } from '../hooks/useFriends';
+
+function Friends() {
+  const {
+    // State
+    friends,
+    loading,
+    error,
+
+    // Actions
+    fetchFriends,
+    clearError,
+  } = useFriends();
+
+  useEffect(() => {
+    fetchFriends();
+  }, []);
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return <ErrorMessage error={error} onRetry={clearError} />;
+  }
+
+  return (
+    <div>
+      {/* Your component JSX */}
+    </div>
+  );
+}
+```
+
+### API
+
+#### State
+
+- `friends: any[] | null` - The fetched friends data
+- `loading: boolean` - Whether the app is currently loading
+- `error: string | null` - Current error message, if any
+
+#### Actions
+
+- `fetchFriends(): Promise<void>` - Fetch the user's friends data
+- `clearError(): void` - Clear the current error state
+
+### Testing
+
+The hook includes comprehensive tests covering:
+
+- ✅ Successful friends fetch
+- ✅ Error handling (network errors, etc.)
+- ✅ Loading states
+- ✅ Cleanup on unmount
+
+Run the tests with:
+
+```bash
+npm test -- --testPathPattern=useFriends.test.ts
+```
+
+## useGardenData
+
+### Overview
+
+The `useGardenData` hook fetches and manages user garden data.
+
+### Benefits
+
+- ✅ **Testability**: Isolated business logic that can be unit tested independently
+- ✅ **Reusability**: Can be used in other components that need user garden data
+- ✅ **Maintainability**: Clear separation of concerns
+- ✅ **Error Handling**: Centralized error management
+- ✅ **Loading States**: Consistent loading state management
+
+### Usage
+
+```typescript
+import { useGardenData } from '../hooks/useGardenData';
+
+function Garden() {
+  const {
+    // State
+    gardenData,
+    loading,
+    error,
+
+    // Actions
+    fetchGardenData,
+    clearError,
+  } = useGardenData();
+
+  useEffect(() => {
+    fetchGardenData();
+  }, []);
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return <ErrorMessage error={error} onRetry={clearError} />;
+  }
+
+  return (
+    <div>
+      {/* Your component JSX */}
+    </div>
+  );
+}
+```
+
+### API
+
+#### State
+
+- `gardenData: any | null` - The fetched garden data
+- `loading: boolean` - Whether the app is currently loading
+- `error: string | null` - Current error message, if any
+
+#### Actions
+
+- `fetchGardenData(): Promise<void>` - Fetch the user's garden data
+- `clearError(): void` - Clear the current error state
+
+### Testing
+
+The hook includes comprehensive tests covering:
+
+- ✅ Successful garden data fetch
+- ✅ Error handling (network errors, etc.)
+- ✅ Loading states
+- ✅ Cleanup on unmount
+
+Run the tests with:
+
+```bash
+npm test -- --testPathPattern=useGardenData.test.ts
+```
+
+## useAvailablePlants
+
+### Overview
+
+The `useAvailablePlants` hook fetches and manages available plants data.
+
+### Benefits
+
+- ✅ **Testability**: Isolated business logic that can be unit tested independently
+- ✅ **Reusability**: Can be used in other components that need available plants data
+- ✅ **Maintainability**: Clear separation of concerns
+- ✅ **Error Handling**: Centralized error management
+- ✅ **Loading States**: Consistent loading state management
+
+### Usage
+
+```typescript
+import { useAvailablePlants } from '../hooks/useAvailablePlants';
+
+function AvailablePlants() {
+  const {
+    // State
+    availablePlants,
+    loading,
+    error,
+
+    // Actions
+    fetchAvailablePlants,
+    clearError,
+  } = useAvailablePlants();
+
+  useEffect(() => {
+    fetchAvailablePlants();
+  }, []);
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return <ErrorMessage error={error} onRetry={clearError} />;
+  }
+
+  return (
+    <div>
+      {/* Your component JSX */}
+    </div>
+  );
+}
+```
+
+### API
+
+#### State
+
+- `availablePlants: any[] | null` - The fetched available plants data
+- `loading: boolean` - Whether the app is currently loading
+- `error: string | null` - Current error message, if any
+
+#### Actions
+
+- `fetchAvailablePlants(): Promise<void>` - Fetch the available plants data
+- `clearError(): void` - Clear the current error state
+
+### Testing
+
+The hook includes comprehensive tests covering:
+
+- ✅ Successful available plants fetch
+- ✅ Error handling (network errors, etc.)
+- ✅ Loading states
+- ✅ Cleanup on unmount
+
+Run the tests with:
+
+```bash
+npm test -- --testPathPattern=useAvailablePlants.test.ts
+```
+
+## useWeatherData
+
+### Overview
+
+The `useWeatherData` hook fetches and manages weather data.
+
+### Benefits
+
+- ✅ **Testability**: Isolated business logic that can be unit tested independently
+- ✅ **Reusability**: Can be used in other components that need weather data
+- ✅ **Maintainability**: Clear separation of concerns
+- ✅ **Error Handling**: Centralized error management
+- ✅ **Loading States**: Consistent loading state management
+
+### Usage
+
+```typescript
+import { useWeatherData } from '../hooks/useWeatherData';
+
+function Weather() {
+  const {
+    // State
+    weatherData,
+    loading,
+    error,
+
+    // Actions
+    fetchWeatherData,
+    clearError,
+  } = useWeatherData();
+
+  useEffect(() => {
+    fetchWeatherData();
+  }, []);
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return <ErrorMessage error={error} onRetry={clearError} />;
+  }
+
+  return (
+    <div>
+      {/* Your component JSX */}
+    </div>
+  );
+}
+```
+
+### API
+
+#### State
+
+- `weatherData: any | null` - The fetched weather data
+- `loading: boolean` - Whether the app is currently loading
+- `error: string | null` - Current error message, if any
+
+#### Actions
+
+- `fetchWeatherData(): Promise<void>` - Fetch the weather data
+- `clearError(): void` - Clear the current error state
+
+### Testing
+
+The hook includes comprehensive tests covering:
+
+- ✅ Successful weather data fetch
+- ✅ Error handling (network errors, etc.)
+- ✅ Loading states
+- ✅ Cleanup on unmount
+
+Run the tests with:
+
+```bash
+npm test -- --testPathPattern=useWeatherData.test.ts
+```
+
+### Legacy useAppInitialization hook has been removed in favor of focused hooks.

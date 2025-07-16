@@ -15,7 +15,11 @@ import { supabase } from "../utils/supabase";
 import { useHeaderHeight } from "@react-navigation/elements";
 
 // Import our custom hooks
-import { useAppInitialization } from "../hooks/useAppInitialization";
+import { useAuth } from "../hooks/useAuth";
+import { useUserProfile } from "../hooks/useUserProfile";
+import { useFriends } from "../hooks/useFriends";
+import { useGardenData } from "../hooks/useGardenData";
+import { useAvailablePlants } from "../hooks/useAvailablePlants";
 import { useWeatherData } from "../hooks/useWeatherData";
 
 import GardenArea from "../components/GardenArea";
@@ -102,22 +106,22 @@ function aggregateToFiveDay(forecastList: any[]): any[] {
 
 export default function Home() {
     // Use our custom hooks
+    const { user, currentUserId } = useAuth();
+    const { profile: userProfile, updatePoints } =
+        useUserProfile(currentUserId);
+    const { friends, refreshFriends } = useFriends(currentUserId);
     const {
-        currentUserId,
-        availablePlants,
-        friendsData,
         plantedPlants,
-        userProfile,
-        loading: appLoading,
-        error: appError,
-        isInitialized,
-        friendsLoading,
-        plantsLoading,
-        initializeApp,
-        refreshData,
-        clearError: clearAppError,
-    } = useAppInitialization();
-
+        updateSingleGarden,
+        updateAllGardens,
+        updateGrowth,
+    } = useGardenData(currentUserId, friends);
+    const {
+        availablePlants,
+        fetchPlants,
+        refreshPlants,
+        loading: availablePlantsLoading,
+    } = useAvailablePlants();
     const {
         weather,
         forecast,
@@ -132,7 +136,6 @@ export default function Home() {
     } = useWeatherData(
         userProfile?.latitude,
         userProfile?.longitude,
-        isInitialized,
         currentUserId
     );
 
@@ -212,7 +215,7 @@ export default function Home() {
             Alert.alert("Success", `Refreshed ${result.contactCount} contacts`);
 
             // Refresh the friends list
-            await refreshData();
+            await refreshFriends();
         } catch (error) {
             Alert.alert(
                 "Error",
@@ -231,9 +234,9 @@ export default function Home() {
         if (!hasInitialized.current) {
             console.log("[App] 🚀 Starting app initialization...");
             hasInitialized.current = true;
-            initializeApp();
+            // No explicit initialization call here, as hooks handle it
         }
-    }, [initializeApp]);
+    }, []); // Empty dependency array means this runs once on mount
 
     // Set forecast summary when weather data is available
     useEffect(() => {
@@ -250,10 +253,10 @@ export default function Home() {
     }, [forecast]);
 
     // Combined loading state - only show loading for initial app setup
-    const isLoading = appLoading;
+    const isLoading = availablePlantsLoading;
 
     // Combined error state
-    const error = appError || weatherError;
+    const error = weatherError;
 
     // Helper to format hour label
     function getHourLabel(dtTxt: string, idx: number) {
@@ -351,7 +354,7 @@ export default function Home() {
     }
 
     // Before rendering FlatList:
-    const friendsListData = [...friendsData, { type: "add-friends" }];
+    const friendsListData = [...friends, { type: "add-friends" }];
 
     // Handler for planting
     const handlePlantPress = (friendId: string, slotIdx: number) => {
@@ -418,7 +421,9 @@ export default function Home() {
 
             if (newPlant) {
                 // Refresh data to get updated plants
-                await refreshData();
+                await refreshPlants();
+                await updateSingleGarden(friendId, slotIdx);
+                await updateGrowth(newPlant.id);
             }
         } catch (error: any) {
             if (error.message === "Slot Occupied") {
@@ -459,7 +464,9 @@ export default function Home() {
         console.log("handlePlantHarvested called - refreshing plant data...");
 
         // Refresh all data after harvest
-        await refreshData();
+        await refreshPlants();
+        await updateAllGardens();
+        await updateGrowth();
     };
 
     const handleRefreshGrowth = async () => {
@@ -467,7 +474,9 @@ export default function Home() {
         await GardenService.updatePlantGrowth();
 
         // Refresh all data
-        await refreshData();
+        await refreshPlants();
+        await updateAllGardens();
+        await updateGrowth();
 
         Alert.alert("Growth Updated", "Plant growth has been refreshed!");
     };
@@ -475,6 +484,13 @@ export default function Home() {
     const handleClosePlantPicker = () => {
         setShowPlantPicker(false);
     };
+
+    // Fetch available plants when PlantPicker is opened and not already loaded
+    useEffect(() => {
+        if (showPlantPicker && availablePlants.length === 0) {
+            fetchPlants();
+        }
+    }, [showPlantPicker, availablePlants.length, fetchPlants]);
 
     // Show loading state only for initial app setup
     if (isLoading) {
@@ -513,9 +529,9 @@ export default function Home() {
                 </Text>
                 <TouchableOpacity
                     onPress={() => {
-                        clearAppError();
+                        // clearAppError(); // No longer needed
                         clearWeatherError();
-                        initializeApp();
+                        // initializeApp(); // No longer needed
                     }}
                     style={{
                         backgroundColor: "#007AFF",
@@ -549,7 +565,7 @@ export default function Home() {
             />
             <View style={{ flex: 1, backgroundColor }}>
                 {/* Progressive Loading Indicators */}
-                {(weatherLoading || friendsLoading || plantsLoading) && (
+                {(weatherLoading || availablePlantsLoading) && (
                     <View
                         style={{
                             position: "absolute",
@@ -563,8 +579,7 @@ export default function Home() {
                     >
                         <Text style={{ color: "white", fontSize: 12 }}>
                             {weatherLoading && "🌤️ Loading weather..."}
-                            {friendsLoading && "👥 Loading friends..."}
-                            {plantsLoading && "🌱 Loading plants..."}
+                            {availablePlantsLoading && "🌱 Loading plants..."}
                         </Text>
                     </View>
                 )}
@@ -636,13 +651,13 @@ export default function Home() {
                     }}
                     ListEmptyComponent={
                         <View style={{ padding: 20, alignItems: "center" }}>
-                            {friendsLoading ? (
+                            {availablePlantsLoading ? (
                                 <Text style={{ color: "#666" }}>
-                                    Loading friends...
+                                    Loading plants...
                                 </Text>
                             ) : (
                                 <Text style={{ color: "#666" }}>
-                                    No friends using the app yet.
+                                    No plants available. Add some!
                                 </Text>
                             )}
                         </View>
