@@ -2,7 +2,13 @@ import 'react-native-gesture-handler/jestSetup';
 
 // Mock expo modules
 jest.mock('expo-location');
-jest.mock('expo-contacts');
+jest.mock('expo-contacts', () => ({
+  getContactsAsync: jest.fn(),
+  Fields: {
+    PhoneNumbers: 'phoneNumbers',
+    Name: 'name',
+  },
+}));
 jest.mock('expo-haptics');
 jest.mock('expo-image', () => ({
   Image: 'Image'
