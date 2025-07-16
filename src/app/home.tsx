@@ -45,7 +45,12 @@ type FlatListItem =
 
 // Helper function to check if an item is a Friend
 const isFriend = (item: FlatListItem): item is Friend => {
-    return "id" in item && "contact_name" in item && !("type" in item);
+    return (
+        item != null &&
+        "id" in item &&
+        "contact_name" in item &&
+        !("type" in item)
+    );
 };
 
 const getWeatherGradient = (weatherCondition: string) => {
