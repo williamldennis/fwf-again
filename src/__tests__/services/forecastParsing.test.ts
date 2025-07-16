@@ -128,12 +128,12 @@ describe("Forecast Parsing", () => {
     it("should parse timestamp format dt correctly", () => {
         const forecastData = [
             {
-                dt: 1721131200, // 2025-07-16 15:00:00 UTC
+                dt: 1752681600, // 2025-07-16 15:00:00 UTC
                 main: { temp: 75, temp_max: 80, temp_min: 70 },
                 weather: [{ icon: "01d" }],
             },
             {
-                dt: 1721142000, // 2025-07-16 18:00:00 UTC
+                dt: 1752692400, // 2025-07-16 18:00:00 UTC
                 main: { temp: 78, temp_max: 82, temp_min: 72 },
                 weather: [{ icon: "02d" }],
             },

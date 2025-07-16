@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
     View,
     Text,
@@ -13,13 +13,15 @@ import { Stack, router } from "expo-router";
 import React from "react";
 import { supabase } from "../utils/supabase";
 import { useHeaderHeight } from "@react-navigation/elements";
-// @ts-ignore
-import tzlookup from "tz-lookup";
-// @ts-ignore
-import { DateTime } from "luxon";
-import * as Contacts from "expo-contacts";
-import * as Location from "expo-location";
-import { parsePhoneNumberFromString, CountryCode } from "libphonenumber-js";
+
+// Import our custom hooks
+import { useAuth } from "../hooks/useAuth";
+import { useUserProfile } from "../hooks/useUserProfile";
+import { useFriends } from "../hooks/useFriends";
+import { useGardenData } from "../hooks/useGardenData";
+import { useAvailablePlants } from "../hooks/useAvailablePlants";
+import { useWeatherData } from "../hooks/useWeatherData";
+
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
 import PlantDetailsModal from "../components/PlantDetailsModal";
@@ -29,9 +31,27 @@ import AddFriendsCard from "../components/AddFriendsCard";
 import DropdownMenu from "../components/DropdownMenu";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
+import { TimeCalculationService } from "../services/timeCalculationService";
+import { WeatherService } from "../services/weatherService";
+import { ContactsService } from "../services/contactsService";
+import { Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
+import { GardenService } from "../services/gardenService";
 
-const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
+type FlatListItem =
+    | { type: "user-card"; id: "user-card" }
+    | { type: "add-friends" }
+    | Friend;
+
+// Helper function to check if an item is a Friend
+const isFriend = (item: FlatListItem): item is Friend => {
+    return (
+        item != null &&
+        "id" in item &&
+        "contact_name" in item &&
+        !("type" in item)
+    );
+};
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -93,210 +113,53 @@ const Avatar = ({ name, size = 40 }: { name: string; size?: number }) => {
     );
 };
 
-async function getCityFromCoords(lat: number, lon: number): Promise<string> {
-    try {
-        // First try to get detailed location info from React Native Location API
-        try {
-            const location = await Location.reverseGeocodeAsync({
-                latitude: lat,
-                longitude: lon,
-            });
-
-            if (location && location.length > 0) {
-                const place = location[0];
-                console.log("[Location] 📍 React Native location data:", place);
-
-                // Try to get neighborhood/city name
-                if (place.district) {
-                    return place.district; // Often gives neighborhood names
-                }
-                if (place.city) {
-                    return place.city;
-                }
-                if (place.subregion) {
-                    return place.subregion;
-                }
-                if (place.region) {
-                    return place.region;
-                }
-            }
-        } catch (locationError) {
-            console.log(
-                "[Location] ⚠️ React Native location failed, falling back to OpenWeather:",
-                locationError
-            );
-        }
-
-        // Fallback to OpenWeather geocoding
-        const response = await fetch(
-            `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=5&appid=${OPENWEATHER_API_KEY}`
-        );
-        const data = await response.json();
-
-        if (data && data.length > 0) {
-            // Look for the most specific city name
-            for (const location of data) {
-                // Prefer local names if available
-                if (location.local_names && location.local_names.en) {
-                    return location.local_names.en;
-                }
-
-                // Check if this is a city/town (not county/state)
-                if (
-                    location.name &&
-                    !location.name.toLowerCase().includes("county")
-                ) {
-                    // If it's a city, return it
-                    if (location.type === "city" || location.type === "town") {
-                        return location.name;
-                    }
-
-                    // If no type specified but name doesn't contain 'county', it's likely a city
-                    if (
-                        !location.type &&
-                        !location.name.toLowerCase().includes("county")
-                    ) {
-                        return location.name;
-                    }
-                }
-            }
-
-            // Fallback to the first result's name if no better option found
-            return data[0].name;
-        }
-        return "Unknown";
-    } catch (error) {
-        console.error("Error fetching city name:", error);
-        return "Unknown";
-    }
-}
-
-function getBackgroundColor(hour: number) {
-    if (hour >= 6 && hour < 9) return "#FFA500"; // Sunrise orange
-    if (hour >= 9 && hour < 18) return "#87CEEB"; // Day blue
-    if (hour >= 18 && hour < 21) return "#FF8C00"; // Sunset orange
-    return "#191970"; // Night blue
-}
-
 const WEATHER_CARD_HEIGHT = 540; // adjust as needed for your weather card height
 
 // Utility to aggregate 3-hourly forecast to 5 daily objects
 function aggregateToFiveDay(forecastList: any[]): any[] {
-    if (!forecastList || forecastList.length === 0) return [];
-
-    const days: {
-        [date: string]: {
-            date: string;
-            high: number;
-            low: number;
-            icon: string;
-        };
-    } = {};
-
-    forecastList.forEach((item: any) => {
-        // Validate item structure
-        if (!item || !item.main || !item.weather || !item.weather[0]) {
-            console.warn("[Forecast] Skipping invalid forecast item:", item);
-            return;
-        }
-
-        // Handle both old API format (dt_txt) and new OneCall API format (dt)
-        let date: string;
-        let hour: number;
-
-        try {
-            if (item.dt_txt && typeof item.dt_txt === "string") {
-                // Handle both old API format (space-separated) and ISO format
-                if (item.dt_txt.includes(" ")) {
-                    // Old API format: "2025-07-16 15:00:00"
-                    const parts = item.dt_txt.split(" ");
-                    if (parts.length >= 2) {
-                        date = parts[0];
-                        hour = parseInt(parts[1].split(":")[0], 10);
-                    } else {
-                        console.warn(
-                            "[Forecast] Invalid dt_txt format:",
-                            item.dt_txt
-                        );
-                        return;
-                    }
-                } else {
-                    // ISO format: "2025-07-16T15:00:00.000Z"
-                    const dateObj = new Date(item.dt_txt);
-                    if (isNaN(dateObj.getTime())) {
-                        console.warn(
-                            "[Forecast] Invalid ISO dt_txt format:",
-                            item.dt_txt
-                        );
-                        return;
-                    }
-                    date = dateObj.toISOString().split("T")[0];
-                    hour = dateObj.getHours();
-                }
-            } else if (item.dt && typeof item.dt === "number") {
-                // New OneCall API format
-                const dateObj = new Date(item.dt * 1000);
-                date = dateObj.toISOString().split("T")[0];
-                hour = dateObj.getHours();
-            } else {
-                // Skip items without valid date
-                console.warn("[Forecast] No valid date found in item:", item);
-                return;
-            }
-
-            if (!days[date]) {
-                days[date] = {
-                    date,
-                    high: item.main.temp_max || item.main.temp || 0,
-                    low: item.main.temp_min || item.main.temp || 0,
-                    icon: item.weather[0].icon || "01d",
-                };
-            } else {
-                days[date].high = Math.max(
-                    days[date].high,
-                    item.main.temp_max || item.main.temp || 0
-                );
-                days[date].low = Math.min(
-                    days[date].low,
-                    item.main.temp_min || item.main.temp || 0
-                );
-            }
-            // Use the icon from the midday forecast if possible
-            if (hour === 12) {
-                days[date].icon = item.weather[0].icon || "01d";
-            }
-        } catch (error) {
-            console.warn(
-                "[Forecast] Error processing forecast item:",
-                error,
-                item
-            );
-            return;
-        }
-    });
-
-    // Debug: print unique dates found
-    const uniqueDates = Object.keys(days);
-    console.log("[Forecast] aggregateToFiveDay unique dates:", uniqueDates);
-
-    // Return only the first 5 days
-    return Object.values(days).slice(0, 5);
+    return WeatherService.aggregateToFiveDay(forecastList);
 }
 
 export default function Home() {
-    const [weather, setWeather] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [friendsWeather, setFriendsWeather] = useState<any[]>([]);
-    const [selfieUrls, setSelfieUrls] = useState<Record<string, string> | null>(
-        null
+    // Use our custom hooks
+    const { user, currentUserId } = useAuth();
+    const { profile: userProfile, updatePoints } =
+        useUserProfile(currentUserId);
+    const { friends, refreshFriends } = useFriends(currentUserId);
+    const {
+        plantedPlants,
+        updateSingleGarden,
+        updateAllGardens,
+        updateGrowth,
+    } = useGardenData(currentUserId, friends);
+    const {
+        availablePlants,
+        fetchPlants,
+        refreshPlants,
+        loading: availablePlantsLoading,
+    } = useAvailablePlants();
+    const {
+        weather,
+        forecast,
+        cityName,
+        backgroundColor,
+        loading: weatherLoading,
+        error: weatherError,
+        lastUpdated,
+        fetchWeatherData,
+        refreshWeather,
+        clearError: clearWeatherError,
+    } = useWeatherData(
+        userProfile?.latitude,
+        userProfile?.longitude,
+        currentUserId
     );
-    const [bgColor, setBgColor] = useState("#87CEEB");
+
+    // Local state for UI interactions
     const [showMenu, setShowMenu] = useState(false);
     const [refreshingContacts, setRefreshingContacts] = useState(false);
     const headerHeight = useHeaderHeight();
     const cardWidth = Dimensions.get("window").width - 32; // 16px margin on each side
-    const [forecast, setForecast] = useState<any[]>([]);
     const [forecastSummary, setForecastSummary] = useState<string>("");
     const [showPlantPicker, setShowPlantPicker] = useState(false);
     const [showPlantDetails, setShowPlantDetails] = useState(false);
@@ -305,14 +168,8 @@ export default function Home() {
     );
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
     const [selectedPlant, setSelectedPlant] = useState<any>(null);
-    const [availablePlants, setAvailablePlants] = useState<Plant[]>([]);
-    const [plantedPlants, setPlantedPlants] = useState<Record<string, any[]>>(
-        {}
-    );
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [selectedPlanterName, setSelectedPlanterName] =
         useState<string>("Unknown");
-    const [userPoints, setUserPoints] = useState<number>(0);
 
     // User's 5-day forecast data
     const userFiveDayData = useMemo(() => {
@@ -334,15 +191,14 @@ export default function Home() {
         if (!friend.latitude || !friend.longitude) return;
         if (friendForecasts[friend.id]) return; // Already cached
         try {
-            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${friend.latitude}&lon=${friend.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
-            const res = await fetch(url);
-            const data = await res.json();
-            if (data.list) {
-                setFriendForecasts((prev) => ({
-                    ...prev,
-                    [friend.id]: aggregateToFiveDay(data.list),
-                }));
-            }
+            const forecastData = await WeatherService.fetchFriendForecast(
+                friend.latitude,
+                friend.longitude
+            );
+            setFriendForecasts((prev) => ({
+                ...prev,
+                [friend.id]: forecastData,
+            }));
         } catch (e) {
             // Ignore errors for now
         }
@@ -362,138 +218,20 @@ export default function Home() {
     const handleRefreshContacts = async () => {
         setRefreshingContacts(true);
         try {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            if (!user) {
-                Alert.alert("Could not get user info.");
-                setRefreshingContacts(false);
-                return;
-            }
+            const result = await ContactsService.refreshContacts();
 
-            // Fetch user's country code from profile (default to 'US')
-            let userCountryCode: CountryCode = "US" as CountryCode;
-            const { data: profile } = await supabase
-                .from("profiles")
-                .select("country_code")
-                .eq("id", user.id)
-                .single();
-            if (profile && profile.country_code) {
-                userCountryCode = profile.country_code as CountryCode;
-            }
-
-            // Get contacts from device
-            let contacts;
-            try {
-                const contactsResult = await Contacts.getContactsAsync({
-                    fields: [
-                        Contacts.Fields.PhoneNumbers,
-                        Contacts.Fields.Name,
-                    ],
-                });
-                contacts = contactsResult.data;
-            } catch (contactsError) {
+            if (!result.success) {
                 Alert.alert(
                     "Error",
-                    "Could not access contacts. Please check your permissions."
+                    result.error || "Failed to refresh contacts"
                 );
-                console.error("Contacts access error:", contactsError);
-                setRefreshingContacts(false);
                 return;
             }
 
-            if (!contacts || contacts.length === 0) {
-                Alert.alert("No Contacts", "No contacts found on your device.");
-                setRefreshingContacts(false);
-                return;
-            }
+            Alert.alert("Success", `Refreshed ${result.contactCount} contacts`);
 
-            // Prepare rows for bulk insert
-            const rows: any[] = [];
-            contacts.forEach((contact) => {
-                (contact.phoneNumbers || []).forEach((pn) => {
-                    if (pn.number) {
-                        // Normalize to E.164 using libphonenumber-js
-                        let e164 = null;
-                        try {
-                            const phoneNumber = parsePhoneNumberFromString(
-                                pn.number,
-                                userCountryCode
-                            );
-                            if (phoneNumber && phoneNumber.isValid()) {
-                                e164 = phoneNumber.number; // E.164 format
-                            }
-                        } catch (e) {
-                            // Ignore invalid numbers
-                        }
-                        if (e164) {
-                            rows.push({
-                                user_id: user.id,
-                                contact_phone: e164,
-                                contact_name: contact.name,
-                            });
-                        }
-                    }
-                });
-            });
-
-            console.log(
-                `Processing ${rows.length} valid phone numbers from ${contacts.length} contacts`
-            );
-
-            // Clear old contacts and insert new ones
-            try {
-                const { error: deleteError } = await supabase
-                    .from("user_contacts")
-                    .delete()
-                    .eq("user_id", user.id);
-                if (deleteError) {
-                    console.warn("Could not clear old contacts:", deleteError);
-                }
-
-                const BATCH_SIZE = 200;
-                for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-                    const batch = rows.slice(i, i + BATCH_SIZE);
-                    const { error } = await supabase
-                        .from("user_contacts")
-                        .insert(batch);
-                    if (error) {
-                        console.error("Batch insert error:", error);
-                        Alert.alert(
-                            "Warning",
-                            "Some contacts may not have been saved. Please try again."
-                        );
-                        setRefreshingContacts(false);
-                        return;
-                    }
-                }
-
-                // Update profile with new contact count (optional, don't fail if this fails)
-                try {
-                    await supabase
-                        .from("profiles")
-                        .update({ contacts_count: contacts.length })
-                        .eq("id", user.id);
-                } catch (updateError) {
-                    console.warn(
-                        "Could not update contact count:",
-                        updateError
-                    );
-                }
-
-                Alert.alert("Success", `Refreshed ${contacts.length} contacts`);
-
-                // Refresh the friends list
-                fetchProfileAndWeather();
-            } catch (dbError) {
-                console.error("Database operation failed:", dbError);
-                Alert.alert(
-                    "Error",
-                    "Failed to save contacts. Please check your internet connection and try again."
-                );
-                setRefreshingContacts(false);
-                return;
-            }
+            // Refresh the friends list
+            await refreshFriends();
         } catch (error) {
             Alert.alert(
                 "Error",
@@ -506,753 +244,35 @@ export default function Home() {
         }
     };
 
-    const updatePlantGrowth = async () => {
-        try {
-            console.log("[Growth] 📈 Starting plant growth update...");
-            // Get all planted plants that aren't mature
-            const { data: allPlantedPlants, error } = await supabase
-                .from("planted_plants")
-                .select(
-                    `
-                    *,
-                    plant:plants(*)
-                `
-                )
-                .eq("is_mature", false);
-
-            if (error) {
-                console.error(
-                    "[Growth] ❌ Error fetching planted plants for growth update:",
-                    error
-                );
-                return;
-            }
-
-            if (!allPlantedPlants || allPlantedPlants.length === 0) {
-                console.log("[Growth] ℹ️ No plants need growth updates");
-                return;
-            }
-
-            console.log(
-                `[Growth] 🌱 Updating growth for ${allPlantedPlants.length} plants`
-            );
-
-            // Group plants by garden owner to get their weather
-            const plantsByGarden = new Map<string, any[]>();
-            allPlantedPlants.forEach((plant) => {
-                const gardenOwnerId = plant.garden_owner_id;
-                if (!plantsByGarden.has(gardenOwnerId)) {
-                    plantsByGarden.set(gardenOwnerId, []);
-                }
-                plantsByGarden.get(gardenOwnerId)!.push(plant);
-            });
-
-            // Update each garden's plants
-            for (const [gardenOwnerId, plants] of plantsByGarden) {
-                // Get the garden owner's current weather
-                const { data: gardenOwner } = await supabase
-                    .from("profiles")
-                    .select("weather_condition")
-                    .eq("id", gardenOwnerId)
-                    .single();
-
-                const weatherCondition =
-                    gardenOwner?.weather_condition || "clear";
-
-                // Calculate growth for each plant in this garden
-                for (const plantedPlant of plants) {
-                    const plant = plantedPlant.plant;
-                    if (!plant) continue;
-
-                    const growthCalculation =
-                        GrowthService.calculateGrowthStage(
-                            plantedPlant,
-                            plant,
-                            weatherCondition
-                        );
-
-                    // Update maturity status based on calculated growth
-                    const isMature =
-                        growthCalculation.stage === 5 &&
-                        growthCalculation.progress >= 100;
-
-                    // Only update maturity status if it changed
-                    if (isMature !== plantedPlant.is_mature) {
-                        console.log(
-                            `Updating plant ${plantedPlant.id} maturity: ${plantedPlant.is_mature} -> ${isMature} (stage: ${growthCalculation.stage}, progress: ${growthCalculation.progress}%)`
-                        );
-
-                        // Update the plant in database
-                        await supabase
-                            .from("planted_plants")
-                            .update({
-                                is_mature: isMature,
-                            })
-                            .eq("id", plantedPlant.id);
-                    }
-                }
-            }
-
-            console.log("[Growth] ✅ Plant growth update completed");
-        } catch (error) {
-            console.error("[Growth] ❌ Error updating plant growth:", error);
-        }
-    };
-
-    const fetchPlantedPlants = async (friendId: string) => {
-        try {
-            console.log(`[Plants] Fetching plants for user: ${friendId}`);
-            const { data: plants, error } = await supabase
-                .from("planted_plants")
-                .select(
-                    `
-                    *,
-                    plant:plants(*)
-                `
-                )
-                .eq("garden_owner_id", friendId)
-                .is("harvested_at", null) // Only show non-harvested plants
-                .order("planted_at", { ascending: false });
-
-            if (error) {
-                console.error(
-                    `[Plants] Error fetching plants for ${friendId}:`,
-                    error
-                );
-                return [];
-            }
-
-            console.log(
-                `[Plants] Found ${plants?.length || 0} plants for user ${friendId}`
-            );
-            if (plants && plants.length > 0) {
-                console.log(
-                    `[Plants] Plant IDs:`,
-                    plants.map((p) => p.id)
-                );
-            }
-            return plants || [];
-        } catch (error) {
-            console.error(
-                `[Plants] Exception fetching plants for ${friendId}:`,
-                error
-            );
-            return [];
-        }
-    };
-
-    const fetchAllPlantedPlantsBatch = async (userIds: string[]) => {
-        try {
-            console.log(
-                `[Plants] 🚀 Batch fetching plants for ${userIds.length} users...`
-            );
-
-            if (userIds.length === 0) {
-                console.log("[Plants] ℹ️ No user IDs provided for batch fetch");
-                return {};
-            }
-
-            const { data: allPlants, error } = await supabase
-                .from("planted_plants")
-                .select(
-                    `
-                    *,
-                    plant:plants(*)
-                `
-                )
-                .in("garden_owner_id", userIds)
-                .is("harvested_at", null) // Only show non-harvested plants
-                .order("planted_at", { ascending: false });
-
-            if (error) {
-                console.error("[Plants] ❌ Error in batch plant fetch:", error);
-                return {};
-            }
-
-            // Group plants by garden_owner_id
-            const plantsByUser: Record<string, any[]> = {};
-            allPlants?.forEach((plant) => {
-                const gardenOwnerId = plant.garden_owner_id;
-                if (!plantsByUser[gardenOwnerId]) {
-                    plantsByUser[gardenOwnerId] = [];
-                }
-                plantsByUser[gardenOwnerId].push(plant);
-            });
-
-            console.log(
-                `[Plants] ✅ Batch fetch completed: ${allPlants?.length || 0} total plants for ${Object.keys(plantsByUser).length} users`
-            );
-
-            // Log summary for each user
-            Object.entries(plantsByUser).forEach(([userId, plants]) => {
-                console.log(
-                    `[Plants] 🌱 User ${userId}: ${plants.length} plants`
-                );
-            });
-
-            return plantsByUser;
-        } catch (error) {
-            console.error("[Plants] ❌ Exception in batch plant fetch:", error);
-            return {};
-        }
-    };
-
-    const fetchAvailablePlants = async () => {
-        try {
-            console.log(
-                "[Plants] 🌱 Fetching available plants from database..."
-            );
-            const { data: plants, error } = await supabase
-                .from("plants")
-                .select("*")
-                .order("name");
-
-            if (error) {
-                console.error("[Plants] ❌ Error fetching plants:", error);
-                return;
-            }
-
-            if (plants) {
-                setAvailablePlants(plants);
-                console.log(
-                    `[Plants] ✅ Fetched ${plants.length} available plants`
-                );
-            }
-        } catch (error) {
-            console.error("[Plants] ❌ Error fetching plants:", error);
-        }
-    };
-
-    const fetchWeatherData = async (latitude: number, longitude: number) => {
-        try {
-            console.log(
-                "[Weather] 🌤️ Fetching weather data with /forecast API..."
-            );
-
-            if (!OPENWEATHER_API_KEY) {
-                throw new Error("OpenWeather API key is missing");
-            }
-
-            // Use /forecast API to get 5-day, 3-hour forecast
-            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
-
-            console.log("[Weather] 📡 Making /forecast API request...");
-            const response = await fetch(url);
-            const data = await response.json();
-
-            if (data.cod && data.cod !== "200" && data.cod !== 200) {
-                throw new Error(`Weather API error: ${data.message}`);
-            }
-
-            // Get city name from coordinates
-            console.log("[Weather] 🏙️ Fetching city name...");
-            const cityName = await getCityFromCoords(latitude, longitude);
-            console.log(`[Weather] ✅ City name: ${cityName}`);
-
-            // Log the full geocoding response for debugging
-            try {
-                const geoResponse = await fetch(
-                    `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=5&appid=${OPENWEATHER_API_KEY}`
-                );
-                const geoData = await geoResponse.json();
-                console.log(
-                    "[Weather] 🔍 Full geocoding data:",
-                    JSON.stringify(geoData, null, 2)
-                );
-            } catch (e) {
-                console.log("[Weather] ⚠️ Could not log geocoding data:", e);
-            }
-
-            // Extract current weather from the first entry
-            const firstEntry =
-                data.list && data.list.length > 0 ? data.list[0] : null;
-            const currentWeather = firstEntry
-                ? {
-                      name: cityName,
-                      main: {
-                          temp: firstEntry.main.temp,
-                          feels_like: firstEntry.main.feels_like,
-                          humidity: firstEntry.main.humidity,
-                          pressure: firstEntry.main.pressure,
-                      },
-                      weather: [
-                          {
-                              main: firstEntry.weather[0].main,
-                              description: firstEntry.weather[0].description,
-                              icon: firstEntry.weather[0].icon,
-                          },
-                      ],
-                      wind: {
-                          speed: firstEntry.wind.speed,
-                          deg: firstEntry.wind.deg,
-                      },
-                      dt: firstEntry.dt,
-                      dt_txt: firstEntry.dt_txt,
-                  }
-                : null;
-
-            const forecastList = data.list || [];
-
-            console.log(
-                `[Weather] ✅ Weather loaded: ${currentWeather?.weather?.[0]?.main} ${currentWeather?.main?.temp}°F in ${cityName}`
-            );
-            console.log(
-                `[Weather] ✅ Forecast loaded: ${forecastList.length} entries`
-            );
-
-            return {
-                current: currentWeather,
-                forecast: forecastList,
-            };
-        } catch (error) {
-            console.error("[Weather] ❌ Error fetching weather data:", error);
-            throw error;
-        }
-    };
-
-    const fetchProfileAndWeather = async () => {
-        console.log("[Loading] 🚀 Starting fetchProfileAndWeather...");
-        setLoading(true);
-        setError(null);
-        try {
-            console.log("[Loading] 📋 Step 1: Getting user session...");
-            // Get user
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
-            const user = session?.user;
-            if (!user) {
-                console.log("[Loading] ❌ No user found in session");
-                setError("User not found.");
-                setLoading(false);
-                return;
-            }
-            console.log(`[Loading] ✅ User authenticated: ${user.id}`);
-
-            // Get current device location and update profile
-            console.log("[Loading] 📍 Step 2: Getting device location...");
-            let updatedLatitude: number | null = null;
-            let updatedLongitude: number | null = null;
-
-            try {
-                // Check if we have location permission
-                console.log("[Loading] 🔐 Checking location permissions...");
-                const { status } =
-                    await Location.getForegroundPermissionsAsync();
-                if (status === "granted") {
-                    console.log("[Loading] 📱 Getting current position...");
-                    // Get current location
-                    const location = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced,
-                        timeInterval: 10000,
-                    });
-
-                    updatedLatitude = location.coords.latitude;
-                    updatedLongitude = location.coords.longitude;
-
-                    console.log(
-                        `[Loading] ✅ Got current location: ${updatedLatitude}, ${updatedLongitude}`
-                    );
-
-                    // Update the profile with new coordinates
-                    console.log(
-                        "[Loading] 💾 Updating profile with new location..."
-                    );
-                    const { error: updateError } = await supabase
-                        .from("profiles")
-                        .update({
-                            latitude: updatedLatitude,
-                            longitude: updatedLongitude,
-                        })
-                        .eq("id", user.id);
-
-                    if (updateError) {
-                        console.warn(
-                            "[Loading] ⚠️ Could not update location:",
-                            updateError
-                        );
-                    } else {
-                        console.log(
-                            "[Loading] ✅ Successfully updated user location"
-                        );
-                    }
-                } else {
-                    console.log(
-                        "[Loading] ⚠️ Location permission not granted, using stored coordinates"
-                    );
-                }
-            } catch (locationError) {
-                console.warn(
-                    "[Loading] ❌ Could not get current location:",
-                    locationError
-                );
-            }
-
-            // Get profile (use updated coordinates if available, otherwise use stored)
-            console.log("[Loading] 👤 Step 3: Fetching user profile...");
-            const { data: profile, error: profileError } = await supabase
-                .from("profiles")
-                .select("latitude,longitude,selfie_urls,points")
-                .eq("id", user.id)
-                .single();
-
-            if (profileError) {
-                console.error("[Loading] ❌ Profile error:", profileError);
-                setError(`Profile error: ${profileError.message}`);
-                setLoading(false);
-                return;
-            }
-
-            console.log(
-                `[Loading] ✅ Profile loaded: points=${profile?.points || 0}`
-            );
-
-            // Use updated coordinates if we got them, otherwise use stored coordinates
-            const latitude = updatedLatitude ?? profile?.latitude;
-            const longitude = updatedLongitude ?? profile?.longitude;
-
-            if (!latitude || !longitude) {
-                console.log("[Loading] ❌ No location coordinates found");
-                setError("Location not found.");
-                setLoading(false);
-                return;
-            }
-
-            console.log(
-                `[Loading] 📍 Using coordinates: ${latitude}, ${longitude}`
-            );
-
-            setSelfieUrls(profile.selfie_urls || null);
-            setUserPoints(profile.points || 0);
-
-            // Get user's timezone and local hour
-            console.log(
-                "[Loading] 🕐 Step 4: Calculating timezone and local time..."
-            );
-            let localHour = 12;
-            try {
-                const timezone = tzlookup(latitude, longitude);
-                const localTime = DateTime.now().setZone(timezone);
-                localHour = localTime.hour;
-                console.log(
-                    `[Loading] ✅ Timezone: ${timezone}, Local hour: ${localHour}`
-                );
-            } catch (e) {
-                console.warn(
-                    "[Loading] ⚠️ Could not determine timezone from lat/lon",
-                    e
-                );
-            }
-            setBgColor(getBackgroundColor(localHour));
-
-            // OPTIMIZATION: Fetch weather and forecast in a single API call
-            console.log(
-                "[Loading] 🌤️ Step 5: Fetching weather and forecast data..."
-            );
-            let weatherData: any;
-            try {
-                weatherData = await fetchWeatherData(latitude, longitude);
-
-                // Set current weather
-                setWeather(weatherData.current);
-
-                // Set forecast data
-                setForecast(weatherData.forecast);
-
-                // Set forecast summary
-                setForecastSummary(
-                    weatherData.forecast[0]?.weather?.[0]?.description
-                        ? weatherData.forecast[0].weather[0].description
-                              .charAt(0)
-                              .toUpperCase() +
-                              weatherData.forecast[0].weather[0].description.slice(
-                                  1
-                              )
-                        : ""
-                );
-
-                console.log(
-                    "[Loading] ✅ Weather and forecast loaded in single request"
-                );
-
-                // Update user's weather in Supabase
-                console.log(
-                    "[Loading] 💾 Step 7: Updating user's weather in database..."
-                );
-                await supabase
-                    .from("profiles")
-                    .update({
-                        weather_temp: weatherData.current.main.temp,
-                        weather_condition: weatherData.current.weather[0].main,
-                        weather_icon: weatherData.current.weather[0].icon,
-                        weather_updated_at: new Date().toISOString(),
-                    })
-                    .eq("id", user.id);
-                console.log("[Loading] ✅ Weather updated in database");
-            } catch (error) {
-                console.error(
-                    "[Loading] ❌ Error fetching weather data:",
-                    error
-                );
-                setError("Failed to fetch weather data.");
-                setLoading(false);
-                return;
-            }
-            // Fetch user's contacts with pagination
-            console.log("[Loading] 📞 Step 6: Fetching user's contacts...");
-            let allContacts: any[] = [];
-            let from = 0;
-            const pageSize = 1000;
-            while (true) {
-                const { data: contacts, error: contactsError } = await supabase
-                    .from("user_contacts")
-                    .select("contact_phone, contact_name")
-                    .eq("user_id", user.id)
-                    .range(from, from + pageSize - 1);
-                if (contactsError) {
-                    console.error(
-                        "[Loading] ❌ Contacts fetch error:",
-                        contactsError
-                    );
-                    setError("Failed to fetch contacts.");
-                    setLoading(false);
-                    return;
-                }
-                if (!contacts || contacts.length === 0) {
-                    break; // No more data
-                }
-                allContacts = allContacts.concat(contacts);
-                from += pageSize;
-                // If we got less than pageSize, we're done
-                if (contacts.length < pageSize) {
-                    break;
-                }
-            }
-            console.log(
-                `[Loading] ✅ Total contacts retrieved: ${allContacts.length}`
-            );
-            // Create a mapping of E.164 phone numbers to contact names
-            console.log(
-                "[Loading] 🔍 Step 7: Processing contacts and finding friends..."
-            );
-            const phoneToNameMap = new Map<string, string>();
-            allContacts.forEach((contact: any) => {
-                // Use the full E.164 phone number (with +)
-                phoneToNameMap.set(contact.contact_phone, contact.contact_name);
-            });
-            const contactPhones = (allContacts || []).map(
-                (c: any) => c.contact_phone
-            );
-            // Use the full E.164 numbers for matching
-            const uniquePhones = Array.from(new Set(contactPhones));
-            console.log(
-                `[Loading] 📱 Unique phone numbers: ${uniquePhones.length}`
-            );
-
-            // Batch into chunks of 500
-            function chunkArray<T>(array: T[], size: number): T[][] {
-                const result: T[][] = [];
-                for (let i = 0; i < array.length; i += size) {
-                    result.push(array.slice(i, i + size));
-                }
-                return result;
-            }
-            const BATCH_SIZE = 500;
-            const phoneChunks = chunkArray<string>(uniquePhones, BATCH_SIZE);
-            console.log(
-                `[Loading] 📦 Batching into ${phoneChunks.length} chunks...`
-            );
-
-            // Parallelize the queries
-            console.log("[Loading] 🔍 Searching for friends in database...");
-            const friendResults = await Promise.all(
-                phoneChunks.map((chunk, idx) => {
-                    return supabase
-                        .from("profiles")
-                        .select(
-                            "id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude, selfie_urls, points"
-                        )
-                        .in("phone_number", chunk)
-                        .then((result) => result);
-                })
-            );
-            let allFriends: any[] = [];
-            for (const result of friendResults) {
-                if (result.data) allFriends = allFriends.concat(result.data);
-            }
-            console.log(
-                `[Loading] ✅ Total friends found: ${allFriends.length}`
-            );
-            // Remove the current user from the results
-            const filteredFriends = allFriends.filter((f) => f.id !== user.id);
-            console.log(
-                `[Loading] 👥 Filtered friends (excluding self): ${filteredFriends.length}`
-            );
-
-            // Add contact names and city names to the friends data
-            console.log(
-                "[Loading] 🌍 Step 8: Getting city names for friends..."
-            );
-            const friendsWithNamesAndCities = await Promise.all(
-                filteredFriends.map(async (friend) => {
-                    const contactName = phoneToNameMap.get(friend.phone_number);
-                    let cityName = "Unknown";
-                    if (friend.latitude && friend.longitude) {
-                        cityName = await getCityFromCoords(
-                            friend.latitude,
-                            friend.longitude
-                        );
-                    }
-                    return {
-                        ...friend,
-                        contact_name: contactName || "Unknown",
-                        city_name: cityName,
-                    };
-                })
-            );
-            console.log(
-                `[Loading] ✅ Friends with cities loaded: ${friendsWithNamesAndCities.length}`
-            );
-            setFriendsWeather(friendsWithNamesAndCities);
-
-            // Fetch planted plants for each friend and the current user
-            console.log("[Loading] 🌱 Step 9: Fetching planted plants...");
-
-            // TEST: Direct query to check if Will's plants exist
-            console.log(
-                `[Loading] 🧪 Testing direct query for Will's plants...`
-            );
-            const { data: testPlants, error: testError } = await supabase
-                .from("planted_plants")
-                .select("id, garden_owner_id, planted_at")
-                .eq("garden_owner_id", "35955916-f479-4721-86f8-54057258c8b4")
-                .is("harvested_at", null);
-
-            if (testError) {
-                console.error(`[Loading] ❌ Test query error:`, testError);
-            } else {
-                console.log(
-                    `[Loading] 🧪 Test query found ${testPlants?.length || 0} plants for Will`
-                );
-            }
-
-            // OPTIMIZATION: Batch fetch all plants instead of sequential queries
-            const allUserIds = [
-                user.id,
-                ...friendsWithNamesAndCities.map((friend) => friend.id),
-            ];
-            console.log(
-                `[Loading] 🚀 Batch fetching plants for ${allUserIds.length} users (${friendsWithNamesAndCities.length} friends + current user)`
-            );
-
-            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
-
-            console.log(
-                `[Loading] ✅ All plants loaded for ${Object.keys(plantsData).length} users`
-            );
-            setPlantedPlants(plantsData);
-        } catch (err) {
-            console.error("[Loading] ❌ Weather fetch error:", err);
-            setError(
-                `Failed to fetch weather: ${err instanceof Error ? err.message : "Unknown error"}`
-            );
-        } finally {
-            console.log("[Loading] 🎉 Loading process completed!");
-            setLoading(false);
-        }
-    };
-
+    // Initialize app on mount (only once)
+    const hasInitialized = useRef(false);
     useEffect(() => {
-        console.log("[App] 🚀 App initialization started...");
+        if (!hasInitialized.current) {
+            console.log("[App] 🚀 Starting app initialization...");
+            hasInitialized.current = true;
+            // No explicit initialization call here, as hooks handle it
+        }
+    }, []); // Empty dependency array means this runs once on mount
 
-        // Get current user ID
-        const getCurrentUser = async () => {
-            console.log("[App] 👤 Getting current user...");
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            if (user) {
-                console.log(`[App] ✅ Current user: ${user.id}`);
-                setCurrentUserId(user.id);
-            } else {
-                console.log("[App] ❌ No authenticated user found");
-            }
-        };
+    // Set forecast summary when weather data is available
+    useEffect(() => {
+        if (forecast.length > 0) {
+            setForecastSummary(
+                forecast[0]?.weather?.[0]?.description
+                    ? forecast[0].weather[0].description
+                          .charAt(0)
+                          .toUpperCase() +
+                          forecast[0].weather[0].description.slice(1)
+                    : ""
+            );
+        }
+    }, [forecast]);
 
-        const initializeApp = async () => {
-            await getCurrentUser();
-            console.log("[App] 🌱 Fetching available plants...");
-            await fetchAvailablePlants();
-            console.log("[App] 🌤️ Starting main data fetch...");
-            await fetchProfileAndWeather();
-            console.log("[App] 📈 Updating plant growth...");
-            await updatePlantGrowth(); // Update plant growth on app load
-            console.log("[App] ✅ App initialization completed!");
-        };
+    // Combined loading state - only show loading for initial app setup
+    const isLoading = availablePlantsLoading;
 
-        initializeApp();
-
-        // Set up periodic growth updates (every 5 minutes)
-        console.log("[App] ⏰ Setting up periodic growth updates...");
-        const growthInterval = setInterval(
-            () => {
-                console.log("[App] 🔄 Running periodic growth update...");
-                updatePlantGrowth();
-            },
-            5 * 60 * 1000
-        ); // 5 minutes
-
-        // Subscribe to changes in planted_plants
-        console.log("[App] 📡 Setting up real-time subscription...");
-        const subscription = supabase
-            .channel("public:planted_plants")
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "planted_plants" },
-                async (payload) => {
-                    // Type guard for garden_owner_id
-                    const realtimeNewGardenOwnerId =
-                        payload.new &&
-                        typeof payload.new === "object" &&
-                        "garden_owner_id" in payload.new
-                            ? payload.new.garden_owner_id
-                            : undefined;
-                    const realtimeOldGardenOwnerId =
-                        payload.old &&
-                        typeof payload.old === "object" &&
-                        "garden_owner_id" in payload.old
-                            ? payload.old.garden_owner_id
-                            : undefined;
-                    const realtimeGardenOwnerId =
-                        realtimeNewGardenOwnerId || realtimeOldGardenOwnerId;
-                    if (
-                        !realtimeGardenOwnerId ||
-                        typeof realtimeGardenOwnerId !== "string"
-                    )
-                        return;
-                    console.log(
-                        "[Realtime] Change in garden:",
-                        realtimeGardenOwnerId,
-                        payload.eventType
-                    );
-                    // Only fetch the affected garden's plants
-                    const updatedPlants = await fetchPlantedPlants(
-                        realtimeGardenOwnerId
-                    );
-                    setPlantedPlants((prev) => ({
-                        ...prev,
-                        [realtimeGardenOwnerId]: updatedPlants,
-                    }));
-                }
-            )
-            .subscribe();
-
-        return () => {
-            console.log("[App] 🧹 Cleaning up app resources...");
-            clearInterval(growthInterval);
-            supabase.removeChannel(subscription);
-        };
-    }, []);
+    // Combined error state
+    const error = weatherError;
 
     // Helper to format hour label
     function getHourLabel(dtTxt: string, idx: number) {
@@ -1281,7 +301,6 @@ export default function Home() {
                         opacity: 1,
                     }}
                 >
-                    {/* Optionally add a summary here if you want */}
                     <FlatList
                         data={[
                             {
@@ -1351,7 +370,7 @@ export default function Home() {
     }
 
     // Before rendering FlatList:
-    const friendsData = [...friendsWeather, { type: "add-friends" }];
+    const friendsListData = [...friends, { type: "add-friends" }];
 
     // Handler for planting
     const handlePlantPress = (friendId: string, slotIdx: number) => {
@@ -1359,6 +378,7 @@ export default function Home() {
         setSelectedSlot(slotIdx);
         setShowPlantPicker(true);
     };
+
     const handleSelectPlant = async (plantId: string) => {
         if (!selectedFriendId || selectedSlot === null) {
             console.error("[Plant] No friend or slot selected for planting");
@@ -1407,49 +427,28 @@ export default function Home() {
             console.log(
                 `[Plant] Planting new plant in garden ${friendId} slot ${slotIdx} (plantId: ${plantId})`
             );
-            const { data: plantedPlant, error: plantError } = await supabase
-                .from("planted_plants")
-                .insert({
-                    garden_owner_id: friendId,
-                    planter_id: user.id,
-                    plant_id: plantId,
-                    current_stage: 2, // Start at stage 2 (dirt) immediately after planting
-                    is_mature: false,
-                    slot: slotIdx,
-                })
-                .select()
-                .single();
+            const newPlant = await GardenService.plantSeed({
+                friendId: selectedFriendId,
+                slotIdx: selectedSlot,
+                plantId,
+                userId: user.id,
+                availablePlants,
+            });
 
-            if (plantError) {
-                console.error("[Plant] Failed to plant:", plantError);
-                Alert.alert(
-                    "Error",
-                    plantError.message || "Failed to plant seed"
-                );
-                return;
+            if (newPlant) {
+                // Only update the specific garden that was planted in
+                await updateSingleGarden(friendId);
             }
-
-            console.log("[Plant] Successfully planted:", plantedPlant);
-
-            // Optimize: Add the new plant directly to state instead of fetching
-            // This prevents the flickering from multiple database calls
-            const newPlant = {
-                ...plantedPlant,
-                plant: availablePlants.find((p) => p.id === plantId),
-            };
-
-            setPlantedPlants((prev) => ({
-                ...prev,
-                [friendId]: [...(prev[friendId] || []), newPlant],
-            }));
-
-            // Only update growth if needed (don't call updatePlantGrowth here)
-            // The real-time subscription will handle any necessary updates
-        } catch (error) {
-            console.error("[Plant] Error in handleSelectPlant:", error);
-            Alert.alert("Error", "An unexpected error occurred");
+        } catch (error: any) {
+            if (error.message === "Slot Occupied") {
+                Alert.alert("Slot Occupied", "This pot is already occupied");
+            } else {
+                Alert.alert("Error", error.message || "Failed to plant seed");
+            }
+            return;
         }
     };
+
     const handlePlantDetailsPress = async (
         plant: any,
         friendWeather: string
@@ -1476,58 +475,20 @@ export default function Home() {
     };
 
     const handlePlantHarvested = async () => {
-        console.log("handlePlantHarvested called - refreshing plant data...");
-
-        // Refresh user's points after harvest
-        if (currentUserId) {
-            try {
-                const { data: profile } = await supabase
-                    .from("profiles")
-                    .select("points")
-                    .eq("id", currentUserId)
-                    .single();
-                if (profile) {
-                    setUserPoints(profile.points || 0);
-                    console.log("Updated user points:", profile.points);
-                }
-            } catch (error) {
-                console.error("Error refreshing user points:", error);
-            }
-        }
-
-        // OPTIMIZATION: Use batch query to refresh all plants
-        if (currentUserId && friendsWeather.length > 0) {
-            const allUserIds = [
-                currentUserId,
-                ...friendsWeather.map((friend) => friend.id),
-            ];
-            console.log(
-                `[Harvest] 🚀 Batch refreshing plants for ${allUserIds.length} users...`
-            );
-
-            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
-            setPlantedPlants(plantsData);
-            console.log("Plant data refresh completed");
-        }
+        console.log(
+            "handlePlantHarvested called - real-time subscription will handle UI update"
+        );
+        // No manual refresh needed - real-time subscription will update the UI automatically
     };
 
     const handleRefreshGrowth = async () => {
         console.log("Manual growth refresh triggered");
-        await updatePlantGrowth();
+        await GardenService.updatePlantGrowth();
 
-        // OPTIMIZATION: Use batch query to refresh all plants
-        if (currentUserId && friendsWeather.length > 0) {
-            const allUserIds = [
-                currentUserId,
-                ...friendsWeather.map((friend) => friend.id),
-            ];
-            console.log(
-                `[Growth] 🚀 Batch refreshing plants for ${allUserIds.length} users...`
-            );
-
-            const plantsData = await fetchAllPlantedPlantsBatch(allUserIds);
-            setPlantedPlants(plantsData);
-        }
+        // Refresh all data
+        await refreshPlants();
+        await updateAllGardens();
+        await updateGrowth();
 
         Alert.alert("Growth Updated", "Plant growth has been refreshed!");
     };
@@ -1535,6 +496,90 @@ export default function Home() {
     const handleClosePlantPicker = () => {
         setShowPlantPicker(false);
     };
+
+    // Fetch available plants when PlantPicker is opened and not already loaded
+    useEffect(() => {
+        if (showPlantPicker && availablePlants.length === 0) {
+            fetchPlants();
+        }
+    }, [showPlantPicker, availablePlants.length, fetchPlants]);
+
+    // Show loading state only for initial app setup
+    if (isLoading) {
+        return (
+            <View
+                style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                }}
+            >
+                <Text>Loading...</Text>
+            </View>
+        );
+    }
+
+    // Show error state
+    if (error) {
+        return (
+            <View
+                style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    padding: 20,
+                }}
+            >
+                <Text
+                    style={{
+                        color: "red",
+                        textAlign: "center",
+                        marginBottom: 20,
+                    }}
+                >
+                    {error}
+                </Text>
+                <TouchableOpacity
+                    onPress={() => {
+                        // clearAppError(); // No longer needed
+                        clearWeatherError();
+                        // initializeApp(); // No longer needed
+                    }}
+                    style={{
+                        backgroundColor: "#007AFF",
+                        padding: 15,
+                        borderRadius: 8,
+                    }}
+                >
+                    <Text style={{ color: "white", textAlign: "center" }}>
+                        Retry
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    const flatListData: FlatListItem[] = [
+        { type: "user-card", id: "user-card" },
+        ...friends,
+        { type: "add-friends" },
+    ];
+
+    // Debug: Log friends data
+    console.log("[Home] 🔍 Debug - Friends count:", friends.length);
+    console.log(
+        "[Home] 🔍 Debug - Friends IDs:",
+        friends.map((f) => ({
+            id: f.id,
+            name: f.contact_name,
+            phone: f.phone_number,
+        }))
+    );
+    console.log("[Home] 🔍 Debug - FlatList data count:", flatListData.length);
+    console.log(
+        "[Home] 🔍 Debug - FlatList item types:",
+        flatListData.map((item) => ("type" in item ? item.type : "friend"))
+    );
 
     return (
         <>
@@ -1552,32 +597,59 @@ export default function Home() {
                     ),
                 }}
             />
-            <View style={{ flex: 1, backgroundColor: bgColor }}>
+            <View style={{ flex: 1, backgroundColor }}>
+                {/* Progressive Loading Indicators */}
+                {(weatherLoading || availablePlantsLoading) && (
+                    <View
+                        style={{
+                            position: "absolute",
+                            top: 60,
+                            right: 20,
+                            zIndex: 10,
+                            backgroundColor: "rgba(0,0,0,0.7)",
+                            borderRadius: 8,
+                            padding: 8,
+                        }}
+                    >
+                        <Text style={{ color: "white", fontSize: 12 }}>
+                            {weatherLoading && "🌤️ Loading weather..."}
+                            {availablePlantsLoading && "🌱 Loading plants..."}
+                        </Text>
+                    </View>
+                )}
+
                 {/* Single FlatList containing both user card and friends */}
                 <FlatList
-                    data={[
-                        { type: "user-card", id: "user-card" },
-                        ...friendsData,
-                    ]}
-                    keyExtractor={(item, idx) =>
-                        item.id || item.type || idx.toString()
-                    }
-                    style={{
-                        flex: 1,
+                    data={flatListData}
+                    keyExtractor={(item, idx) => {
+                        if ("id" in item) return item.id;
+                        if ("type" in item) return item.type;
+                        return idx.toString();
                     }}
+                    style={{ flex: 1 }}
                     contentContainerStyle={{
                         paddingHorizontal: 16,
                         paddingBottom: 16,
                     }}
                     showsVerticalScrollIndicator={false}
                     renderItem={({ item, index }) => {
+                        console.log(
+                            `[Home] 🔍 Debug - Rendering item ${index}:`,
+                            "type" in item
+                                ? item.type
+                                : `friend: ${item.contact_name}`
+                        );
+
                         // User card as first item
-                        if (item.type === "user-card") {
+                        if ("type" in item && item.type === "user-card") {
+                            console.log(
+                                "[Home] 🔍 Debug - Rendering user card"
+                            );
                             return (
                                 <UserCard
                                     weather={weather}
-                                    selfieUrls={selfieUrls}
-                                    userPoints={userPoints}
+                                    selfieUrls={userProfile?.selfieUrls || null}
+                                    userPoints={userProfile?.points || 0}
                                     currentUserId={currentUserId}
                                     plantedPlants={plantedPlants}
                                     onPlantPress={handlePlantPress}
@@ -1585,15 +657,18 @@ export default function Home() {
                                         handlePlantDetailsPress
                                     }
                                     forecastData={userFiveDayData}
-                                    loading={loading}
-                                    error={error}
+                                    loading={weatherLoading}
+                                    error={weatherError}
                                     cardWidth={cardWidth}
                                 />
                             );
                         }
 
                         // Add friends card
-                        if (item.type === "add-friends") {
+                        if ("type" in item && item.type === "add-friends") {
+                            console.log(
+                                "[Home] 🔍 Debug - Rendering add friends card"
+                            );
                             return (
                                 <AddFriendsCard
                                     onShare={async () => {
@@ -1608,22 +683,46 @@ export default function Home() {
                         }
 
                         // Friend cards
-                        return (
-                            <FriendCard
-                                friend={item}
-                                plantedPlants={plantedPlants}
-                                onPlantPress={handlePlantPress}
-                                onPlantDetailsPress={handlePlantDetailsPress}
-                                forecastData={friendForecasts[item.id] || []}
-                                cardWidth={cardWidth}
-                                onFetchForecast={fetchFriendForecast}
-                            />
+                        if (isFriend(item)) {
+                            console.log(
+                                "[Home] 🔍 Debug - Rendering friend card for:",
+                                item.contact_name
+                            );
+                            return (
+                                <FriendCard
+                                    friend={item}
+                                    plantedPlants={plantedPlants}
+                                    onPlantPress={handlePlantPress}
+                                    onPlantDetailsPress={
+                                        handlePlantDetailsPress
+                                    }
+                                    forecastData={
+                                        friendForecasts[item.id] || []
+                                    }
+                                    cardWidth={cardWidth}
+                                    onFetchForecast={fetchFriendForecast}
+                                />
+                            );
+                        }
+
+                        console.log(
+                            "[Home] 🔍 Debug - Item not matched, returning null"
                         );
+                        // Fallback (should never reach here)
+                        return null;
                     }}
                     ListEmptyComponent={
-                        <Text className="ml-4 text-gray-500">
-                            No friends using the app yet.
-                        </Text>
+                        <View style={{ padding: 20, alignItems: "center" }}>
+                            {availablePlantsLoading ? (
+                                <Text style={{ color: "#666" }}>
+                                    Loading plants...
+                                </Text>
+                            ) : (
+                                <Text style={{ color: "#666" }}>
+                                    No plants available. Add some!
+                                </Text>
+                            )}
+                        </View>
                     }
                 />
             </View>
@@ -1637,6 +736,7 @@ export default function Home() {
                 onLogout={handleLogout}
                 refreshingContacts={refreshingContacts}
             />
+
             {/* PLANT PICKER MODAL */}
             <PlantPicker
                 visible={showPlantPicker}
