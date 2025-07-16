@@ -4,6 +4,7 @@ import { WeatherService } from '../../services/weatherService';
 import { ContactsService } from '../../services/contactsService';
 import { GardenService } from '../../services/gardenService';
 import { supabase } from '../../utils/supabase';
+import * as Location from 'expo-location';
 
 // Mock all services
 jest.mock('../../services/weatherService');
@@ -48,12 +49,13 @@ describe('Consolidated Data Fetching', () => {
             }),
         } as any);
 
-        // Mock weather service
-        mockWeatherService.fetchWeatherData.mockResolvedValue({
-            current: { temp: 72, weather: [{ description: 'sunny' }] },
-            forecast: [{ weather: [{ description: 'sunny' }] }],
+        // Mock location permissions
+        (Location.getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+            status: 'granted',
         });
-        mockWeatherService.updateUserWeatherInDatabase.mockResolvedValue();
+        (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
+            coords: { latitude: 40.7128, longitude: -74.0060 },
+        });
 
         // Mock contacts service
         mockContactsService.fetchUserContacts.mockResolvedValue([
@@ -86,12 +88,12 @@ describe('Consolidated Data Fetching', () => {
             expect(result.current.isInitialized).toBe(true);
         });
 
-        // Verify all services were called exactly once
-        expect(mockWeatherService.fetchWeatherData).toHaveBeenCalledTimes(1);
+        // Verify all services were called exactly once (weather is now handled by useWeatherData)
         expect(mockContactsService.fetchUserContacts).toHaveBeenCalledTimes(1);
         expect(mockContactsService.findFriendsFromContacts).toHaveBeenCalledTimes(1);
         expect(mockGardenService.fetchAllPlantedPlantsBatch).toHaveBeenCalledTimes(1);
         expect(mockGardenService.fetchAvailablePlants).toHaveBeenCalledTimes(1);
+        expect(mockGardenService.updatePlantGrowth).toHaveBeenCalledTimes(1);
 
         // Verify the consolidated data is available
         expect(result.current.friendsData).toHaveLength(2);
@@ -119,10 +121,6 @@ describe('Consolidated Data Fetching', () => {
         jest.clearAllMocks();
 
         // Mock the services again for refresh
-        mockWeatherService.fetchWeatherData.mockResolvedValue({
-            current: { temp: 75, weather: [{ description: 'cloudy' }] },
-            forecast: [{ weather: [{ description: 'cloudy' }] }],
-        });
         mockContactsService.findFriendsFromContacts.mockResolvedValue([
             { id: 'friend-1', name: 'Friend 1', city: 'New York' } as any,
         ]);
@@ -143,8 +141,8 @@ describe('Consolidated Data Fetching', () => {
     });
 
     it('should handle errors gracefully and set error state', async () => {
-        // Mock a service error
-        mockWeatherService.fetchWeatherData.mockRejectedValue(new Error('Weather API error'));
+        // Mock a service error (using garden service since weather is no longer called)
+        mockGardenService.fetchAvailablePlants.mockRejectedValue(new Error('Plants API error'));
 
         const { result } = renderHook(() => useAppInitialization());
 
@@ -153,15 +151,17 @@ describe('Consolidated Data Fetching', () => {
 
         await waitFor(() => {
             expect(result.current.error).toBeTruthy();
-            expect(result.current.error).toContain('Weather API error');
+            expect(result.current.error).toContain('Plants API error');
         });
 
-        expect(result.current.isInitialized).toBe(false);
+        // With progressive loading, the app is still considered initialized 
+        // even if background operations fail, as long as core data (user + profile) loads
+        expect(result.current.isInitialized).toBe(true);
     });
 
     it('should clear error when clearError is called', async () => {
-        // Mock a service error first
-        mockWeatherService.fetchWeatherData.mockRejectedValue(new Error('Weather API error'));
+        // Mock a service error first (using garden service since weather is no longer called)
+        mockGardenService.fetchAvailablePlants.mockRejectedValue(new Error('Plants API error'));
 
         const { result } = renderHook(() => useAppInitialization());
 
