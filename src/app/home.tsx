@@ -29,6 +29,8 @@ import AddFriendsCard from "../components/AddFriendsCard";
 import DropdownMenu from "../components/DropdownMenu";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
+import { TimeCalculationService } from "../services/timeCalculationService";
+import { WeatherService } from "../services/weatherService";
 import FiveDayForecast from "../components/FiveDayForecast";
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
@@ -94,81 +96,7 @@ const Avatar = ({ name, size = 40 }: { name: string; size?: number }) => {
 };
 
 async function getCityFromCoords(lat: number, lon: number): Promise<string> {
-    try {
-        // First try to get detailed location info from React Native Location API
-        try {
-            const location = await Location.reverseGeocodeAsync({
-                latitude: lat,
-                longitude: lon,
-            });
-
-            if (location && location.length > 0) {
-                const place = location[0];
-                console.log("[Location] 📍 React Native location data:", place);
-
-                // Try to get neighborhood/city name
-                if (place.district) {
-                    return place.district; // Often gives neighborhood names
-                }
-                if (place.city) {
-                    return place.city;
-                }
-                if (place.subregion) {
-                    return place.subregion;
-                }
-                if (place.region) {
-                    return place.region;
-                }
-            }
-        } catch (locationError) {
-            console.log(
-                "[Location] ⚠️ React Native location failed, falling back to OpenWeather:",
-                locationError
-            );
-        }
-
-        // Fallback to OpenWeather geocoding
-        const response = await fetch(
-            `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=5&appid=${OPENWEATHER_API_KEY}`
-        );
-        const data = await response.json();
-
-        if (data && data.length > 0) {
-            // Look for the most specific city name
-            for (const location of data) {
-                // Prefer local names if available
-                if (location.local_names && location.local_names.en) {
-                    return location.local_names.en;
-                }
-
-                // Check if this is a city/town (not county/state)
-                if (
-                    location.name &&
-                    !location.name.toLowerCase().includes("county")
-                ) {
-                    // If it's a city, return it
-                    if (location.type === "city" || location.type === "town") {
-                        return location.name;
-                    }
-
-                    // If no type specified but name doesn't contain 'county', it's likely a city
-                    if (
-                        !location.type &&
-                        !location.name.toLowerCase().includes("county")
-                    ) {
-                        return location.name;
-                    }
-                }
-            }
-
-            // Fallback to the first result's name if no better option found
-            return data[0].name;
-        }
-        return "Unknown";
-    } catch (error) {
-        console.error("Error fetching city name:", error);
-        return "Unknown";
-    }
+    return WeatherService.getCityFromCoords(lat, lon);
 }
 
 function getBackgroundColor(hour: number) {
@@ -182,105 +110,7 @@ const WEATHER_CARD_HEIGHT = 540; // adjust as needed for your weather card heigh
 
 // Utility to aggregate 3-hourly forecast to 5 daily objects
 function aggregateToFiveDay(forecastList: any[]): any[] {
-    if (!forecastList || forecastList.length === 0) return [];
-
-    const days: {
-        [date: string]: {
-            date: string;
-            high: number;
-            low: number;
-            icon: string;
-        };
-    } = {};
-
-    forecastList.forEach((item: any) => {
-        // Validate item structure
-        if (!item || !item.main || !item.weather || !item.weather[0]) {
-            console.warn("[Forecast] Skipping invalid forecast item:", item);
-            return;
-        }
-
-        // Handle both old API format (dt_txt) and new OneCall API format (dt)
-        let date: string;
-        let hour: number;
-
-        try {
-            if (item.dt_txt && typeof item.dt_txt === "string") {
-                // Handle both old API format (space-separated) and ISO format
-                if (item.dt_txt.includes(" ")) {
-                    // Old API format: "2025-07-16 15:00:00"
-                    const parts = item.dt_txt.split(" ");
-                    if (parts.length >= 2) {
-                        date = parts[0];
-                        hour = parseInt(parts[1].split(":")[0], 10);
-                    } else {
-                        console.warn(
-                            "[Forecast] Invalid dt_txt format:",
-                            item.dt_txt
-                        );
-                        return;
-                    }
-                } else {
-                    // ISO format: "2025-07-16T15:00:00.000Z"
-                    const dateObj = new Date(item.dt_txt);
-                    if (isNaN(dateObj.getTime())) {
-                        console.warn(
-                            "[Forecast] Invalid ISO dt_txt format:",
-                            item.dt_txt
-                        );
-                        return;
-                    }
-                    date = dateObj.toISOString().split("T")[0];
-                    hour = dateObj.getHours();
-                }
-            } else if (item.dt && typeof item.dt === "number") {
-                // New OneCall API format
-                const dateObj = new Date(item.dt * 1000);
-                date = dateObj.toISOString().split("T")[0];
-                hour = dateObj.getHours();
-            } else {
-                // Skip items without valid date
-                console.warn("[Forecast] No valid date found in item:", item);
-                return;
-            }
-
-            if (!days[date]) {
-                days[date] = {
-                    date,
-                    high: item.main.temp_max || item.main.temp || 0,
-                    low: item.main.temp_min || item.main.temp || 0,
-                    icon: item.weather[0].icon || "01d",
-                };
-            } else {
-                days[date].high = Math.max(
-                    days[date].high,
-                    item.main.temp_max || item.main.temp || 0
-                );
-                days[date].low = Math.min(
-                    days[date].low,
-                    item.main.temp_min || item.main.temp || 0
-                );
-            }
-            // Use the icon from the midday forecast if possible
-            if (hour === 12) {
-                days[date].icon = item.weather[0].icon || "01d";
-            }
-        } catch (error) {
-            console.warn(
-                "[Forecast] Error processing forecast item:",
-                error,
-                item
-            );
-            return;
-        }
-    });
-
-    // Debug: print unique dates found
-    const uniqueDates = Object.keys(days);
-    console.log("[Forecast] aggregateToFiveDay unique dates:", uniqueDates);
-
-    // Return only the first 5 days
-    return Object.values(days).slice(0, 5);
+    return WeatherService.aggregateToFiveDay(forecastList);
 }
 
 export default function Home() {
@@ -334,15 +164,14 @@ export default function Home() {
         if (!friend.latitude || !friend.longitude) return;
         if (friendForecasts[friend.id]) return; // Already cached
         try {
-            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${friend.latitude}&lon=${friend.longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
-            const res = await fetch(url);
-            const data = await res.json();
-            if (data.list) {
-                setFriendForecasts((prev) => ({
-                    ...prev,
-                    [friend.id]: aggregateToFiveDay(data.list),
-                }));
-            }
+            const forecastData = await WeatherService.fetchFriendForecast(
+                friend.latitude,
+                friend.longitude
+            );
+            setFriendForecasts((prev) => ({
+                ...prev,
+                [friend.id]: forecastData,
+            }));
         } catch (e) {
             // Ignore errors for now
         }
@@ -724,90 +553,7 @@ export default function Home() {
     };
 
     const fetchWeatherData = async (latitude: number, longitude: number) => {
-        try {
-            console.log(
-                "[Weather] 🌤️ Fetching weather data with /forecast API..."
-            );
-
-            if (!OPENWEATHER_API_KEY) {
-                throw new Error("OpenWeather API key is missing");
-            }
-
-            // Use /forecast API to get 5-day, 3-hour forecast
-            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
-
-            console.log("[Weather] 📡 Making /forecast API request...");
-            const response = await fetch(url);
-            const data = await response.json();
-
-            if (data.cod && data.cod !== "200" && data.cod !== 200) {
-                throw new Error(`Weather API error: ${data.message}`);
-            }
-
-            // Get city name from coordinates
-            console.log("[Weather] 🏙️ Fetching city name...");
-            const cityName = await getCityFromCoords(latitude, longitude);
-            console.log(`[Weather] ✅ City name: ${cityName}`);
-
-            // Log the full geocoding response for debugging
-            try {
-                const geoResponse = await fetch(
-                    `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=5&appid=${OPENWEATHER_API_KEY}`
-                );
-                const geoData = await geoResponse.json();
-                console.log(
-                    "[Weather] 🔍 Full geocoding data:",
-                    JSON.stringify(geoData, null, 2)
-                );
-            } catch (e) {
-                console.log("[Weather] ⚠️ Could not log geocoding data:", e);
-            }
-
-            // Extract current weather from the first entry
-            const firstEntry =
-                data.list && data.list.length > 0 ? data.list[0] : null;
-            const currentWeather = firstEntry
-                ? {
-                      name: cityName,
-                      main: {
-                          temp: firstEntry.main.temp,
-                          feels_like: firstEntry.main.feels_like,
-                          humidity: firstEntry.main.humidity,
-                          pressure: firstEntry.main.pressure,
-                      },
-                      weather: [
-                          {
-                              main: firstEntry.weather[0].main,
-                              description: firstEntry.weather[0].description,
-                              icon: firstEntry.weather[0].icon,
-                          },
-                      ],
-                      wind: {
-                          speed: firstEntry.wind.speed,
-                          deg: firstEntry.wind.deg,
-                      },
-                      dt: firstEntry.dt,
-                      dt_txt: firstEntry.dt_txt,
-                  }
-                : null;
-
-            const forecastList = data.list || [];
-
-            console.log(
-                `[Weather] ✅ Weather loaded: ${currentWeather?.weather?.[0]?.main} ${currentWeather?.main?.temp}°F in ${cityName}`
-            );
-            console.log(
-                `[Weather] ✅ Forecast loaded: ${forecastList.length} entries`
-            );
-
-            return {
-                current: currentWeather,
-                forecast: forecastList,
-            };
-        } catch (error) {
-            console.error("[Weather] ❌ Error fetching weather data:", error);
-            throw error;
-        }
+        return WeatherService.fetchWeatherData(latitude, longitude);
     };
 
     const fetchProfileAndWeather = async () => {
@@ -979,16 +725,10 @@ export default function Home() {
                 console.log(
                     "[Loading] 💾 Step 7: Updating user's weather in database..."
                 );
-                await supabase
-                    .from("profiles")
-                    .update({
-                        weather_temp: weatherData.current.main.temp,
-                        weather_condition: weatherData.current.weather[0].main,
-                        weather_icon: weatherData.current.weather[0].icon,
-                        weather_updated_at: new Date().toISOString(),
-                    })
-                    .eq("id", user.id);
-                console.log("[Loading] ✅ Weather updated in database");
+                await WeatherService.updateUserWeatherInDatabase(
+                    user.id,
+                    weatherData
+                );
             } catch (error) {
                 console.error(
                     "[Loading] ❌ Error fetching weather data:",
