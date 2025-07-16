@@ -88,17 +88,9 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 const triggerAnimation = () => {
                     const slotIndex = newPlant.slot;
 
-                    // Debug: Log the actual container width and slot calculations
-                    console.log(
-                        `[Particles] Debug - Container width: ${containerWidth}, Slot index: ${slotIndex}`
-                    );
-
                     // Use a fallback width if container hasn't been measured yet
                     const effectiveWidth =
                         containerWidth > 0 ? containerWidth : 300;
-                    console.log(
-                        `[Particles] Using effective width: ${effectiveWidth}`
-                    );
 
                     // Calculate pot position based on the actual layout
                     // Container uses space-between with flex: 1 for each slot
@@ -113,18 +105,9 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                     const potY = 45; // Center of the pot (90px height / 2)
 
                     setParticlePosition({ x: potX, y: potY });
-                    console.log(
-                        `[Particles] Setting position for slot ${slotIndex}: x=${potX}, y=${potY} (containerWidth=${containerWidth}, slotWidth=${slotWidth})`
-                    );
-                    console.log(
-                        `[Particles] Slot ${slotIndex} range: ${slotIndex * slotWidth} to ${(slotIndex + 1) * slotWidth}, center at ${potX}`
-                    );
 
                     // Trigger animation with a small delay
                     setTimeout(() => {
-                        console.log(
-                            `[GardenArea ${gardenOwnerId}] Triggering particles for slot ${slotIndex} at position ${potX},${potY}`
-                        );
                         setShowParticles(true);
                     }, 500);
                 };
@@ -159,7 +142,6 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
     const handleLayout = (event: any) => {
         const { width } = event.nativeEvent.layout;
         setContainerWidth(width);
-        console.log(`[Particles] Container width measured: ${width}`);
     };
 
     // Map plants by slot for consistent rendering
@@ -178,10 +160,6 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
     // Memoize stage calculations for all plants to prevent unnecessary re-renders
     const plantStages = React.useMemo(() => {
         const stages: Record<string, GrowthStage> = {};
-        console.log(
-            "[GardenArea] Calculating plant stages for slots:",
-            slots.length
-        );
 
         slots.forEach((plant, idx) => {
             if (plant) {
@@ -200,26 +178,11 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                     created_at: plant.planted_at,
                 };
 
-                console.log("[GardenArea] Plant stage calculation for:", {
-                    plantId: plant.id,
-                    plantName,
-                    weatherCondition,
-                    plantObject,
-                    plantedAt: plant.planted_at,
-                });
-
                 const growthCalculation = GrowthService.calculateGrowthStage(
                     plant,
                     plantObject,
                     weatherCondition
                 );
-
-                console.log("[GardenArea] Growth calculation result:", {
-                    plantId: plant.id,
-                    growthCalculation,
-                    stage: growthCalculation.stage,
-                    progress: growthCalculation.progress,
-                });
 
                 stages[plant.id] = growthCalculation.stage as GrowthStage;
             }
@@ -238,13 +201,6 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
 
     // Handler for planted plant tap
     const handlePlantPress = (plant: any) => {
-        console.log("[GardenArea] Plant pressed:", {
-            plantId: plant.id,
-            plantName: plant.plant?.name || plant.plant_name,
-            weatherCondition,
-            plantData: plant,
-        });
-
         if (onPlantDetailsPress) {
             onPlantDetailsPress(plant, weatherCondition);
         }

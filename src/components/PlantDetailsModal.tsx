@@ -43,16 +43,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     friendWeather = "clear", // Default to clear if not provided
     planterName,
 }) => {
-    console.log("[PlantDetailsModal] Component props:", {
-        visible,
-        plantId: plant?.id,
-        plantName: plant?.plant?.name || plant?.plant_name,
-        friendWeather,
-        planterName,
-        currentUserId,
-        plantData: plant,
-    });
-
     // Bounce animation for harvest-ready plants
     const translateY = useSharedValue(0);
 
@@ -120,25 +110,11 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         created_at: plant.planted_at,
     };
 
-    console.log("[PlantDetailsModal] Plant object construction:", {
-        plantName,
-        plantObject,
-        hasPlantData: !!plant.plant,
-        hasPlantName: !!plant.plant_name,
-        hasGrowthTime: !!plant.growth_time_hours,
-    });
-
     // Use GrowthService to get the weather bonus multiplier for the current weather
     const weatherBonus = GrowthService.getWeatherBonus(
         plantObject,
         friendWeather
     );
-
-    console.log("[PlantDetailsModal] Weather bonus calculation:", {
-        weatherBonus,
-        friendWeather,
-        plantObjectWeatherBonus: plantObject.weather_bonus,
-    });
 
     // For debugging or display, keep the original weather_bonus object
     const weatherBonusObject =
@@ -170,14 +146,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     const currentStage = growthCalculation.stage;
     const progress = growthCalculation.progress;
 
-    console.log("[PlantDetailsModal] Growth calculation results:", {
-        growthCalculation,
-        currentStage,
-        progress,
-        isStageValid: !isNaN(currentStage),
-        isProgressValid: !isNaN(progress),
-    });
-
     // Use TimeCalculationService for consistent time calculations
     const timeToMaturity = TimeCalculationService.getTimeToMaturity(
         plant.planted_at,
@@ -195,14 +163,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     const formattedTimeSincePlanted =
         TimeCalculationService.getFormattedTimeSincePlanted(plant.planted_at);
 
-    console.log("[PlantDetailsModal] Time calculation results:", {
-        plantedAt: plant.planted_at,
-        timeToMaturity,
-        formattedTimeToMaturity,
-        formattedTimeSincePlanted,
-        isTimeToMaturityValid: !isNaN(timeToMaturity),
-    });
-
     // For display: ensure we never show stage 1 (empty pot) for planted plants
     // Stage 1 = empty pot, Stage 2 = dirt, Stage 3+ = plant growth
     const displayStage = isMature ? 5 : Math.max(2, Math.min(currentStage, 4));
@@ -210,29 +170,9 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     // Check if current user can harvest (anyone can harvest now)
     const canHarvest = currentUserId && !plant.harvested_at;
 
-    // Debug logging for harvest state (keep concise for investigation)
-    console.log("[Harvest] PlantDetailsModal harvest state:", {
-        plantName,
-        currentStage,
-        isMature,
-        canHarvest,
-        harvested_at: plant.harvested_at,
-        currentUserId,
-        plantId: plant.id,
-    });
-
     // Handle harvest
     const handleHarvest = async () => {
-        console.log("[Harvest] Attempting harvest:", {
-            canHarvest,
-            isMature,
-            plantId: plant.id,
-            currentUserId,
-            plantName,
-        });
-
         if (!canHarvest || !isMature) {
-            console.log("[Harvest] Blocked:", { canHarvest, isMature });
             return;
         }
 
@@ -244,7 +184,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         }
 
         try {
-            console.log("[Harvest] Updating database for harvest...");
             const { data, error } = await supabase
                 .from("planted_plants")
                 .update({
@@ -262,8 +201,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 );
                 return;
             }
-
-            console.log("[Harvest] Harvest successful:", data);
 
             // Fetch the updated plant to see if the harvest was successful
             if (!data || data.length === 0) {
@@ -286,10 +223,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 }
 
                 if (fetchData && fetchData.harvested_at) {
-                    console.log(
-                        "[Harvest] Harvest was successful! Updated plant:",
-                        fetchData
-                    );
+                    // Harvest was successful
                 } else {
                     console.error(
                         "[Harvest] Update did not work - harvested_at is still null"
@@ -302,7 +236,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 }
             }
 
-            // Award points for harvesting (keep concise)
+            // Award points for harvesting
             try {
                 const plantPoints = plant.plant?.harvest_points || 10;
                 const { data: profileData, error: profileError } =
@@ -318,9 +252,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                         .from("profiles")
                         .update({ points: newPoints })
                         .eq("id", currentUserId);
-                    console.log(
-                        `[Harvest] Points updated: ${currentPoints} + ${plantPoints} = ${newPoints}`
-                    );
                 }
             } catch (pointsError) {
                 console.error("[Harvest] Error awarding points:", pointsError);
@@ -441,15 +372,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     };
 
     const weatherLabel = getWeatherDisplayName(friendWeather);
-
-    // Debug logging for weather effect section
-    console.log("Weather Effect Debug:", {
-        friendWeather,
-        weatherBonus,
-        weatherEffectPercent,
-        weatherLabel,
-        weatherBonusObject,
-    });
 
     return (
         <Modal

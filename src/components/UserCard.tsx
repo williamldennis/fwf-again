@@ -275,8 +275,21 @@ export const UserCard: React.FC<UserCardProps> = ({
                             3
                         }
                     />
+                    {forecastData && forecastData.length > 0 ? (
+                        <FiveDayForecast forecastData={forecastData} />
+                    ) : (
+                        <Text
+                            style={{
+                                color: "red",
+                                fontSize: 12,
+                                marginTop: 10,
+                            }}
+                        >
+                            No forecast data available (length:{" "}
+                            {forecastData?.length || 0})
+                        </Text>
+                    )}
                 </View>
-                <FiveDayForecast forecastData={forecastData} />
             </View>
             {loading && (
                 <View

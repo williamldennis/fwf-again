@@ -20,7 +20,9 @@ TO DO
 [X] improve image size and dimensions
 [] check plant images aren't mature until they're mature
 [] add name or username to sign up
-[] loading spinner on sign in and improve home page loading
+[] loading spinner on sign in
+[] improve home page loading
+[] tiktok style scroll
 
 POLISH
 [] add full forecast modal when tapping
