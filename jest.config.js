@@ -24,7 +24,7 @@ module.exports = {
       statements: 90
     }
   },
-  testEnvironment: 'node',
+  testEnvironment: 'jsdom',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   testMatch: [
     '**/__tests__/**/*.(ts|tsx|js)',
