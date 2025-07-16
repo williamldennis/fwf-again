@@ -52,11 +52,10 @@ const isCacheValid = (timestamp: number): boolean => {
     return Date.now() - timestamp < WEATHER_CACHE_DURATION;
 };
 
-// Refactored hook: accepts latitude, longitude, and trigger (e.g., isInitialized)
+// Updated hook: accepts latitude, longitude, and optional userId
 export function useWeatherData(
     latitude?: number | null,
     longitude?: number | null,
-    trigger?: boolean,
     userId?: string | null
 ): WeatherState & WeatherActions {
     const [weather, setWeather] = useState<any | null>(null);
@@ -71,11 +70,13 @@ export function useWeatherData(
 
     // Fetch weather data with caching
     const fetchWeatherData = useCallback(async (lat: number, lon: number) => {
+        console.log(`[Weather] 🌤️ Fetching weather for coordinates: ${lat}, ${lon}`);
         setLoading(true);
         setError(null);
         const cacheKey = getCacheKey(lat, lon);
         const cachedData = weatherCache.get(cacheKey);
         if (cachedData && isCacheValid(cachedData.timestamp)) {
+            console.log("[Weather] ✅ Using cached weather data");
             setWeather(cachedData.data.current);
             setForecast(cachedData.data.forecast);
             setCityName(cachedData.data.cityName);
@@ -85,13 +86,16 @@ export function useWeatherData(
             return;
         }
         try {
+            console.log("[Weather] 🔄 Fetching fresh weather data...");
             const cityNameResult = await WeatherService.getCityFromCoords(lat, lon);
             let localHour = 12;
             try {
                 const timezone = tzlookup(lat, lon);
                 const localTime = DateTime.now().setZone(timezone);
                 localHour = localTime.hour;
-            } catch (e) {}
+            } catch (e) {
+                console.warn("[Weather] ⚠️ Could not determine timezone, using default hour");
+            }
             const bgColor = getBackgroundColor(localHour);
             const weatherData = await WeatherService.fetchWeatherData(lat, lon);
             const completeWeatherData: WeatherData = {
@@ -122,10 +126,13 @@ export function useWeatherData(
                     console.warn("[Weather] ⚠️ Could not update weather in database:", err);
                 }
             }
+            console.log(`[Weather] ✅ Weather data fetched successfully for ${cityNameResult}`);
         } catch (err) {
+            console.error("[Weather] ❌ Error fetching weather data:", err);
             const errorMessage = err instanceof Error ? err.message : "Unknown error";
             setError(`Failed to fetch weather data: ${errorMessage}`);
             if (cachedData) {
+                console.log("[Weather] 🔄 Falling back to cached data");
                 setWeather(cachedData.data.current);
                 setForecast(cachedData.data.forecast);
                 setCityName(cachedData.data.cityName);
@@ -135,11 +142,15 @@ export function useWeatherData(
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [userId]);
 
     // Refresh weather data (force fresh fetch)
     const refreshWeather = useCallback(async () => {
-        if (!currentLocation.current) return;
+        if (!currentLocation.current) {
+            console.warn("[Weather] ⚠️ No location set, cannot refresh weather");
+            return;
+        }
+        console.log("[Weather] 🔄 Refreshing weather data...");
         const cacheKey = getCacheKey(currentLocation.current.latitude, currentLocation.current.longitude);
         weatherCache.delete(cacheKey);
         await fetchWeatherData(currentLocation.current.latitude, currentLocation.current.longitude);
@@ -165,13 +176,14 @@ export function useWeatherData(
         };
     }, []);
 
-    // New: Fetch weather when coordinates or trigger change
+    // Auto-fetch weather when coordinates change
     useEffect(() => {
-        if (typeof latitude === "number" && typeof longitude === "number" && trigger) {
+        if (typeof latitude === "number" && typeof longitude === "number") {
+            console.log(`[Weather] 📍 Coordinates changed to: ${latitude}, ${longitude}`);
             fetchWeatherData(latitude, longitude);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [latitude, longitude, trigger]);
+    }, [latitude, longitude]);
 
     return {
         weather,

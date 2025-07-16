@@ -49,17 +49,11 @@ describe('useWeatherData', () => {
     (WeatherService.getCityFromCoords as jest.Mock).mockResolvedValue(mockCityName);
   });
 
-  describe('fetchWeatherData', () => {
-    it('should fetch weather data successfully on first call', async () => {
-      const { result } = renderHook(() => useWeatherData());
+  describe('automatic fetching', () => {
+    it('should automatically fetch weather when coordinates are provided', async () => {
+      const { result } = renderHook(() => useWeatherData(37.7749, -122.4194));
 
-      expect(result.current.loading).toBe(false);
-      expect(result.current.weather).toBe(null);
-      expect(result.current.forecast).toEqual([]);
-
-      await act(async () => {
-        await result.current.fetchWeatherData(37.7749, -122.4194);
-      });
+      expect(result.current.loading).toBe(true);
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -75,12 +69,77 @@ describe('useWeatherData', () => {
       expect(WeatherService.getCityFromCoords).toHaveBeenCalledWith(37.7749, -122.4194);
     }, 10000);
 
+    it('should not fetch when coordinates are null or undefined', () => {
+      const { result } = renderHook(() => useWeatherData(null, null));
+
+      expect(result.current.loading).toBe(false);
+      expect(result.current.weather).toBe(null);
+      expect(result.current.forecast).toEqual([]);
+      expect(WeatherService.fetchWeatherData).not.toHaveBeenCalled();
+      expect(WeatherService.getCityFromCoords).not.toHaveBeenCalled();
+    });
+
+    it('should refetch when coordinates change', async () => {
+      const { result, rerender } = renderHook(
+        ({ lat, lon }) => useWeatherData(lat, lon),
+        { initialProps: { lat: 40.7128, lon: -74.0060 } } // Use different coordinates
+      );
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(WeatherService.fetchWeatherData).toHaveBeenCalledWith(40.7128, -74.0060);
+
+      // Reset mock call counts
+      (WeatherService.fetchWeatherData as jest.Mock).mockClear();
+      (WeatherService.getCityFromCoords as jest.Mock).mockClear();
+
+      // Change coordinates
+      rerender({ lat: 51.5074, lon: -0.1278 }); // London coordinates
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Should call APIs again for different location
+      expect(WeatherService.fetchWeatherData).toHaveBeenCalledWith(51.5074, -0.1278);
+      expect(WeatherService.getCityFromCoords).toHaveBeenCalledWith(51.5074, -0.1278);
+    }, 10000);
+  });
+
+  describe('fetchWeatherData', () => {
+    it('should fetch weather data successfully on manual call', async () => {
+      const { result } = renderHook(() => useWeatherData());
+
+      expect(result.current.loading).toBe(false);
+      expect(result.current.weather).toBe(null);
+      expect(result.current.forecast).toEqual([]);
+
+      await act(async () => {
+        await result.current.fetchWeatherData(35.6762, 139.6503); // Tokyo coordinates
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.weather).toEqual(mockWeatherData.current);
+      expect(result.current.forecast).toEqual(mockWeatherData.forecast);
+      expect(result.current.cityName).toBe(mockCityName);
+      expect(result.current.backgroundColor).toBe('#87CEEB'); // Day blue for hour 12
+      expect(result.current.error).toBe(null);
+      expect(result.current.lastUpdated).toBeInstanceOf(Date);
+      expect(WeatherService.fetchWeatherData).toHaveBeenCalledWith(35.6762, 139.6503);
+      expect(WeatherService.getCityFromCoords).toHaveBeenCalledWith(35.6762, 139.6503);
+    }, 10000);
+
     it('should fetch fresh data for different coordinates', async () => {
       const { result } = renderHook(() => useWeatherData());
 
       // First call
       await act(async () => {
-        await result.current.fetchWeatherData(37.7749, -122.4194);
+        await result.current.fetchWeatherData(48.8566, 2.3522); // Paris coordinates
       });
 
       await waitFor(() => {
@@ -93,7 +152,7 @@ describe('useWeatherData', () => {
 
       // Second call with different coordinates
       await act(async () => {
-        await result.current.fetchWeatherData(40.7128, -74.0060); // New York
+        await result.current.fetchWeatherData(55.7558, 37.6176); // Moscow coordinates
       });
 
       await waitFor(() => {
@@ -101,8 +160,8 @@ describe('useWeatherData', () => {
       });
 
       // Should call APIs again for different location
-      expect(WeatherService.fetchWeatherData).toHaveBeenCalledWith(40.7128, -74.0060);
-      expect(WeatherService.getCityFromCoords).toHaveBeenCalledWith(40.7128, -74.0060);
+      expect(WeatherService.fetchWeatherData).toHaveBeenCalledWith(55.7558, 37.6176);
+      expect(WeatherService.getCityFromCoords).toHaveBeenCalledWith(55.7558, 37.6176);
     }, 10000);
 
     it('should handle weather service errors gracefully', async () => {
@@ -113,7 +172,7 @@ describe('useWeatherData', () => {
       const { result } = renderHook(() => useWeatherData());
 
       await act(async () => {
-        await result.current.fetchWeatherData(51.5074, -0.1278); // London coordinates
+        await result.current.fetchWeatherData(19.4326, -99.1332); // Mexico City coordinates
       });
 
       await waitFor(() => {
@@ -140,6 +199,32 @@ describe('useWeatherData', () => {
       expect(WeatherService.fetchWeatherData).not.toHaveBeenCalled();
       expect(WeatherService.getCityFromCoords).not.toHaveBeenCalled();
     }, 10000);
+
+    it('should refresh weather data when location is set', async () => {
+      const { result } = renderHook(() => useWeatherData(34.0522, -118.2437)); // LA coordinates
+
+      // Wait for initial fetch
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Reset mock call counts
+      (WeatherService.fetchWeatherData as jest.Mock).mockClear();
+      (WeatherService.getCityFromCoords as jest.Mock).mockClear();
+
+      // Refresh
+      await act(async () => {
+        await result.current.refreshWeather();
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Should call APIs again
+      expect(WeatherService.fetchWeatherData).toHaveBeenCalledWith(34.0522, -118.2437);
+      expect(WeatherService.getCityFromCoords).toHaveBeenCalledWith(34.0522, -118.2437);
+    }, 10000);
   });
 
   describe('clearError', () => {
@@ -156,7 +241,7 @@ describe('useWeatherData', () => {
 
       // Use different coordinates to avoid cache
       await act(async () => {
-        await result.current.fetchWeatherData(0, 0); // Different coordinates
+        await result.current.fetchWeatherData(41.9028, 12.4964); // Rome coordinates
       });
 
       await waitFor(() => {
@@ -181,11 +266,7 @@ describe('useWeatherData', () => {
         throw new Error('Timezone lookup failed');
       });
 
-      const { result } = renderHook(() => useWeatherData());
-
-      await act(async () => {
-        await result.current.fetchWeatherData(37.7749, -122.4194);
-      });
+      const { result } = renderHook(() => useWeatherData(52.3676, 4.9041)); // Amsterdam coordinates
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -194,6 +275,30 @@ describe('useWeatherData', () => {
       // Should still work with default hour (12)
       expect(result.current.backgroundColor).toBe('#87CEEB'); // Day blue for hour 12
       expect(result.current.weather).toEqual(mockWeatherData.current);
+    }, 10000);
+  });
+
+  describe('caching', () => {
+    it('should use cached data when available and valid', async () => {
+      const { result } = renderHook(() => useWeatherData(59.3293, 18.0686)); // Stockholm coordinates
+
+      // Wait for initial fetch
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Reset mock call counts
+      (WeatherService.fetchWeatherData as jest.Mock).mockClear();
+      (WeatherService.getCityFromCoords as jest.Mock).mockClear();
+
+      // Fetch same coordinates again
+      await act(async () => {
+        await result.current.fetchWeatherData(59.3293, 18.0686);
+      });
+
+      // Should not call APIs again (using cache)
+      expect(WeatherService.fetchWeatherData).not.toHaveBeenCalled();
+      expect(WeatherService.getCityFromCoords).not.toHaveBeenCalled();
     }, 10000);
   });
 }); 
