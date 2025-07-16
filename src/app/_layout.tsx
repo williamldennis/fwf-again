@@ -10,19 +10,7 @@ export default function RootLayout() {
                 <Stack.Screen
                     name="home"
                     options={{
-                        headerShown: true,
-                        headerTransparent: true,
-                        headerBackground: () => (
-                            <View
-                                style={{
-                                    flex: 1,
-                                    backgroundColor: "transparent",
-                                }}
-                            />
-                        ),
-                        headerTitleStyle: { color: "#fff" },
-                        headerTintColor: "#fff",
-                        headerTitle: "",
+                        headerShown: false,
                     }}
                 />
             </Stack>

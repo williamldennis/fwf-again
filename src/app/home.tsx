@@ -29,6 +29,7 @@ import UserCard from "../components/UserCard";
 import FriendCard from "../components/FriendCard";
 import AddFriendsCard from "../components/AddFriendsCard";
 import DropdownMenu from "../components/DropdownMenu";
+import HeaderBar from "../components/HeaderBar";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -583,27 +584,22 @@ export default function Home() {
 
     return (
         <>
-            <Stack.Screen
-                options={{
-                    headerLeft: () => (
-                        <TouchableOpacity
-                            onPress={() => setShowMenu(true)}
-                            className="p-2 ml-4"
-                        >
-                            <Text style={{ fontSize: 24, opacity: 0.5 }}>
-                                ☰
-                            </Text>
-                        </TouchableOpacity>
-                    ),
-                }}
-            />
             <View style={{ flex: 1, backgroundColor }}>
+                {/* Custom Header Bar */}
+                <HeaderBar
+                    points={userProfile?.points || 0}
+                    onMenuPress={() => setShowMenu(true)}
+                    onPointsPress={() => {
+                        // TODO: Implement points modal with level, progress, notifications, store
+                        console.log("Points pressed - future feature");
+                    }}
+                />
                 {/* Progressive Loading Indicators */}
                 {(weatherLoading || availablePlantsLoading) && (
                     <View
                         style={{
                             position: "absolute",
-                            top: 60,
+                            top: 120,
                             right: 20,
                             zIndex: 10,
                             backgroundColor: "rgba(0,0,0,0.7)",
@@ -629,6 +625,7 @@ export default function Home() {
                     style={{ flex: 1 }}
                     contentContainerStyle={{
                         paddingHorizontal: 16,
+                        paddingTop: 120, // Account for header bar height
                         paddingBottom: 16,
                     }}
                     showsVerticalScrollIndicator={false}
