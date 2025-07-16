@@ -111,6 +111,9 @@ export default function Home() {
         loading: appLoading,
         error: appError,
         isInitialized,
+        // Remove weatherLoading, weatherError, etc. from here
+        friendsLoading,
+        plantsLoading,
         initializeApp,
         refreshData,
         clearError: clearAppError,
@@ -127,7 +130,11 @@ export default function Home() {
         fetchWeatherData,
         refreshWeather,
         clearError: clearWeatherError,
-    } = useWeatherData();
+    } = useWeatherData(
+        userProfile?.latitude,
+        userProfile?.longitude,
+        isInitialized
+    );
 
     // Local state for UI interactions
     const [showMenu, setShowMenu] = useState(false);
@@ -238,8 +245,8 @@ export default function Home() {
         }
     }, [forecast]);
 
-    // Combined loading state
-    const isLoading = appLoading || weatherLoading;
+    // Combined loading state - only show loading for initial app setup
+    const isLoading = appLoading;
 
     // Combined error state
     const error = appError || weatherError;
@@ -465,7 +472,7 @@ export default function Home() {
         setShowPlantPicker(false);
     };
 
-    // Show loading state
+    // Show loading state only for initial app setup
     if (isLoading) {
         return (
             <View
@@ -537,6 +544,27 @@ export default function Home() {
                 }}
             />
             <View style={{ flex: 1, backgroundColor }}>
+                {/* Progressive Loading Indicators */}
+                {(weatherLoading || friendsLoading || plantsLoading) && (
+                    <View
+                        style={{
+                            position: "absolute",
+                            top: 60,
+                            right: 20,
+                            zIndex: 10,
+                            backgroundColor: "rgba(0,0,0,0.7)",
+                            borderRadius: 8,
+                            padding: 8,
+                        }}
+                    >
+                        <Text style={{ color: "white", fontSize: 12 }}>
+                            {weatherLoading && "🌤️ Loading weather..."}
+                            {friendsLoading && "👥 Loading friends..."}
+                            {plantsLoading && "🌱 Loading plants..."}
+                        </Text>
+                    </View>
+                )}
+
                 {/* Single FlatList containing both user card and friends */}
                 <FlatList
                     data={[
@@ -567,8 +595,8 @@ export default function Home() {
                                         handlePlantDetailsPress
                                     }
                                     forecastData={userFiveDayData}
-                                    loading={isLoading}
-                                    error={error}
+                                    loading={weatherLoading}
+                                    error={weatherError}
                                     cardWidth={cardWidth}
                                 />
                             );
@@ -603,9 +631,17 @@ export default function Home() {
                         );
                     }}
                     ListEmptyComponent={
-                        <Text className="ml-4 text-gray-500">
-                            No friends using the app yet.
-                        </Text>
+                        <View style={{ padding: 20, alignItems: "center" }}>
+                            {friendsLoading ? (
+                                <Text style={{ color: "#666" }}>
+                                    Loading friends...
+                                </Text>
+                            ) : (
+                                <Text style={{ color: "#666" }}>
+                                    No friends using the app yet.
+                                </Text>
+                            )}
+                        </View>
                     }
                 />
             </View>

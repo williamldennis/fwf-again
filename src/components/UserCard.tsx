@@ -227,35 +227,54 @@ export const UserCard: React.FC<UserCardProps> = ({
                             marginBottom: 60,
                         }}
                     >
-                        It&apos;s{" "}
-                        <Text
-                            style={{
-                                fontWeight: "bold",
-                            }}
-                        >
-                            {weather && weather.main && weather.main.temp
-                                ? Math.round(weather.main.temp)
-                                : "--"}
-                            °
-                        </Text>{" "}
-                        and{" "}
-                        <Text
-                            style={{
-                                fontWeight: "bold",
-                            }}
-                        >
-                            {weather && weather.weather && weather.weather[0]
-                                ? getWeatherDescription(weather.weather[0].main)
-                                : "--"}
-                        </Text>{" "}
-                        in{" "}
-                        <Text
-                            style={{
-                                fontWeight: "bold",
-                            }}
-                        >
-                            {weather && weather.name ? weather.name : "--"}
-                        </Text>
+                        {loading ? (
+                            <Text
+                                style={{ fontStyle: "italic", color: "#666" }}
+                            >
+                                Loading weather...
+                            </Text>
+                        ) : weather && weather.main && weather.main.temp ? (
+                            <>
+                                It&apos;s{" "}
+                                <Text
+                                    style={{
+                                        fontWeight: "bold",
+                                    }}
+                                >
+                                    {Math.round(weather.main.temp)}°
+                                </Text>{" "}
+                                and{" "}
+                                <Text
+                                    style={{
+                                        fontWeight: "bold",
+                                    }}
+                                >
+                                    {weather &&
+                                    weather.weather &&
+                                    weather.weather[0]
+                                        ? getWeatherDescription(
+                                              weather.weather[0].main
+                                          )
+                                        : "--"}
+                                </Text>{" "}
+                                in{" "}
+                                <Text
+                                    style={{
+                                        fontWeight: "bold",
+                                    }}
+                                >
+                                    {weather && weather.name
+                                        ? weather.name
+                                        : "--"}
+                                </Text>
+                            </>
+                        ) : (
+                            <Text
+                                style={{ fontStyle: "italic", color: "#666" }}
+                            >
+                                Weather data unavailable
+                            </Text>
+                        )}
                     </Text>
                     {/* User's Garden */}
                     <GardenArea
@@ -278,41 +297,29 @@ export const UserCard: React.FC<UserCardProps> = ({
                 </View>
                 {forecastData && forecastData.length > 0 ? (
                     <FiveDayForecast forecastData={forecastData} />
+                ) : loading ? (
+                    <Text
+                        style={{
+                            color: "#666",
+                            fontSize: 12,
+                            marginTop: 10,
+                            fontStyle: "italic",
+                        }}
+                    >
+                        Loading forecast...
+                    </Text>
                 ) : (
                     <Text
                         style={{
-                            color: "red",
+                            color: "#999",
                             fontSize: 12,
                             marginTop: 10,
                         }}
                     >
-                        No forecast data available (length:{" "}
-                        {forecastData?.length || 0})
+                        No forecast data available
                     </Text>
                 )}
             </View>
-            {loading && (
-                <View
-                    style={{
-                        position: "absolute",
-                        top: 60,
-                        left: 0,
-                        right: 0,
-                        alignItems: "center",
-                        zIndex: 10,
-                    }}
-                >
-                    <ActivityIndicator size="large" />
-                    <Text
-                        style={{
-                            color: "#333",
-                            marginTop: 8,
-                        }}
-                    >
-                        Loading weather...
-                    </Text>
-                </View>
-            )}
             {error && !loading && (
                 <View
                     style={{
@@ -324,7 +331,9 @@ export const UserCard: React.FC<UserCardProps> = ({
                         zIndex: 10,
                     }}
                 >
-                    <Text style={{ color: "#ff4444" }}>{error}</Text>
+                    <Text style={{ color: "#ff4444", fontSize: 12 }}>
+                        {error}
+                    </Text>
                 </View>
             )}
         </View>
