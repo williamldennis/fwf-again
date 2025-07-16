@@ -13,16 +13,19 @@ TO DO
 [X] own garden card (you can't harvest your own -- it incentivizes needing friends to earn points)
 [X] add points
 [] android
-[] check points acrrual for harvestER not gardener
-[] check plants are being planted correctly
+[X] check points acrrual for harvestER not gardener
+[X] check plants are being planted correctly
 [X] trim images
 [X] plant your own plants
 [X] improve image size and dimensions
+[] check plant images aren't mature until they're mature
+[] add name or username to sign up
+[] loading spinner on sign in
+[] improve home page loading
+[] tiktok style scroll
 
 POLISH
-[] add name or username to sign up
 [] add full forecast modal when tapping
-[] loading spinner on sign in and improve home page loading
 [] improve weather forecast styling
 [] lottie animations for night time
 [] improve copy for night time / clear / sunny etc

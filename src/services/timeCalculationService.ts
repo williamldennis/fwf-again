@@ -9,10 +9,10 @@ export class TimeCalculationService {
     // Parse the timestamp manually to avoid timezone conversion
     const plantedDate = new Date(plantedAt + 'Z'); // Force UTC interpretation
     const currentDate = new Date();
-    // Only log if needed for plant/harvest investigation
-    // (No log here by default)
+    
     const timeElapsed = currentDate.getTime() - plantedDate.getTime();
     const hoursElapsed = timeElapsed / (1000 * 60 * 60);
+    
     return Math.max(0, hoursElapsed);
   }
 
@@ -26,10 +26,10 @@ export class TimeCalculationService {
   ): number {
     const hoursElapsed = this.getTimeElapsedHours(plantedAt);
     const weatherBonus = GrowthService.getWeatherBonus(plant, friendWeather);
-    // Only log if needed for plant/harvest investigation
-    // (No log here by default)
+    
     const totalRealTimeNeeded = plant.growth_time_hours / weatherBonus;
     const remainingRealTime = totalRealTimeNeeded - hoursElapsed;
+    
     return Math.max(0, remainingRealTime);
   }
 

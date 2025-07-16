@@ -115,16 +115,17 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         plantObject,
         friendWeather
     );
+
     // For debugging or display, keep the original weather_bonus object
     const weatherBonusObject =
         plant.plant?.weather_bonus || plant.weather_bonus || {};
     const growthTimeHours =
         plant.plant?.growth_time_hours || plant.growth_time_hours || 0;
 
-    // Update plantObject with weather bonus
+    // Update plantObject with weather bonus (keep the original object structure)
     const updatedPlantObject = {
         ...plantObject,
-        weather_bonus: weatherBonus,
+        weather_bonus: plantObject.weather_bonus, // Keep the original weather_bonus object
     };
 
     // Check if plant is mature using GrowthService
@@ -169,29 +170,9 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     // Check if current user can harvest (anyone can harvest now)
     const canHarvest = currentUserId && !plant.harvested_at;
 
-    // Debug logging for harvest state (keep concise for investigation)
-    console.log("[Harvest] PlantDetailsModal harvest state:", {
-        plantName,
-        currentStage,
-        isMature,
-        canHarvest,
-        harvested_at: plant.harvested_at,
-        currentUserId,
-        plantId: plant.id,
-    });
-
     // Handle harvest
     const handleHarvest = async () => {
-        console.log("[Harvest] Attempting harvest:", {
-            canHarvest,
-            isMature,
-            plantId: plant.id,
-            currentUserId,
-            plantName,
-        });
-
         if (!canHarvest || !isMature) {
-            console.log("[Harvest] Blocked:", { canHarvest, isMature });
             return;
         }
 
@@ -203,7 +184,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         }
 
         try {
-            console.log("[Harvest] Updating database for harvest...");
             const { data, error } = await supabase
                 .from("planted_plants")
                 .update({
@@ -221,8 +201,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 );
                 return;
             }
-
-            console.log("[Harvest] Harvest successful:", data);
 
             // Fetch the updated plant to see if the harvest was successful
             if (!data || data.length === 0) {
@@ -245,10 +223,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 }
 
                 if (fetchData && fetchData.harvested_at) {
-                    console.log(
-                        "[Harvest] Harvest was successful! Updated plant:",
-                        fetchData
-                    );
+                    // Harvest was successful
                 } else {
                     console.error(
                         "[Harvest] Update did not work - harvested_at is still null"
@@ -261,7 +236,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 }
             }
 
-            // Award points for harvesting (keep concise)
+            // Award points for harvesting
             try {
                 const plantPoints = plant.plant?.harvest_points || 10;
                 const { data: profileData, error: profileError } =
@@ -277,9 +252,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                         .from("profiles")
                         .update({ points: newPoints })
                         .eq("id", currentUserId);
-                    console.log(
-                        `[Harvest] Points updated: ${currentPoints} + ${plantPoints} = ${newPoints}`
-                    );
                 }
             } catch (pointsError) {
                 console.error("[Harvest] Error awarding points:", pointsError);
@@ -400,15 +372,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     };
 
     const weatherLabel = getWeatherDisplayName(friendWeather);
-
-    // Debug logging for weather effect section
-    console.log("Weather Effect Debug:", {
-        friendWeather,
-        weatherBonus,
-        weatherEffectPercent,
-        weatherLabel,
-        weatherBonusObject,
-    });
 
     return (
         <Modal

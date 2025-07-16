@@ -23,7 +23,8 @@ export class GrowthService {
     const mappedKey = weatherMapping[weatherKey];
     
     if (mappedKey) {
-      return plant.weather_bonus[mappedKey];
+      const bonus = plant.weather_bonus[mappedKey];
+      return bonus;
     }
     
     // Default to 1.0 if weather not found
@@ -67,11 +68,13 @@ export class GrowthService {
       shouldAdvance = true;
     }
     
-    return {
+    const result = {
       stage,
       progress: Math.round(progress), // Whole percentages
       shouldAdvance
     };
+    
+    return result;
   }
 
   /**
@@ -93,7 +96,9 @@ export class GrowthService {
    */
   static isPlantMature(plantedPlant: PlantedPlant, plant: Plant, friendWeather: string): boolean {
     const calculation = this.calculateGrowthStage(plantedPlant, plant, friendWeather);
-    return calculation.stage === 5 && calculation.progress >= 100;
+    const isMature = calculation.stage === 5 && calculation.progress >= 100;
+    
+    return isMature;
   }
 
   /**
