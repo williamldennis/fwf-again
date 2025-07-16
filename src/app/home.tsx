@@ -420,10 +420,8 @@ export default function Home() {
             });
 
             if (newPlant) {
-                // Refresh data to get updated plants
-                await refreshPlants();
-                await updateSingleGarden(friendId, slotIdx);
-                await updateGrowth(newPlant.id);
+                // Only update the specific garden that was planted in
+                await updateSingleGarden(friendId);
             }
         } catch (error: any) {
             if (error.message === "Slot Occupied") {
