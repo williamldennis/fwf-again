@@ -1,29 +1,51 @@
-# Latest Progress Update
+# Progress Update: Migration to Focused Hooks for App Initialization and Data Management
 
-**Current Latest**: [2025-07-07-slot-realtime-rls-bugfixes.md](./2025-07-07-slot-realtime-rls-bugfixes.md)
+**Date:** 2025-07-16
 
-## Quick Summary
+## Overview
 
-- **Date**: July 7, 2025
-- **Status**: Slot-based planting, real-time sync, and RLS bugfixes
-- **Key Achievement**: Social, real-time, and robust multi-user garden system
-- **Next Focus**: Further user testing and UI polish
+We have completed a major refactor of the app's initialization and data management logic, moving from a monolithic `useAppInitialization` hook to a set of focused, composable hooks. This change improves performance, enables more targeted updates, and makes the codebase easier to test and maintain.
 
-## Recent Changes
+## Rationale
 
-1. **Slot-Based Planting**: Each pot maintains its position; legacy data migrated.
-2. **Real-Time Sync**: Instant updates across all users via Supabase Realtime.
-3. **RLS Policy Fix**: Gardens now visible to all users; correct permissions enforced.
-4. **Bugfixes**: Plant count, phantom plants, and improved logging.
-5. **UI/UX**: Consistent pot layout, legacy fallback, and clear feedback.
+The original `useAppInitialization` hook handled authentication, profile, friends, garden, weather, and plant data in a single place. This led to:
 
-## Quick Links
+- Unnecessary re-renders and global loading states
+- Difficulty in testing and debugging
+- Tight coupling between unrelated features
 
-- [Full Progress Update](./2025-07-07-slot-realtime-rls-bugfixes.md)
-- [Key Decisions](./decisions/)
-- [Technical Notes](./technical-notes/)
-- [UX Notes](./ux-notes/)
+## New Hooks Architecture
+
+We have split responsibilities into the following hooks:
+
+- **`useAuth`**: Manages user authentication state
+- **`useUserProfile`**: Handles user profile, location, and points
+- **`useFriends`**: Manages friends data, contact fetching, and friend discovery
+- **`useGardenData`**: Handles planted plants for user and friends, targeted/batch/growth updates, and real-time subscriptions
+- **`useAvailablePlants`**: Lazy loads available plants for the PlantPicker, with caching and manual refresh
+- **`useWeatherData`**: Fetches weather data based on location, now decoupled from app initialization
+
+## Implementation Highlights
+
+- All responsibilities from `useAppInitialization` were migrated to the new hooks
+- The monolithic hook and its tests were removed
+- All usages were updated to use the new hooks directly (e.g., in `home.tsx`)
+- Integration and unit tests were updated or created for each hook
+- A regression test was added to ensure friends always render in the UI (testing the `isFriend` type guard)
+- The hooks are now easier to test in isolation, and the UI is more responsive to targeted data changes
+
+## Benefits
+
+- **Performance**: Only the relevant parts of the UI update when data changes
+- **Testability**: Each hook has its own test suite, and regression tests catch type guard issues
+- **Maintainability**: Code is modular, easier to debug, and less prone to side effects
+- **User Experience**: No more unnecessary global loading states when planting/harvesting or updating friends
+
+## Next Steps
+
+- Continue to monitor for regressions and add more UI-level tests as needed
+- Document hook usage patterns for future contributors
 
 ---
 
-_This file will be updated to point to the most recent progress update as development continues._
+_This update reflects the completion of the hooks migration and the successful stabilization of the app's core data flows._
