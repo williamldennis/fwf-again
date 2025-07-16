@@ -6,6 +6,13 @@ export class GrowthService {
    * Calculate the weather bonus multiplier for a plant based on current weather
    */
   static getWeatherBonus(plant: Plant, weatherCondition: string): number {
+    console.log("[GrowthService] getWeatherBonus called with:", {
+      plantId: plant.id,
+      plantName: plant.name,
+      weatherCondition,
+      plantWeatherBonus: plant.weather_bonus
+    });
+    
     // Map API weather conditions to plant weather bonus keys
     const weatherMapping: Record<string, keyof typeof plant.weather_bonus> = {
       'clear': 'sunny',
@@ -22,11 +29,24 @@ export class GrowthService {
     const weatherKey = weatherCondition.toLowerCase();
     const mappedKey = weatherMapping[weatherKey];
     
+    console.log("[GrowthService] Weather mapping:", {
+      weatherKey,
+      mappedKey,
+      availableKeys: Object.keys(plant.weather_bonus)
+    });
+    
     if (mappedKey) {
-      return plant.weather_bonus[mappedKey];
+      const bonus = plant.weather_bonus[mappedKey];
+      console.log("[GrowthService] Weather bonus result:", {
+        mappedKey,
+        bonus,
+        isBonusValid: !isNaN(bonus)
+      });
+      return bonus;
     }
     
     // Default to 1.0 if weather not found
+    console.log("[GrowthService] Weather not found, using default bonus: 1.0");
     return 1.0;
   }
 
@@ -38,6 +58,15 @@ export class GrowthService {
     plant: Plant,
     friendWeather: string
   ): GrowthCalculation {
+    console.log("[GrowthService] calculateGrowthStage called with:", {
+      plantedPlantId: plantedPlant.id,
+      plantId: plant.id,
+      plantName: plant.name,
+      plantedAt: plantedPlant.planted_at,
+      friendWeather,
+      plantGrowthTime: plant.growth_time_hours
+    });
+    
     // Use TimeCalculationService for consistent time calculations
     const hoursElapsed = TimeCalculationService.getTimeElapsedHours(plantedPlant.planted_at);
     const weatherBonus = this.getWeatherBonus(plant, friendWeather);
@@ -47,8 +76,24 @@ export class GrowthService {
     const totalGrowthHours = 0.083; // 5 minutes instead of plant.growth_time_hours
     // const totalGrowthHours = plant.growth_time_hours; // ORIGINAL: Use actual plant growth time
     
+    console.log("[GrowthService] calculateGrowthStage intermediate values:", {
+      hoursElapsed,
+      weatherBonus,
+      adjustedHours,
+      totalGrowthHours,
+      isHoursElapsedValid: !isNaN(hoursElapsed),
+      isWeatherBonusValid: !isNaN(weatherBonus),
+      isAdjustedHoursValid: !isNaN(adjustedHours),
+      isTotalGrowthHoursValid: !isNaN(totalGrowthHours)
+    });
+    
     // Calculate progress percentage (0-100)
     const progress = Math.min(100, (adjustedHours / totalGrowthHours) * 100);
+    
+    console.log("[GrowthService] Progress calculation:", {
+      progress,
+      isProgressValid: !isNaN(progress)
+    });
     
     // Determine current stage based on progress
     let stage: GrowthStage = 1;
@@ -67,11 +112,19 @@ export class GrowthService {
       shouldAdvance = true;
     }
     
-    return {
+    const result = {
       stage,
       progress: Math.round(progress), // Whole percentages
       shouldAdvance
     };
+    
+    console.log("[GrowthService] calculateGrowthStage final result:", {
+      result,
+      isStageValid: !isNaN(result.stage),
+      isProgressValid: !isNaN(result.progress)
+    });
+    
+    return result;
   }
 
   /**
@@ -92,8 +145,24 @@ export class GrowthService {
    * Check if a plant is mature
    */
   static isPlantMature(plantedPlant: PlantedPlant, plant: Plant, friendWeather: string): boolean {
+    console.log("[GrowthService] isPlantMature called with:", {
+      plantedPlantId: plantedPlant.id,
+      plantId: plant.id,
+      plantName: plant.name,
+      friendWeather
+    });
+    
     const calculation = this.calculateGrowthStage(plantedPlant, plant, friendWeather);
-    return calculation.stage === 5 && calculation.progress >= 100;
+    const isMature = calculation.stage === 5 && calculation.progress >= 100;
+    
+    console.log("[GrowthService] isPlantMature result:", {
+      calculation,
+      isMature,
+      stage: calculation.stage,
+      progress: calculation.progress
+    });
+    
+    return isMature;
   }
 
   /**

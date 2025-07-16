@@ -43,6 +43,16 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     friendWeather = "clear", // Default to clear if not provided
     planterName,
 }) => {
+    console.log("[PlantDetailsModal] Component props:", {
+        visible,
+        plantId: plant?.id,
+        plantName: plant?.plant?.name || plant?.plant_name,
+        friendWeather,
+        planterName,
+        currentUserId,
+        plantData: plant,
+    });
+
     // Bounce animation for harvest-ready plants
     const translateY = useSharedValue(0);
 
@@ -110,21 +120,36 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         created_at: plant.planted_at,
     };
 
+    console.log("[PlantDetailsModal] Plant object construction:", {
+        plantName,
+        plantObject,
+        hasPlantData: !!plant.plant,
+        hasPlantName: !!plant.plant_name,
+        hasGrowthTime: !!plant.growth_time_hours,
+    });
+
     // Use GrowthService to get the weather bonus multiplier for the current weather
     const weatherBonus = GrowthService.getWeatherBonus(
         plantObject,
         friendWeather
     );
+
+    console.log("[PlantDetailsModal] Weather bonus calculation:", {
+        weatherBonus,
+        friendWeather,
+        plantObjectWeatherBonus: plantObject.weather_bonus,
+    });
+
     // For debugging or display, keep the original weather_bonus object
     const weatherBonusObject =
         plant.plant?.weather_bonus || plant.weather_bonus || {};
     const growthTimeHours =
         plant.plant?.growth_time_hours || plant.growth_time_hours || 0;
 
-    // Update plantObject with weather bonus
+    // Update plantObject with weather bonus (keep the original object structure)
     const updatedPlantObject = {
         ...plantObject,
-        weather_bonus: weatherBonus,
+        weather_bonus: plantObject.weather_bonus, // Keep the original weather_bonus object
     };
 
     // Check if plant is mature using GrowthService
@@ -145,6 +170,14 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     const currentStage = growthCalculation.stage;
     const progress = growthCalculation.progress;
 
+    console.log("[PlantDetailsModal] Growth calculation results:", {
+        growthCalculation,
+        currentStage,
+        progress,
+        isStageValid: !isNaN(currentStage),
+        isProgressValid: !isNaN(progress),
+    });
+
     // Use TimeCalculationService for consistent time calculations
     const timeToMaturity = TimeCalculationService.getTimeToMaturity(
         plant.planted_at,
@@ -161,6 +194,14 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
     const formattedTimeSincePlanted =
         TimeCalculationService.getFormattedTimeSincePlanted(plant.planted_at);
+
+    console.log("[PlantDetailsModal] Time calculation results:", {
+        plantedAt: plant.planted_at,
+        timeToMaturity,
+        formattedTimeToMaturity,
+        formattedTimeSincePlanted,
+        isTimeToMaturityValid: !isNaN(timeToMaturity),
+    });
 
     // For display: ensure we never show stage 1 (empty pot) for planted plants
     // Stage 1 = empty pot, Stage 2 = dirt, Stage 3+ = plant growth

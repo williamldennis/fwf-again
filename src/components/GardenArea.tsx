@@ -178,6 +178,11 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
     // Memoize stage calculations for all plants to prevent unnecessary re-renders
     const plantStages = React.useMemo(() => {
         const stages: Record<string, GrowthStage> = {};
+        console.log(
+            "[GardenArea] Calculating plant stages for slots:",
+            slots.length
+        );
+
         slots.forEach((plant, idx) => {
             if (plant) {
                 const plantName =
@@ -195,11 +200,27 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                     created_at: plant.planted_at,
                 };
 
+                console.log("[GardenArea] Plant stage calculation for:", {
+                    plantId: plant.id,
+                    plantName,
+                    weatherCondition,
+                    plantObject,
+                    plantedAt: plant.planted_at,
+                });
+
                 const growthCalculation = GrowthService.calculateGrowthStage(
                     plant,
                     plantObject,
                     weatherCondition
                 );
+
+                console.log("[GardenArea] Growth calculation result:", {
+                    plantId: plant.id,
+                    growthCalculation,
+                    stage: growthCalculation.stage,
+                    progress: growthCalculation.progress,
+                });
+
                 stages[plant.id] = growthCalculation.stage as GrowthStage;
             }
         });
@@ -217,6 +238,13 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
 
     // Handler for planted plant tap
     const handlePlantPress = (plant: any) => {
+        console.log("[GardenArea] Plant pressed:", {
+            plantId: plant.id,
+            plantName: plant.plant?.name || plant.plant_name,
+            weatherCondition,
+            plantData: plant,
+        });
+
         if (onPlantDetailsPress) {
             onPlantDetailsPress(plant, weatherCondition);
         }
