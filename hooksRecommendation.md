@@ -77,16 +77,16 @@ useWeatherData (weather only - already exists)
 
 ## Implementation Plan
 
-### Step 1: Create `useAuth` Hook
+### Step 1: Create `useAuth` Hook ✅ COMPLETED
 
 - Extract user authentication logic from `useAppInitialization`
 - Return: `{ user, currentUserId, isAuthenticated, loading, error }`
 
-### Step 2: Create `useUserProfile` Hook
+### Step 2: Create `useUserProfile` Hook ✅ COMPLETED
 
 - Extract profile management from `useAppInitialization`
 - Include points update function for harvesting
-- Return: `{ profile, updatePoints, updateProfile, loading, error }`
+- Return: `{ profile, updatePoints, updateProfile, refreshProfile, loading, error }`
 
 ### Step 3: Create `useFriends` Hook
 
