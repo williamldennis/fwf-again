@@ -459,12 +459,10 @@ export default function Home() {
     };
 
     const handlePlantHarvested = async () => {
-        console.log("handlePlantHarvested called - refreshing plant data...");
-
-        // Refresh all data after harvest
-        await refreshPlants();
-        await updateAllGardens();
-        await updateGrowth();
+        console.log(
+            "handlePlantHarvested called - real-time subscription will handle UI update"
+        );
+        // No manual refresh needed - real-time subscription will update the UI automatically
     };
 
     const handleRefreshGrowth = async () => {
