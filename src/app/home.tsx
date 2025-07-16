@@ -19,7 +19,7 @@ import tzlookup from "tz-lookup";
 import { DateTime } from "luxon";
 import * as Contacts from "expo-contacts";
 import * as Location from "expo-location";
-import { parsePhoneNumberFromString, CountryCode } from "libphonenumber-js";
+
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
 import PlantDetailsModal from "../components/PlantDetailsModal";
@@ -31,6 +31,7 @@ import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
 import { WeatherService } from "../services/weatherService";
+import { ContactsService } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
@@ -191,138 +192,20 @@ export default function Home() {
     const handleRefreshContacts = async () => {
         setRefreshingContacts(true);
         try {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            if (!user) {
-                Alert.alert("Could not get user info.");
-                setRefreshingContacts(false);
-                return;
-            }
+            const result = await ContactsService.refreshContacts();
 
-            // Fetch user's country code from profile (default to 'US')
-            let userCountryCode: CountryCode = "US" as CountryCode;
-            const { data: profile } = await supabase
-                .from("profiles")
-                .select("country_code")
-                .eq("id", user.id)
-                .single();
-            if (profile && profile.country_code) {
-                userCountryCode = profile.country_code as CountryCode;
-            }
-
-            // Get contacts from device
-            let contacts;
-            try {
-                const contactsResult = await Contacts.getContactsAsync({
-                    fields: [
-                        Contacts.Fields.PhoneNumbers,
-                        Contacts.Fields.Name,
-                    ],
-                });
-                contacts = contactsResult.data;
-            } catch (contactsError) {
+            if (!result.success) {
                 Alert.alert(
                     "Error",
-                    "Could not access contacts. Please check your permissions."
+                    result.error || "Failed to refresh contacts"
                 );
-                console.error("Contacts access error:", contactsError);
-                setRefreshingContacts(false);
                 return;
             }
 
-            if (!contacts || contacts.length === 0) {
-                Alert.alert("No Contacts", "No contacts found on your device.");
-                setRefreshingContacts(false);
-                return;
-            }
+            Alert.alert("Success", `Refreshed ${result.contactCount} contacts`);
 
-            // Prepare rows for bulk insert
-            const rows: any[] = [];
-            contacts.forEach((contact) => {
-                (contact.phoneNumbers || []).forEach((pn) => {
-                    if (pn.number) {
-                        // Normalize to E.164 using libphonenumber-js
-                        let e164 = null;
-                        try {
-                            const phoneNumber = parsePhoneNumberFromString(
-                                pn.number,
-                                userCountryCode
-                            );
-                            if (phoneNumber && phoneNumber.isValid()) {
-                                e164 = phoneNumber.number; // E.164 format
-                            }
-                        } catch (e) {
-                            // Ignore invalid numbers
-                        }
-                        if (e164) {
-                            rows.push({
-                                user_id: user.id,
-                                contact_phone: e164,
-                                contact_name: contact.name,
-                            });
-                        }
-                    }
-                });
-            });
-
-            console.log(
-                `Processing ${rows.length} valid phone numbers from ${contacts.length} contacts`
-            );
-
-            // Clear old contacts and insert new ones
-            try {
-                const { error: deleteError } = await supabase
-                    .from("user_contacts")
-                    .delete()
-                    .eq("user_id", user.id);
-                if (deleteError) {
-                    console.warn("Could not clear old contacts:", deleteError);
-                }
-
-                const BATCH_SIZE = 200;
-                for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-                    const batch = rows.slice(i, i + BATCH_SIZE);
-                    const { error } = await supabase
-                        .from("user_contacts")
-                        .insert(batch);
-                    if (error) {
-                        console.error("Batch insert error:", error);
-                        Alert.alert(
-                            "Warning",
-                            "Some contacts may not have been saved. Please try again."
-                        );
-                        setRefreshingContacts(false);
-                        return;
-                    }
-                }
-
-                // Update profile with new contact count (optional, don't fail if this fails)
-                try {
-                    await supabase
-                        .from("profiles")
-                        .update({ contacts_count: contacts.length })
-                        .eq("id", user.id);
-                } catch (updateError) {
-                    console.warn(
-                        "Could not update contact count:",
-                        updateError
-                    );
-                }
-
-                Alert.alert("Success", `Refreshed ${contacts.length} contacts`);
-
-                // Refresh the friends list
-                fetchProfileAndWeather();
-            } catch (dbError) {
-                console.error("Database operation failed:", dbError);
-                Alert.alert(
-                    "Error",
-                    "Failed to save contacts. Please check your internet connection and try again."
-                );
-                setRefreshingContacts(false);
-                return;
-            }
+            // Refresh the friends list
+            fetchProfileAndWeather();
         } catch (error) {
             Alert.alert(
                 "Error",
@@ -738,118 +621,23 @@ export default function Home() {
                 setLoading(false);
                 return;
             }
-            // Fetch user's contacts with pagination
+            // Fetch user's contacts and find friends
             console.log("[Loading] 📞 Step 6: Fetching user's contacts...");
-            let allContacts: any[] = [];
-            let from = 0;
-            const pageSize = 1000;
-            while (true) {
-                const { data: contacts, error: contactsError } = await supabase
-                    .from("user_contacts")
-                    .select("contact_phone, contact_name")
-                    .eq("user_id", user.id)
-                    .range(from, from + pageSize - 1);
-                if (contactsError) {
-                    console.error(
-                        "[Loading] ❌ Contacts fetch error:",
-                        contactsError
-                    );
-                    setError("Failed to fetch contacts.");
-                    setLoading(false);
-                    return;
-                }
-                if (!contacts || contacts.length === 0) {
-                    break; // No more data
-                }
-                allContacts = allContacts.concat(contacts);
-                from += pageSize;
-                // If we got less than pageSize, we're done
-                if (contacts.length < pageSize) {
-                    break;
-                }
-            }
+            const allContacts = await ContactsService.fetchUserContacts(
+                user.id
+            );
             console.log(
                 `[Loading] ✅ Total contacts retrieved: ${allContacts.length}`
             );
-            // Create a mapping of E.164 phone numbers to contact names
+
             console.log(
                 "[Loading] 🔍 Step 7: Processing contacts and finding friends..."
             );
-            const phoneToNameMap = new Map<string, string>();
-            allContacts.forEach((contact: any) => {
-                // Use the full E.164 phone number (with +)
-                phoneToNameMap.set(contact.contact_phone, contact.contact_name);
-            });
-            const contactPhones = (allContacts || []).map(
-                (c: any) => c.contact_phone
-            );
-            // Use the full E.164 numbers for matching
-            const uniquePhones = Array.from(new Set(contactPhones));
-            console.log(
-                `[Loading] 📱 Unique phone numbers: ${uniquePhones.length}`
-            );
-
-            // Batch into chunks of 500
-            function chunkArray<T>(array: T[], size: number): T[][] {
-                const result: T[][] = [];
-                for (let i = 0; i < array.length; i += size) {
-                    result.push(array.slice(i, i + size));
-                }
-                return result;
-            }
-            const BATCH_SIZE = 500;
-            const phoneChunks = chunkArray<string>(uniquePhones, BATCH_SIZE);
-            console.log(
-                `[Loading] 📦 Batching into ${phoneChunks.length} chunks...`
-            );
-
-            // Parallelize the queries
-            console.log("[Loading] 🔍 Searching for friends in database...");
-            const friendResults = await Promise.all(
-                phoneChunks.map((chunk, idx) => {
-                    return supabase
-                        .from("profiles")
-                        .select(
-                            "id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude, selfie_urls, points"
-                        )
-                        .in("phone_number", chunk)
-                        .then((result) => result);
-                })
-            );
-            let allFriends: any[] = [];
-            for (const result of friendResults) {
-                if (result.data) allFriends = allFriends.concat(result.data);
-            }
-            console.log(
-                `[Loading] ✅ Total friends found: ${allFriends.length}`
-            );
-            // Remove the current user from the results
-            const filteredFriends = allFriends.filter((f) => f.id !== user.id);
-            console.log(
-                `[Loading] 👥 Filtered friends (excluding self): ${filteredFriends.length}`
-            );
-
-            // Add contact names and city names to the friends data
-            console.log(
-                "[Loading] 🌍 Step 8: Getting city names for friends..."
-            );
-            const friendsWithNamesAndCities = await Promise.all(
-                filteredFriends.map(async (friend) => {
-                    const contactName = phoneToNameMap.get(friend.phone_number);
-                    let cityName = "Unknown";
-                    if (friend.latitude && friend.longitude) {
-                        cityName = await getCityFromCoords(
-                            friend.latitude,
-                            friend.longitude
-                        );
-                    }
-                    return {
-                        ...friend,
-                        contact_name: contactName || "Unknown",
-                        city_name: cityName,
-                    };
-                })
-            );
+            const friendsWithNamesAndCities =
+                await ContactsService.findFriendsFromContacts(
+                    allContacts,
+                    user.id
+                );
             console.log(
                 `[Loading] ✅ Friends with cities loaded: ${friendsWithNamesAndCities.length}`
             );
