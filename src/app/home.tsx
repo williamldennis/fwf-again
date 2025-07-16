@@ -13,12 +13,10 @@ import { Stack, router } from "expo-router";
 import React from "react";
 import { supabase } from "../utils/supabase";
 import { useHeaderHeight } from "@react-navigation/elements";
-// @ts-ignore
-import tzlookup from "tz-lookup";
-// @ts-ignore
-import { DateTime } from "luxon";
-import * as Contacts from "expo-contacts";
-import * as Location from "expo-location";
+
+// Import our custom hooks
+import { useAppInitialization } from "../hooks/useAppInitialization";
+import { useWeatherData } from "../hooks/useWeatherData";
 
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
@@ -34,8 +32,6 @@ import { WeatherService } from "../services/weatherService";
 import { ContactsService } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { GardenService } from "../services/gardenService";
-
-const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -97,17 +93,6 @@ const Avatar = ({ name, size = 40 }: { name: string; size?: number }) => {
     );
 };
 
-async function getCityFromCoords(lat: number, lon: number): Promise<string> {
-    return WeatherService.getCityFromCoords(lat, lon);
-}
-
-function getBackgroundColor(hour: number) {
-    if (hour >= 6 && hour < 9) return "#FFA500"; // Sunrise orange
-    if (hour >= 9 && hour < 18) return "#87CEEB"; // Day blue
-    if (hour >= 18 && hour < 21) return "#FF8C00"; // Sunset orange
-    return "#191970"; // Night blue
-}
-
 const WEATHER_CARD_HEIGHT = 540; // adjust as needed for your weather card height
 
 // Utility to aggregate 3-hourly forecast to 5 daily objects
@@ -116,19 +101,40 @@ function aggregateToFiveDay(forecastList: any[]): any[] {
 }
 
 export default function Home() {
-    const [weather, setWeather] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    // Use our custom hooks
+    const {
+        currentUserId,
+        availablePlants,
+        loading: appLoading,
+        error: appError,
+        isInitialized,
+        initializeApp,
+        refreshData,
+        clearError: clearAppError,
+    } = useAppInitialization();
+
+    const {
+        weather,
+        forecast,
+        cityName,
+        backgroundColor,
+        loading: weatherLoading,
+        error: weatherError,
+        lastUpdated,
+        fetchWeatherData,
+        refreshWeather,
+        clearError: clearWeatherError,
+    } = useWeatherData();
+
+    // Local state for UI interactions
     const [friendsWeather, setFriendsWeather] = useState<any[]>([]);
     const [selfieUrls, setSelfieUrls] = useState<Record<string, string> | null>(
         null
     );
-    const [bgColor, setBgColor] = useState("#87CEEB");
     const [showMenu, setShowMenu] = useState(false);
     const [refreshingContacts, setRefreshingContacts] = useState(false);
     const headerHeight = useHeaderHeight();
     const cardWidth = Dimensions.get("window").width - 32; // 16px margin on each side
-    const [forecast, setForecast] = useState<any[]>([]);
     const [forecastSummary, setForecastSummary] = useState<string>("");
     const [showPlantPicker, setShowPlantPicker] = useState(false);
     const [showPlantDetails, setShowPlantDetails] = useState(false);
@@ -137,11 +143,9 @@ export default function Home() {
     );
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
     const [selectedPlant, setSelectedPlant] = useState<any>(null);
-    const [availablePlants, setAvailablePlants] = useState<Plant[]>([]);
     const [plantedPlants, setPlantedPlants] = useState<Record<string, any[]>>(
         {}
     );
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [selectedPlanterName, setSelectedPlanterName] =
         useState<string>("Unknown");
     const [userPoints, setUserPoints] = useState<number>(0);
@@ -206,7 +210,7 @@ export default function Home() {
             Alert.alert("Success", `Refreshed ${result.contactCount} contacts`);
 
             // Refresh the friends list
-            fetchProfileAndWeather();
+            await refreshData();
         } catch (error) {
             Alert.alert(
                 "Error",
@@ -219,357 +223,146 @@ export default function Home() {
         }
     };
 
-    // Replace with GardenService usage:
+    // Initialize app on mount
+    useEffect(() => {
+        console.log("[App] 🚀 Starting app initialization...");
+        initializeApp();
+    }, [initializeApp]);
 
-    // In initializeApp:
-    const initializeApp = async () => {
-        await getCurrentUser();
-        console.log("[App] 🌱 Fetching available plants...");
-        await GardenService.fetchAvailablePlants().then(setAvailablePlants);
-        console.log("[App] 🌤️ Starting main data fetch...");
-        await fetchProfileAndWeather();
-        console.log("[App] 📈 Updating plant growth...");
-        await GardenService.updatePlantGrowth(); // Update plant growth on app load
-        console.log("[App] ✅ App initialization completed!");
-    };
+    // Fetch user profile data when app is initialized
+    useEffect(() => {
+        if (isInitialized && currentUserId) {
+            fetchUserProfileData();
+        }
+    }, [isInitialized, currentUserId]);
 
-    // In fetchProfileAndWeather:
-    const fetchProfileAndWeather = async () => {
-        console.log("[Loading] 🚀 Starting fetchProfileAndWeather...");
-        setLoading(true);
-        setError(null);
+    // Fetch user profile data (selfie URLs, points, etc.)
+    const fetchUserProfileData = async () => {
+        if (!currentUserId) return;
+
         try {
-            console.log("[Loading] 📋 Step 1: Getting user session...");
-            // Get user
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
-            const user = session?.user;
-            if (!user) {
-                console.log("[Loading] ❌ No user found in session");
-                setError("User not found.");
-                setLoading(false);
-                return;
-            }
-            console.log(`[Loading] ✅ User authenticated: ${user.id}`);
-
-            // Get current device location and update profile
-            console.log("[Loading] 📍 Step 2: Getting device location...");
-            let updatedLatitude: number | null = null;
-            let updatedLongitude: number | null = null;
-
-            try {
-                // Check if we have location permission
-                console.log("[Loading] 🔐 Checking location permissions...");
-                const { status } =
-                    await Location.getForegroundPermissionsAsync();
-                if (status === "granted") {
-                    console.log("[Loading] 📱 Getting current position...");
-                    // Get current location
-                    const location = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced,
-                        timeInterval: 10000,
-                    });
-
-                    updatedLatitude = location.coords.latitude;
-                    updatedLongitude = location.coords.longitude;
-
-                    console.log(
-                        `[Loading] ✅ Got current location: ${updatedLatitude}, ${updatedLongitude}`
-                    );
-
-                    // Update the profile with new coordinates
-                    console.log(
-                        "[Loading] 💾 Updating profile with new location..."
-                    );
-                    const { error: updateError } = await supabase
-                        .from("profiles")
-                        .update({
-                            latitude: updatedLatitude,
-                            longitude: updatedLongitude,
-                        })
-                        .eq("id", user.id);
-
-                    if (updateError) {
-                        console.warn(
-                            "[Loading] ⚠️ Could not update location:",
-                            updateError
-                        );
-                    } else {
-                        console.log(
-                            "[Loading] ✅ Successfully updated user location"
-                        );
-                    }
-                } else {
-                    console.log(
-                        "[Loading] ⚠️ Location permission not granted, using stored coordinates"
-                    );
-                }
-            } catch (locationError) {
-                console.warn(
-                    "[Loading] ❌ Could not get current location:",
-                    locationError
-                );
-            }
-
-            // Get profile (use updated coordinates if available, otherwise use stored)
-            console.log("[Loading] 👤 Step 3: Fetching user profile...");
-            const { data: profile, error: profileError } = await supabase
+            const { data: profile, error } = await supabase
                 .from("profiles")
-                .select("latitude,longitude,selfie_urls,points")
-                .eq("id", user.id)
+                .select("selfie_urls,points")
+                .eq("id", currentUserId)
                 .single();
 
-            if (profileError) {
-                console.error("[Loading] ❌ Profile error:", profileError);
-                setError(`Profile error: ${profileError.message}`);
-                setLoading(false);
+            if (error) {
+                console.error("[Profile] Error fetching profile:", error);
                 return;
             }
-
-            console.log(
-                `[Loading] ✅ Profile loaded: points=${profile?.points || 0}`
-            );
-
-            // Use updated coordinates if we got them, otherwise use stored coordinates
-            const latitude = updatedLatitude ?? profile?.latitude;
-            const longitude = updatedLongitude ?? profile?.longitude;
-
-            if (!latitude || !longitude) {
-                console.log("[Loading] ❌ No location coordinates found");
-                setError("Location not found.");
-                setLoading(false);
-                return;
-            }
-
-            console.log(
-                `[Loading] 📍 Using coordinates: ${latitude}, ${longitude}`
-            );
 
             setSelfieUrls(profile.selfie_urls || null);
             setUserPoints(profile.points || 0);
+        } catch (err) {
+            console.error("[Profile] Error fetching profile data:", err);
+        }
+    };
 
-            // Get user's timezone and local hour
+    // Fetch friends data when app is initialized
+    useEffect(() => {
+        if (isInitialized && currentUserId) {
+            fetchFriendsData();
+        }
+    }, [isInitialized, currentUserId]);
+
+    // Fetch friends data
+    const fetchFriendsData = async () => {
+        if (!currentUserId) return;
+
+        try {
+            console.log("[Friends] 📞 Fetching user's contacts...");
+            const allContacts =
+                await ContactsService.fetchUserContacts(currentUserId);
             console.log(
-                "[Loading] 🕐 Step 4: Calculating timezone and local time..."
-            );
-            let localHour = 12;
-            try {
-                const timezone = tzlookup(latitude, longitude);
-                const localTime = DateTime.now().setZone(timezone);
-                localHour = localTime.hour;
-                console.log(
-                    `[Loading] ✅ Timezone: ${timezone}, Local hour: ${localHour}`
-                );
-            } catch (e) {
-                console.warn(
-                    "[Loading] ⚠️ Could not determine timezone from lat/lon",
-                    e
-                );
-            }
-            setBgColor(getBackgroundColor(localHour));
-
-            // OPTIMIZATION: Fetch weather and forecast in a single API call
-            console.log(
-                "[Loading] 🌤️ Step 5: Fetching weather and forecast data..."
-            );
-            let weatherData: any;
-            try {
-                weatherData = await WeatherService.fetchWeatherData(
-                    latitude,
-                    longitude
-                );
-
-                // Set current weather
-                setWeather(weatherData.current);
-
-                // Set forecast data
-                setForecast(weatherData.forecast);
-
-                // Set forecast summary
-                setForecastSummary(
-                    weatherData.forecast[0]?.weather?.[0]?.description
-                        ? weatherData.forecast[0].weather[0].description
-                              .charAt(0)
-                              .toUpperCase() +
-                              weatherData.forecast[0].weather[0].description.slice(
-                                  1
-                              )
-                        : ""
-                );
-
-                console.log(
-                    "[Loading] ✅ Weather and forecast loaded in single request"
-                );
-
-                // Update user's weather in Supabase
-                console.log(
-                    "[Loading] 💾 Step 7: Updating user's weather in database..."
-                );
-                await WeatherService.updateUserWeatherInDatabase(
-                    user.id,
-                    weatherData
-                );
-            } catch (error) {
-                console.error(
-                    "[Loading] ❌ Error fetching weather data:",
-                    error
-                );
-                setError("Failed to fetch weather data.");
-                setLoading(false);
-                return;
-            }
-            // Fetch user's contacts and find friends
-            console.log("[Loading] 📞 Step 6: Fetching user's contacts...");
-            const allContacts = await ContactsService.fetchUserContacts(
-                user.id
-            );
-            console.log(
-                `[Loading] ✅ Total contacts retrieved: ${allContacts.length}`
+                `[Friends] ✅ Total contacts retrieved: ${allContacts.length}`
             );
 
             console.log(
-                "[Loading] 🔍 Step 7: Processing contacts and finding friends..."
+                "[Friends] 🔍 Processing contacts and finding friends..."
             );
             const friendsWithNamesAndCities =
                 await ContactsService.findFriendsFromContacts(
                     allContacts,
-                    user.id
+                    currentUserId
                 );
             console.log(
-                `[Loading] ✅ Friends with cities loaded: ${friendsWithNamesAndCities.length}`
+                `[Friends] ✅ Friends with cities loaded: ${friendsWithNamesAndCities.length}`
             );
             setFriendsWeather(friendsWithNamesAndCities);
 
             // Fetch planted plants for each friend and the current user
-            console.log("[Loading] 🌱 Step 9: Fetching planted plants...");
-
-            // TEST: Direct query to check if Will's plants exist
-            console.log(
-                `[Loading] 🧪 Testing direct query for Will's plants...`
-            );
-            const { data: testPlants, error: testError } = await supabase
-                .from("planted_plants")
-                .select("id, garden_owner_id, planted_at")
-                .eq("garden_owner_id", "35955916-f479-4721-86f8-54057258c8b4")
-                .is("harvested_at", null);
-
-            if (testError) {
-                console.error(`[Loading] ❌ Test query error:`, testError);
-            } else {
-                console.log(
-                    `[Loading] 🧪 Test query found ${testPlants?.length || 0} plants for Will`
-                );
-            }
-
-            // OPTIMIZATION: Batch fetch all plants instead of sequential queries
+            console.log("[Friends] 🌱 Fetching planted plants...");
             const allUserIds = [
-                user.id,
+                currentUserId,
                 ...friendsWithNamesAndCities.map((friend) => friend.id),
             ];
             console.log(
-                `[Loading] 🚀 Batch fetching plants for ${allUserIds.length} users (${friendsWithNamesAndCities.length} friends + current user)`
+                `[Friends] 🚀 Batch fetching plants for ${allUserIds.length} users`
             );
 
             const plantsData =
                 await GardenService.fetchAllPlantedPlantsBatch(allUserIds);
-
             console.log(
-                `[Loading] ✅ All plants loaded for ${Object.keys(plantsData).length} users`
+                `[Friends] ✅ All plants loaded for ${Object.keys(plantsData).length} users`
             );
             setPlantedPlants(plantsData);
         } catch (err) {
-            console.error("[Loading] ❌ Weather fetch error:", err);
-            setError(
-                `Failed to fetch weather: ${err instanceof Error ? err.message : "Unknown error"}`
-            );
-        } finally {
-            console.log("[Loading] 🎉 Loading process completed!");
-            setLoading(false);
+            console.error("[Friends] ❌ Error fetching friends data:", err);
         }
     };
 
-    // Get current user ID
-    const getCurrentUser = async () => {
-        console.log("[App] 👤 Getting current user...");
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-            console.log(`[App] ✅ Current user: ${user.id}`);
-            setCurrentUserId(user.id);
-        } else {
-            console.log("[App] ❌ No authenticated user found");
-        }
-    };
-
+    // Fetch weather data when user location is available
     useEffect(() => {
-        console.log("[App] 🚀 App initialization started...");
+        if (isInitialized && currentUserId) {
+            fetchUserWeatherData();
+        }
+    }, [isInitialized, currentUserId]);
 
-        initializeApp();
+    // Fetch user weather data
+    const fetchUserWeatherData = async () => {
+        if (!currentUserId) return;
 
-        // Set up periodic growth updates (every 5 minutes)
-        console.log("[App] ⏰ Setting up periodic growth updates...");
-        const growthInterval = setInterval(
-            () => {
-                console.log("[App] 🔄 Running periodic growth update...");
-                GardenService.updatePlantGrowth();
-            },
-            5 * 60 * 1000
-        ); // 5 minutes
+        try {
+            // Get user's current location from profile
+            const { data: profile, error } = await supabase
+                .from("profiles")
+                .select("latitude,longitude")
+                .eq("id", currentUserId)
+                .single();
 
-        // Subscribe to changes in planted_plants
-        console.log("[App] 📡 Setting up real-time subscription...");
-        const subscription = supabase
-            .channel("public:planted_plants")
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "planted_plants" },
-                async (payload) => {
-                    // Type guard for garden_owner_id
-                    const realtimeNewGardenOwnerId =
-                        payload.new &&
-                        typeof payload.new === "object" &&
-                        "garden_owner_id" in payload.new
-                            ? payload.new.garden_owner_id
-                            : undefined;
-                    const realtimeOldGardenOwnerId =
-                        payload.old &&
-                        typeof payload.old === "object" &&
-                        "garden_owner_id" in payload.old
-                            ? payload.old.garden_owner_id
-                            : undefined;
-                    const realtimeGardenOwnerId =
-                        realtimeNewGardenOwnerId || realtimeOldGardenOwnerId;
-                    if (
-                        !realtimeGardenOwnerId ||
-                        typeof realtimeGardenOwnerId !== "string"
-                    )
-                        return;
-                    console.log(
-                        "[Realtime] Change in garden:",
-                        realtimeGardenOwnerId,
-                        payload.eventType
-                    );
-                    // Only fetch the affected garden's plants
-                    const updatedPlants =
-                        await GardenService.fetchPlantedPlants(
-                            realtimeGardenOwnerId
-                        );
-                    setPlantedPlants((prev) => ({
-                        ...prev,
-                        [realtimeGardenOwnerId]: updatedPlants,
-                    }));
-                }
-            )
-            .subscribe();
+            if (error || !profile?.latitude || !profile?.longitude) {
+                console.warn("[Weather] No location data available for user");
+                return;
+            }
 
-        return () => {
-            console.log("[App] 🧹 Cleaning up app resources...");
-            clearInterval(growthInterval);
-            supabase.removeChannel(subscription);
-        };
-    }, []);
+            // Fetch weather data using our hook
+            await fetchWeatherData(profile.latitude, profile.longitude);
+
+            // Set forecast summary
+            if (forecast.length > 0) {
+                setForecastSummary(
+                    forecast[0]?.weather?.[0]?.description
+                        ? forecast[0].weather[0].description
+                              .charAt(0)
+                              .toUpperCase() +
+                              forecast[0].weather[0].description.slice(1)
+                        : ""
+                );
+            }
+        } catch (err) {
+            console.error(
+                "[Weather] ❌ Error fetching user weather data:",
+                err
+            );
+        }
+    };
+
+    // Combined loading state
+    const isLoading = appLoading || weatherLoading;
+
+    // Combined error state
+    const error = appError || weatherError;
 
     // Helper to format hour label
     function getHourLabel(dtTxt: string, idx: number) {
@@ -598,7 +391,6 @@ export default function Home() {
                         opacity: 1,
                     }}
                 >
-                    {/* Optionally add a summary here if you want */}
                     <FlatList
                         data={[
                             {
@@ -676,6 +468,7 @@ export default function Home() {
         setSelectedSlot(slotIdx);
         setShowPlantPicker(true);
     };
+
     const handleSelectPlant = async (plantId: string) => {
         if (!selectedFriendId || selectedSlot === null) {
             console.error("[Plant] No friend or slot selected for planting");
@@ -741,9 +534,6 @@ export default function Home() {
                     ],
                 }));
             }
-
-            // Only update growth if needed (don't call updatePlantGrowth here)
-            // The real-time subscription will handle any necessary updates
         } catch (error: any) {
             if (error.message === "Slot Occupied") {
                 Alert.alert("Slot Occupied", "This pot is already occupied");
@@ -753,6 +543,7 @@ export default function Home() {
             return;
         }
     };
+
     const handlePlantDetailsPress = async (
         plant: any,
         friendWeather: string
@@ -793,7 +584,7 @@ export default function Home() {
             }
         }
 
-        // OPTIMIZATION: Use batch query to refresh all plants
+        // Refresh all plants
         if (currentUserId && friendsWeather.length > 0) {
             const allUserIds = [
                 currentUserId,
@@ -814,7 +605,7 @@ export default function Home() {
         console.log("Manual growth refresh triggered");
         await GardenService.updatePlantGrowth();
 
-        // OPTIMIZATION: Use batch query to refresh all plants
+        // Refresh all plants
         if (currentUserId && friendsWeather.length > 0) {
             const allUserIds = [
                 currentUserId,
@@ -836,6 +627,61 @@ export default function Home() {
         setShowPlantPicker(false);
     };
 
+    // Show loading state
+    if (isLoading) {
+        return (
+            <View
+                style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                }}
+            >
+                <Text>Loading...</Text>
+            </View>
+        );
+    }
+
+    // Show error state
+    if (error) {
+        return (
+            <View
+                style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    padding: 20,
+                }}
+            >
+                <Text
+                    style={{
+                        color: "red",
+                        textAlign: "center",
+                        marginBottom: 20,
+                    }}
+                >
+                    {error}
+                </Text>
+                <TouchableOpacity
+                    onPress={() => {
+                        clearAppError();
+                        clearWeatherError();
+                        initializeApp();
+                    }}
+                    style={{
+                        backgroundColor: "#007AFF",
+                        padding: 15,
+                        borderRadius: 8,
+                    }}
+                >
+                    <Text style={{ color: "white", textAlign: "center" }}>
+                        Retry
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     return (
         <>
             <Stack.Screen
@@ -852,7 +698,7 @@ export default function Home() {
                     ),
                 }}
             />
-            <View style={{ flex: 1, backgroundColor: bgColor }}>
+            <View style={{ flex: 1, backgroundColor }}>
                 {/* Single FlatList containing both user card and friends */}
                 <FlatList
                     data={[
@@ -862,9 +708,7 @@ export default function Home() {
                     keyExtractor={(item, idx) =>
                         item.id || item.type || idx.toString()
                     }
-                    style={{
-                        flex: 1,
-                    }}
+                    style={{ flex: 1 }}
                     contentContainerStyle={{
                         paddingHorizontal: 16,
                         paddingBottom: 16,
@@ -885,7 +729,7 @@ export default function Home() {
                                         handlePlantDetailsPress
                                     }
                                     forecastData={userFiveDayData}
-                                    loading={loading}
+                                    loading={isLoading}
                                     error={error}
                                     cardWidth={cardWidth}
                                 />
@@ -937,6 +781,7 @@ export default function Home() {
                 onLogout={handleLogout}
                 refreshingContacts={refreshingContacts}
             />
+
             {/* PLANT PICKER MODAL */}
             <PlantPicker
                 visible={showPlantPicker}
