@@ -88,18 +88,18 @@ useWeatherData (weather only - already exists)
 - Include points update function for harvesting
 - Return: `{ profile, updatePoints, updateProfile, refreshProfile, loading, error }`
 
-### Step 3: Create `useFriends` Hook
+### Step 3: Create `useFriends` Hook ✅ COMPLETED
 
 - Extract friends data logic from `useAppInitialization`
 - Handle friend discovery and contact processing
-- Return: `{ friends, refreshFriends, loading, error }`
+- Return: `{ friends, refreshFriends, refreshContacts, loading, error }`
 
-### Step 4: Create `useGardenData` Hook
+### Step 4: Create `useGardenData` Hook ✅ COMPLETED
 
 - Extract planted plants logic from `useAppInitialization`
 - Include targeted update functions
 - Handle real-time subscriptions properly
-- Return: `{ plantedPlants, updateSingleGarden, updateAllGardens, loading, error }`
+- Return: `{ plantedPlants, updateSingleGarden, updateAllGardens, updateGrowth, loading, error }`
 
 ### Step 5: Create `useAvailablePlants` Hook (Lazy Load)
 
