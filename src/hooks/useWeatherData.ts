@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { WeatherService } from "../services/weatherService";
-import * as Location from "expo-location";
+import { supabase } from "../utils/supabase";
 // @ts-ignore
 import tzlookup from "tz-lookup";
 // @ts-ignore
@@ -56,7 +56,8 @@ const isCacheValid = (timestamp: number): boolean => {
 export function useWeatherData(
     latitude?: number | null,
     longitude?: number | null,
-    trigger?: boolean
+    trigger?: boolean,
+    userId?: string | null
 ): WeatherState & WeatherActions {
     const [weather, setWeather] = useState<any | null>(null);
     const [forecast, setForecast] = useState<any[]>([]);
@@ -110,6 +111,17 @@ export function useWeatherData(
             setBackgroundColor(bgColor);
             setLastUpdated(new Date());
             currentLocation.current = { latitude: lat, longitude: lon };
+            
+            // Update user's weather in database if userId is provided
+            if (userId) {
+                try {
+                    console.log("[Weather] 💾 Updating user's weather in database...");
+                    await WeatherService.updateUserWeatherInDatabase(userId, weatherData);
+                    console.log("[Weather] ✅ Weather updated in database");
+                } catch (err) {
+                    console.warn("[Weather] ⚠️ Could not update weather in database:", err);
+                }
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Unknown error";
             setError(`Failed to fetch weather data: ${errorMessage}`);

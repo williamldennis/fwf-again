@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../utils/supabase";
 import { GardenService } from "../services/gardenService";
 import { WeatherService } from "../services/weatherService";
@@ -23,8 +23,7 @@ export interface AppInitializationState {
     loading: boolean;
     error: string | null;
     isInitialized: boolean;
-    // New progressive loading states
-    weatherLoading: boolean;
+    // Progressive loading states
     friendsLoading: boolean;
     plantsLoading: boolean;
 }
@@ -33,6 +32,7 @@ export interface AppInitializationActions {
     initializeApp: () => Promise<void>;
     refreshData: () => Promise<void>;
     clearError: () => void;
+    resetInitialization: () => void;
 }
 
 export const useAppInitialization = (): AppInitializationState & AppInitializationActions => {
@@ -51,9 +51,12 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
     const [isInitialized, setIsInitialized] = useState(false);
     
     // Progressive loading states
-    const [weatherLoading, setWeatherLoading] = useState(false);
     const [friendsLoading, setFriendsLoading] = useState(false);
     const [plantsLoading, setPlantsLoading] = useState(false);
+    
+    // Guard against multiple initialization calls
+    const [isInitializing, setIsInitializing] = useState(false);
+    const hasInitialized = useRef(false);
 
     // Get current user ID
     const getCurrentUser = useCallback(async (): Promise<string | null> => {
@@ -163,42 +166,12 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
         }
     }, []);
 
-    // Fetch weather data in background
+    // Weather data is now handled by useWeatherData hook
+    // This function is kept for backward compatibility but does nothing
     const fetchWeatherData = useCallback(async (latitude: number, longitude: number) => {
-        console.log("[App] 🌤️ Starting weather fetch in background...");
-        setWeatherLoading(true);
-        
-        try {
-            // Get user's timezone and local hour
-            console.log("[App] 🕐 Calculating timezone and local time...");
-            let localHour = 12;
-            try {
-                const timezone = tzlookup(latitude, longitude);
-                const localTime = DateTime.now().setZone(timezone);
-                localHour = localTime.hour;
-                console.log(`[App] ✅ Timezone: ${timezone}, Local hour: ${localHour}`);
-            } catch (e) {
-                console.warn("[App] ⚠️ Could not determine timezone from lat/lon", e);
-            }
-
-            // Fetch weather and forecast data
-            console.log("[App] 🌤️ Fetching weather and forecast data...");
-            const weatherData = await WeatherService.fetchWeatherData(latitude, longitude);
-
-            console.log("[App] ✅ Weather and forecast loaded in single request");
-
-            // Update user's weather in Supabase
-            console.log("[App] 💾 Updating user's weather in database...");
-            await WeatherService.updateUserWeatherInDatabase(currentUserId!, weatherData);
-
-            console.log("[App] ✅ Weather data loaded successfully");
-        } catch (err) {
-            console.error("[App] ❌ Weather fetch error:", err);
-            // Don't throw - weather failure shouldn't break the app
-        } finally {
-            setWeatherLoading(false);
-        }
-    }, [currentUserId]);
+        console.log("[App] 🌤️ Weather fetching moved to useWeatherData hook");
+        // Weather is now handled by the useWeatherData hook in home.tsx
+    }, []);
 
     // Fetch friends and plants data in background
     const fetchFriendsAndPlantsData = useCallback(async (userId: string) => {
@@ -248,7 +221,14 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
 
     // Initialize app function with progressive loading
     const initializeApp = useCallback(async () => {
+        // Prevent multiple initialization calls
+        if (isInitializing || hasInitialized.current) {
+            console.log("[App] ⚠️ App initialization already in progress or completed, skipping...");
+            return;
+        }
+        
         console.log("[App] 🚀 App initialization started...");
+        setIsInitializing(true);
         setLoading(true);
         setError(null);
 
@@ -258,6 +238,7 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
             if (!userId) {
                 setError("User not found.");
                 setLoading(false);
+                setIsInitializing(false);
                 return;
             }
 
@@ -277,24 +258,26 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
             const plants = await GardenService.fetchAvailablePlants();
             setAvailablePlants(plants);
 
-            // Load weather and friends/plants in parallel
-            await Promise.all([
-                fetchWeatherData(latitude, longitude),
-                fetchFriendsAndPlantsData(userId)
-            ]);
+            // Load friends/plants in background (weather is handled by useWeatherData hook)
+            await fetchFriendsAndPlantsData(userId);
 
             // Step 5: Update plant growth (light operation)
             console.log("[App] 📈 Updating plant growth...");
             await GardenService.updatePlantGrowth();
 
             console.log("[App] ✅ All background data loaded!");
+            
+            // Mark as initialized to prevent future calls
+            hasInitialized.current = true;
         } catch (err) {
             console.error("[App] ❌ App initialization error:", err);
             const errorMessage = err instanceof Error ? err.message : "Unknown error";
             setError(`App initialization failed: ${errorMessage}`);
             setLoading(false);
+        } finally {
+            setIsInitializing(false);
         }
-    }, [getCurrentUser, fetchUserProfile, fetchWeatherData, fetchFriendsAndPlantsData]);
+    }, []); // Empty dependency array to prevent recreation
 
     // Refresh data function
     const refreshData = useCallback(async () => {
@@ -305,12 +288,8 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
         setError(null);
 
         try {
-            const { latitude, longitude } = await fetchUserProfile(currentUserId);
-            
-            await Promise.all([
-                fetchWeatherData(latitude, longitude),
-                fetchFriendsAndPlantsData(currentUserId)
-            ]);
+            await fetchUserProfile(currentUserId);
+            await fetchFriendsAndPlantsData(currentUserId);
             
             console.log("[App] ✅ Data refresh completed!");
         } catch (err) {
@@ -320,11 +299,26 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
         } finally {
             setLoading(false);
         }
-    }, [currentUserId, fetchUserProfile, fetchWeatherData, fetchFriendsAndPlantsData]);
+    }, [currentUserId, fetchUserProfile, fetchFriendsAndPlantsData]);
 
     // Clear error function
     const clearError = useCallback(() => {
         setError(null);
+    }, []);
+
+    // Reset initialization function
+    const resetInitialization = useCallback(() => {
+        hasInitialized.current = false;
+        setIsInitialized(false);
+        setLoading(true);
+        setError(null);
+        setCurrentUserId(null);
+        setAvailablePlants([]);
+        setFriendsData([]);
+        setPlantedPlants({});
+        setUserProfile(null);
+        setFriendsLoading(false);
+        setPlantsLoading(false);
     }, []);
 
     // Set up background sync on mount
@@ -397,7 +391,6 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
         isInitialized,
         
         // Progressive loading states
-        weatherLoading,
         friendsLoading,
         plantsLoading,
         
@@ -405,5 +398,6 @@ export const useAppInitialization = (): AppInitializationState & AppInitializati
         initializeApp,
         refreshData,
         clearError,
+        resetInitialization,
     };
 }; 

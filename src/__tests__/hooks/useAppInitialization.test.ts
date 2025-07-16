@@ -130,7 +130,6 @@ describe('useAppInitialization - Progressive Loading', () => {
     // Progressive loading states should be active (background operations)
     // Note: In test environment, these might complete very quickly
     // so we check that they were at least set to true at some point
-    expect(result.current.weatherLoading).toBeDefined();
     expect(result.current.friendsLoading).toBeDefined();
     expect(result.current.plantsLoading).toBeDefined();
   });
@@ -142,14 +141,16 @@ describe('useAppInitialization - Progressive Loading', () => {
       await result.current.initializeApp();
     });
 
-    // Wait for weather to finish loading
+    // Weather is now handled by useWeatherData hook, so we just verify
+    // that the app initialization completes successfully
     await waitFor(() => {
-      expect(result.current.weatherLoading).toBe(false);
+      expect(result.current.loading).toBe(false);
+      expect(result.current.isInitialized).toBe(true);
     }, { timeout: 3000 });
 
-    // Weather service should have been called
-    expect(mockWeatherService.fetchWeatherData).toHaveBeenCalledWith(40.7128, -74.0060);
-    expect(mockWeatherService.updateUserWeatherInDatabase).toHaveBeenCalled();
+    // Weather service should not be called from this hook anymore
+    expect(mockWeatherService.fetchWeatherData).not.toHaveBeenCalled();
+    expect(mockWeatherService.updateUserWeatherInDatabase).not.toHaveBeenCalled();
   });
 
   it('should load friends and plants data in background', async () => {
@@ -172,26 +173,21 @@ describe('useAppInitialization - Progressive Loading', () => {
   });
 
   it('should handle weather fetch errors gracefully', async () => {
-    mockWeatherService.fetchWeatherData.mockRejectedValue(new Error('Weather API failed'));
-
+    // Weather is now handled by useWeatherData hook, so this test is no longer relevant
+    // for the useAppInitialization hook
     const { result } = renderHook(() => useAppInitialization());
 
     await act(async () => {
       await result.current.initializeApp();
     });
 
-    // App should still be initialized even if weather fails
+    // App should still be initialized
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
       expect(result.current.isInitialized).toBe(true);
     });
 
-    // Weather loading should eventually stop
-    await waitFor(() => {
-      expect(result.current.weatherLoading).toBe(false);
-    }, { timeout: 3000 });
-
-    // App should not have an error (weather failure is non-blocking)
+    // App should not have an error
     expect(result.current.error).toBeNull();
   });
 

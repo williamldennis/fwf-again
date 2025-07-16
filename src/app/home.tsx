@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
     View,
     Text,
@@ -111,7 +111,6 @@ export default function Home() {
         loading: appLoading,
         error: appError,
         isInitialized,
-        // Remove weatherLoading, weatherError, etc. from here
         friendsLoading,
         plantsLoading,
         initializeApp,
@@ -133,7 +132,8 @@ export default function Home() {
     } = useWeatherData(
         userProfile?.latitude,
         userProfile?.longitude,
-        isInitialized
+        isInitialized,
+        currentUserId
     );
 
     // Local state for UI interactions
@@ -225,10 +225,14 @@ export default function Home() {
         }
     };
 
-    // Initialize app on mount
+    // Initialize app on mount (only once)
+    const hasInitialized = useRef(false);
     useEffect(() => {
-        console.log("[App] 🚀 Starting app initialization...");
-        initializeApp();
+        if (!hasInitialized.current) {
+            console.log("[App] 🚀 Starting app initialization...");
+            hasInitialized.current = true;
+            initializeApp();
+        }
     }, [initializeApp]);
 
     // Set forecast summary when weather data is available
