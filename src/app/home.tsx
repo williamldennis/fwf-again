@@ -270,7 +270,7 @@ export default function Home() {
     }, [forecast]);
 
     // Combined loading state - only show loading for initial app setup
-    const isLoading = availablePlantsLoading;
+    // Removed isLoading variable - no longer needed
 
     // Combined error state
     const error = weatherError;
@@ -505,8 +505,9 @@ export default function Home() {
         }
     }, [showPlantPicker, availablePlants.length, fetchPlants]);
 
-    // Show loading state only for initial app setup
-    if (isLoading) {
+    // Show loading state only for critical app initialization
+    // Don't show loading for lazy-loaded content like available plants
+    if (weatherLoading && !userProfile) {
         return (
             <View
                 style={{
@@ -741,6 +742,7 @@ export default function Home() {
                 onSelectPlant={handleSelectPlant}
                 weatherCondition={""}
                 plants={availablePlants}
+                loading={availablePlantsLoading}
             />
 
             {/* PLANT DETAILS MODAL */}
