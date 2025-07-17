@@ -8,6 +8,7 @@ import {
     Dimensions,
     Share,
     Image,
+    AppState,
 } from "react-native";
 import { Stack, router } from "expo-router";
 import React from "react";
@@ -246,15 +247,54 @@ export default function Home() {
         }
     };
 
-    // Initialize app on mount (only once)
+    // Initialize app on mount and set up periodic growth updates
     const hasInitialized = useRef(false);
     useEffect(() => {
         if (!hasInitialized.current) {
             console.log("[App] 🚀 Starting app initialization...");
             hasInitialized.current = true;
-            // No explicit initialization call here, as hooks handle it
+
+            // Initial growth update on app load
+            updateGrowth();
         }
-    }, []); // Empty dependency array means this runs once on mount
+
+        // Set up periodic growth updates (every 5 minutes)
+        console.log("[App] ⏰ Setting up periodic growth updates...");
+        const growthInterval = setInterval(
+            () => {
+                console.log("[App] 🔄 Running periodic growth update...");
+                updateGrowth();
+            },
+            5 * 60 * 1000
+        ); // 5 minutes
+
+        // Cleanup interval on unmount
+        return () => {
+            console.log("[App] 🧹 Cleaning up growth interval...");
+            clearInterval(growthInterval);
+        };
+    }, [updateGrowth]); // Include updateGrowth in dependencies
+
+    // Handle app state changes (foreground/background)
+    useEffect(() => {
+        const handleAppStateChange = (nextAppState: string) => {
+            if (nextAppState === "active") {
+                console.log(
+                    "[App] 📱 App came to foreground, updating growth..."
+                );
+                updateGrowth();
+            }
+        };
+
+        const subscription = AppState.addEventListener(
+            "change",
+            handleAppStateChange
+        );
+
+        return () => {
+            subscription?.remove();
+        };
+    }, [updateGrowth]);
 
     // Set forecast summary when weather data is available
     useEffect(() => {
@@ -438,6 +478,8 @@ export default function Home() {
             });
 
             if (newPlant) {
+                // Update growth after planting to ensure new plants start correctly
+                await updateGrowth();
                 // Only update the specific garden that was planted in
                 await updateSingleGarden(friendId);
             }
