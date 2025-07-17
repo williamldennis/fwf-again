@@ -106,14 +106,14 @@ export const UserCard: React.FC<UserCardProps> = ({
             style={{
                 alignItems: "center",
                 justifyContent: "center",
-                paddingBottom: 20,
+                padding: 20,
                 zIndex: 1,
                 height: cardHeight,
             }}
         >
             <View
                 style={{
-                    width: cardWidth, // Add some padding for the card
+                    width: cardWidth - 30, // Add some padding for the card
                     borderRadius: 20,
                     shadowColor: "#000",
                     shadowOffset: {
@@ -231,18 +231,6 @@ export const UserCard: React.FC<UserCardProps> = ({
                     </Text>
                 )}
 
-                {/* <Text
-                    style={{
-                        position: "absolute",
-                        top: 20,
-                        right: 20,
-                        fontSize: 16,
-                        fontWeight: "bold",
-                        color: "#007AFF",
-                    }}
-                >
-                    {userPoints}pts
-                </Text> */}
                 <View
                     style={{
                         width: "100%",
@@ -254,8 +242,8 @@ export const UserCard: React.FC<UserCardProps> = ({
                         borderBottomLeftRadius: 20,
                         borderBottomRightRadius: 20,
                         marginBottom: 0,
-                        paddingBottom: 20,
-                        marginTop: 20,
+                        paddingBottom: 30,
+                        marginTop: 0,
                     }}
                 >
                     {/* Lottie animation floating above, centered */}

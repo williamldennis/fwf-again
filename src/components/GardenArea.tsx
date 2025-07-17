@@ -219,7 +219,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 borderRadius: 8,
                 height: 160,
                 marginTop: 20,
-                marginBottom: 0,
+                marginBottom: -20,
                 position: "relative",
                 backgroundColor: "white",
             }}
