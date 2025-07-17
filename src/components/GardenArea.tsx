@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Text, Alert } from "react-native";
 import { Image } from "expo-image";
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withRepeat,
-    withTiming,
-    withSequence,
-    Easing,
-} from "react-native-reanimated";
+import LottieView from "lottie-react-native";
 import { GardenAreaProps, GrowthStage } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import DirtParticles from "./DirtParticles";
 
+const SLOT_COUNT = 3;
+
+// Simple image mapping - no complex preloading
 const plantStageImages: Record<string, Record<number, any>> = {
     sunflower: {
         3: require("../../assets/images/plants/sunflower/sprout.png"),
@@ -46,10 +42,17 @@ const plantStageImages: Record<string, Record<number, any>> = {
     },
 };
 
-const emptyPotImg = require("../../assets/images/plants/empty_pot.png");
-const dirtImg = require("../../assets/images/plants/dirt.png");
+const getPlantImage = (plantName: string, stage: GrowthStage) => {
+    if (stage === 2) return require("../../assets/images/plants/dirt.png");
 
-const SLOT_COUNT = 3;
+    const plantKey = plantName.toLowerCase().replace(/\s+/g, "_");
+    return (
+        plantStageImages[plantKey]?.[stage] ||
+        require("../../assets/images/plants/dirt.png")
+    );
+};
+
+const emptyPotImg = require("../../assets/images/plants/empty_pot.png");
 
 export const GardenArea: React.FC<GardenAreaProps> = (props) => {
     const {
@@ -206,159 +209,6 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         }
     };
 
-    const getImageForPlant = (plantName: string, stage: GrowthStage) => {
-        if (stage === 2) return dirtImg;
-        // Convert plant name to match the image mapping keys
-        const plantKey = plantName.toLowerCase().replace(/\s+/g, "_");
-        return plantStageImages[plantKey]?.[stage] || dirtImg;
-    };
-
-    // Animated Plant Component with harvest-ready bounce and glow
-    const AnimatedPlant: React.FC<{
-        plant: any;
-        plantName: string;
-        stage: GrowthStage;
-        onPress: () => void;
-    }> = ({ plant, plantName, stage, onPress }) => {
-        const scale = useSharedValue(1);
-        const glowOpacity = useSharedValue(0);
-
-        // Check if plant is ready for harvest using real-time calculation
-        // This ensures animation works even if database is_mature field is not updated
-        const plantObject = plant.plant || {
-            id: plant.plant_id,
-            name: plantName,
-            growth_time_hours: plant.growth_time_hours || 0,
-            weather_bonus: plant.weather_bonus || {
-                sunny: 1,
-                cloudy: 1,
-                rainy: 1,
-            },
-            image_path: plant.image_path || "",
-            created_at: plant.planted_at,
-        };
-
-        const isMatureCalculated = GrowthService.isPlantMature(
-            plant,
-            plantObject,
-            weatherCondition
-        );
-        const isReadyForHarvest = isMatureCalculated && !plant.harvested_at;
-
-        // Debug logging for animation state
-        if (isMatureCalculated && !plant.harvested_at) {
-            console.log(
-                `[GardenArea] 🌱 Plant ${plantName} (${plant.id}) is ready for harvest!`
-            );
-            console.log(
-                `[GardenArea] 📊 Database is_mature: ${plant.is_mature}, Calculated: ${isMatureCalculated}`
-            );
-        }
-
-        // Start bounce and glow animations if plant is ready for harvest
-        useEffect(() => {
-            if (isReadyForHarvest) {
-                // Scale bounce animation
-                scale.value = withRepeat(
-                    withSequence(
-                        withTiming(1.1, {
-                            duration: 800,
-                            easing: Easing.out(Easing.quad),
-                        }),
-                        withTiming(1, {
-                            duration: 800,
-                            easing: Easing.in(Easing.quad),
-                        })
-                    ),
-                    -1, // Infinite repeat
-                    true // Reverse
-                );
-
-                // Glow pulse animation
-                glowOpacity.value = withRepeat(
-                    withSequence(
-                        withTiming(0.8, {
-                            duration: 800,
-                            easing: Easing.out(Easing.quad),
-                        }),
-                        withTiming(0.2, {
-                            duration: 800,
-                            easing: Easing.in(Easing.quad),
-                        })
-                    ),
-                    -1, // Infinite repeat
-                    true // Reverse
-                );
-            } else {
-                // Stop animations and reset to normal
-                scale.value = withTiming(1, { duration: 300 });
-                glowOpacity.value = withTiming(0, { duration: 300 });
-            }
-        }, [isReadyForHarvest]);
-
-        const animatedStyle = useAnimatedStyle(() => ({
-            transform: [{ scale: scale.value }],
-        }));
-
-        const glowStyle = useAnimatedStyle(() => ({
-            opacity: glowOpacity.value,
-        }));
-
-        return (
-            <TouchableOpacity
-                onPress={onPress}
-                style={{ flex: 1, alignItems: "center" }}
-            >
-                <Animated.View style={animatedStyle}>
-                    {/* Subtle glow outline effect */}
-                    <Animated.View
-                        style={[
-                            {
-                                position: "absolute",
-                                width: 90,
-                                height: 90,
-                                shadowColor: "#FFAE00",
-                                shadowOffset: { width: 0, height: 0 },
-                                shadowOpacity: 1,
-                                shadowRadius: 10,
-                                elevation: 10,
-                                zIndex: -1,
-                            },
-                            glowStyle,
-                        ]}
-                    >
-                        <Image
-                            source={getImageForPlant(plantName, stage)}
-                            style={{ width: 90, height: 90 }}
-                            contentFit="contain"
-                            cachePolicy="memory-disk"
-                        />
-                    </Animated.View>
-                    <Image
-                        source={getImageForPlant(plantName, stage)}
-                        style={{ width: 90, height: 90 }}
-                        contentFit="contain"
-                        cachePolicy="memory-disk"
-                    />
-                </Animated.View>
-                <Text
-                    style={{
-                        fontSize: 10,
-                        color: "#333",
-                        marginBottom: 20,
-                        marginTop: 10,
-                        fontWeight: "bold",
-                        padding: 6,
-                        paddingHorizontal: 12,
-                        borderRadius: 10,
-                    }}
-                >
-                    {plantName}
-                </Text>
-            </TouchableOpacity>
-        );
-    };
-
     return (
         <View
             ref={containerRef}
@@ -368,9 +218,9 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 justifyContent: "space-between",
                 alignItems: "flex-end",
                 borderRadius: 8,
-                height: 60,
+                height: 160,
                 marginTop: 20,
-                marginBottom: 0,
+                marginBottom: -20,
                 position: "relative",
                 backgroundColor: "white",
             }}
@@ -399,6 +249,17 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 style={{ width: 90, height: 90 }}
                                 contentFit="contain"
                                 cachePolicy="memory-disk"
+                                priority="high"
+                                recyclingKey={`empty-pot-${idx}`}
+                                onLoad={() => {
+                                    // Image loaded successfully
+                                }}
+                                onError={(error) => {
+                                    console.warn(
+                                        "Failed to load empty pot image:",
+                                        error
+                                    );
+                                }}
                             />
                             <Text
                                 style={{
@@ -424,13 +285,72 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 const stage = plantStages[plant.id] || 2; // Default to dirt stage
 
                 return (
-                    <AnimatedPlant
+                    <TouchableOpacity
                         key={plant.id || `plant-${idx}`}
-                        plant={plant}
-                        plantName={plantName}
-                        stage={stage}
                         onPress={() => handlePlantPress(plant)}
-                    />
+                        style={{ flex: 1, alignItems: "center" }}
+                    >
+                        <View style={{ position: "relative" }}>
+                            <Image
+                                source={getPlantImage(plantName, stage)}
+                                style={{ width: 90, height: 90 }}
+                                contentFit="contain"
+                                cachePolicy="memory-disk"
+                                priority="high"
+                                transition={200}
+                                recyclingKey={`${plantName}-${stage}-${plant.id}`}
+                                onLoad={() => {
+                                    // Image loaded successfully
+                                }}
+                                onError={(error) => {
+                                    console.warn(
+                                        "Failed to load plant image:",
+                                        error
+                                    );
+                                }}
+                            />
+                            {/* Shining stars animation for mature plants */}
+                            {stage === 5 && (
+                                <View
+                                    style={{
+                                        position: "absolute",
+                                        top: 0,
+                                        left: 10,
+                                        width: 70,
+                                        height: 70,
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                    }}
+                                >
+                                    <LottieView
+                                        source={require("../../assets/lottie/shining-stars.json")}
+                                        autoPlay
+                                        loop
+                                        style={{
+                                            width: 80,
+                                            height: 80,
+                                        }}
+                                    />
+                                </View>
+                            )}
+                        </View>
+                        <Text
+                            style={{
+                                fontSize: 10,
+                                color: stage === 5 ? "white" : "#333",
+                                marginBottom: 20,
+                                marginTop: 10,
+                                fontWeight: "bold",
+                                padding: 6,
+                                paddingHorizontal: 12,
+                                borderRadius: 10,
+                                backgroundColor:
+                                    stage === 5 ? "#4CAF50" : "transparent",
+                            }}
+                        >
+                            {plantName}
+                        </Text>
+                    </TouchableOpacity>
                 );
             })}
         </View>

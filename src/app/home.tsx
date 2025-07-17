@@ -21,7 +21,10 @@ import { useUserProfile } from "../hooks/useUserProfile";
 import { useFriends } from "../hooks/useFriends";
 import { useGardenData } from "../hooks/useGardenData";
 import { useAvailablePlants } from "../hooks/useAvailablePlants";
+import { useXP } from "../hooks/useXP";
 import { useWeatherData } from "../hooks/useWeatherData";
+import { XPService } from "../services/xpService";
+import XPToast from "../components/XPToast";
 
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
@@ -41,6 +44,7 @@ import { ContactsService } from "../services/contactsService";
 import { Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { GardenService } from "../services/gardenService";
+import { AchievementService } from "../services/achievementService";
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -144,6 +148,367 @@ export default function Home() {
         currentUserId
     );
 
+    // XP data hook
+    const {
+        xpData,
+        loading: xpLoading,
+        error: xpError,
+        refreshXP,
+    } = useXP(currentUserId);
+
+    // Daily XP award function
+    const awardDailyXP = async () => {
+        if (!currentUserId) {
+            console.log("[XP] ❌ No currentUserId available for daily XP");
+            return;
+        }
+
+        console.log("[XP] 🌅 Starting daily XP check for user:", currentUserId);
+
+        try {
+            console.log("[XP] 🌅 Checking daily XP eligibility...");
+            const result = await XPService.awardDailyXP(currentUserId);
+
+            console.log("[XP] 📊 Daily XP result:", result);
+
+            if (result.success) {
+                console.log("[XP] ✅ Daily XP awarded:", result.newTotalXP);
+                // Refresh XP data to update the display
+                await refreshXP();
+
+                // Show toast notification
+                setXpToastMessage("Daily Reward!");
+                setXpToastAmount(5);
+                setShowXPToast(true);
+
+                console.log("[XP] 🎉 +5 XP Daily Reward!");
+            } else {
+                console.log(
+                    "[XP] ⏰ Daily XP already awarded today or failed:",
+                    result.error
+                );
+            }
+        } catch (error) {
+            console.error("[XP] ❌ Error awarding daily XP:", error);
+        }
+    };
+
+    // Planting XP award function
+    const awardPlantingXP = async (
+        plantId: string,
+        plantName: string,
+        weatherCondition: string,
+        friendId: string
+    ) => {
+        if (!currentUserId) {
+            console.log("[XP] ❌ No currentUserId available for planting XP");
+            return;
+        }
+
+        console.log(
+            "[XP] 🌱 Starting planting XP award for user:",
+            currentUserId,
+            {
+                plantId,
+                plantName,
+                weatherCondition,
+                friendId,
+                isOwnGarden: friendId === currentUserId,
+            }
+        );
+
+        try {
+            let totalXP = 0;
+            let xpBreakdown: string[] = [];
+            let errors: string[] = [];
+
+            // 1. Award base XP for planting (10 XP)
+            try {
+                const baseXP = 10;
+                const baseResult = await XPService.awardXP(
+                    currentUserId,
+                    baseXP,
+                    "plant_seed",
+                    `Planted ${plantName}`,
+                    { plant_id: plantId, plant_name: plantName }
+                );
+
+                if (baseResult.success) {
+                    totalXP += baseXP;
+                    xpBreakdown.push(`+${baseXP} XP for planting`);
+                    console.log("[XP] ✅ Base planting XP awarded:", baseXP);
+                } else {
+                    const errorMsg = `Base XP failed: ${baseResult.error}`;
+                    errors.push(errorMsg);
+                    console.error(
+                        "[XP] ❌ Failed to award base planting XP:",
+                        baseResult.error
+                    );
+                }
+            } catch (error) {
+                const errorMsg = `Base XP exception: ${error instanceof Error ? error.message : "Unknown error"}`;
+                errors.push(errorMsg);
+                console.error(
+                    "[XP] ❌ Exception awarding base planting XP:",
+                    error
+                );
+            }
+
+            // 2. Check for weather bonus XP
+            try {
+                const selectedPlant = availablePlants.find(
+                    (p) => p.id === plantId
+                );
+                if (selectedPlant) {
+                    const weatherBonus = GrowthService.getWeatherBonus(
+                        selectedPlant,
+                        weatherCondition
+                    );
+
+                    // Log weather bonus calculation for debugging
+                    console.log(`[XP] 🌤️ Weather bonus calculation:`, {
+                        plant: plantName,
+                        weather_condition: weatherCondition,
+                        weather_bonus: weatherBonus,
+                        plant_weather_prefs: selectedPlant.weather_bonus,
+                    });
+
+                    // Consider 1.5x or higher as optimal weather for bonus XP
+                    const isOptimalWeather = weatherBonus >= 1.5;
+
+                    if (isOptimalWeather) {
+                        try {
+                            const weatherBonusXP = 5;
+                            const weatherResult = await XPService.awardXP(
+                                currentUserId,
+                                weatherBonusXP,
+                                "weather_bonus_planting",
+                                `Planted ${plantName} in optimal weather (${weatherCondition})`,
+                                {
+                                    plant_id: plantId,
+                                    plant_name: plantName,
+                                    weather_condition: weatherCondition,
+                                    weather_bonus: weatherBonus,
+                                    is_optimal: true,
+                                }
+                            );
+
+                            if (weatherResult.success) {
+                                totalXP += weatherBonusXP;
+                                xpBreakdown.push(
+                                    `+${weatherBonusXP} XP optimal weather`
+                                );
+                                console.log(
+                                    "[XP] ✅ Weather bonus XP awarded:",
+                                    weatherBonusXP,
+                                    `(${plantName} in ${weatherCondition} - ${weatherBonus}x bonus)`
+                                );
+                            } else {
+                                const errorMsg = `Weather bonus XP failed: ${weatherResult.error}`;
+                                errors.push(errorMsg);
+                                console.error(
+                                    "[XP] ❌ Failed to award weather bonus XP:",
+                                    weatherResult.error
+                                );
+                            }
+                        } catch (error) {
+                            const errorMsg = `Weather bonus XP exception: ${error instanceof Error ? error.message : "Unknown error"}`;
+                            errors.push(errorMsg);
+                            console.error(
+                                "[XP] ❌ Exception awarding weather bonus XP:",
+                                error
+                            );
+                        }
+                    } else {
+                        console.log(
+                            `[XP] ℹ️ No weather bonus XP - ${plantName} in ${weatherCondition} (${weatherBonus}x bonus, need 1.5x+)`
+                        );
+                    }
+                } else {
+                    const errorMsg = `Plant not found for XP calculation: ${plantId}`;
+                    errors.push(errorMsg);
+                    console.warn(
+                        `[XP] ⚠️ Plant not found for XP calculation:`,
+                        plantId
+                    );
+                }
+            } catch (error) {
+                const errorMsg = `Weather bonus calculation exception: ${error instanceof Error ? error.message : "Unknown error"}`;
+                errors.push(errorMsg);
+                console.error(
+                    "[XP] ❌ Exception in weather bonus calculation:",
+                    error
+                );
+            }
+
+            // 3. Check and award achievements
+            let achievementResult = { xpAwarded: 0, unlocked: [] as string[] };
+            try {
+                const isFriendGarden = friendId !== currentUserId;
+                const selectedPlant = availablePlants.find(
+                    (p) => p.id === plantId
+                );
+                const weatherBonus = selectedPlant
+                    ? GrowthService.getWeatherBonus(
+                          selectedPlant,
+                          weatherCondition
+                      )
+                    : 1.0;
+
+                // Enhanced achievement context with all relevant data
+                const achievementContext = {
+                    // Plant information
+                    plant_type: plantId,
+                    plant_name: plantName,
+                    plant_id: plantId,
+
+                    // Weather information
+                    weather_condition: weatherCondition,
+                    weather_bonus: weatherBonus,
+                    is_optimal_weather: weatherBonus >= 1.5,
+
+                    // Social information
+                    friend_garden: isFriendGarden,
+                    garden_owner_id: friendId,
+                    planter_id: currentUserId,
+
+                    // Achievement tracking data
+                    action_type: "plant_seed",
+                    action_count: 1, // This will be calculated by the service
+
+                    // Additional context for specific achievements
+                    unique_plants: true, // For collection achievements
+                    friend_gardens: isFriendGarden ? [friendId] : [], // For social achievements
+                    weather_mastery: {
+                        plant: plantName,
+                        weather: weatherCondition,
+                        bonus: weatherBonus,
+                        is_optimal: weatherBonus >= 1.5,
+                    },
+                };
+
+                console.log(
+                    "[XP] 🏆 Checking achievements with enhanced context:",
+                    achievementContext
+                );
+
+                achievementResult =
+                    await AchievementService.checkAndAwardAchievements(
+                        currentUserId,
+                        "plant_seed",
+                        achievementContext
+                    );
+
+                if (achievementResult.xpAwarded > 0) {
+                    totalXP += achievementResult.xpAwarded;
+                    xpBreakdown.push(
+                        `+${achievementResult.xpAwarded} XP achievements`
+                    );
+                    console.log(
+                        "[XP] 🏆 Achievement XP awarded:",
+                        achievementResult.xpAwarded
+                    );
+                    console.log(
+                        "[XP] 🏆 Unlocked achievements:",
+                        achievementResult.unlocked
+                    );
+                }
+            } catch (error) {
+                const errorMsg = `Achievement check exception: ${error instanceof Error ? error.message : "Unknown error"}`;
+                errors.push(errorMsg);
+                console.error(
+                    "[XP] ❌ Exception checking achievements:",
+                    error
+                );
+            }
+
+            // 4. Refresh XP data and show toast
+            try {
+                if (totalXP > 0) {
+                    await refreshXP();
+
+                    // Enhanced toast notification with better messaging
+                    let toastMessage: string;
+                    let toastSubtitle: string | undefined;
+
+                    if (xpBreakdown.length === 1) {
+                        // Single XP source
+                        toastMessage = "Planting Reward!";
+                        toastSubtitle = xpBreakdown[0];
+                    } else if (xpBreakdown.length === 2) {
+                        // Two XP sources (e.g., base + weather bonus)
+                        toastMessage = "Planting Reward!";
+                        toastSubtitle = xpBreakdown.join(" + ");
+                    } else {
+                        // Multiple XP sources (base + weather + achievements)
+                        const baseAndWeather = xpBreakdown.filter(
+                            (x) =>
+                                x.includes("planting") ||
+                                x.includes("optimal weather")
+                        );
+                        const achievementXP = xpBreakdown.filter((x) =>
+                            x.includes("achievements")
+                        );
+
+                        if (achievementXP.length > 0) {
+                            toastMessage = "Planting Reward + Achievements!";
+                            toastSubtitle = `${baseAndWeather.join(" + ")} + ${achievementXP.join(" + ")}`;
+                        } else {
+                            toastMessage = "Planting Reward!";
+                            toastSubtitle = xpBreakdown.join(" + ");
+                        }
+                    }
+
+                    // Set toast with enhanced information
+                    setXpToastMessage(toastMessage);
+                    setXpToastAmount(totalXP);
+                    setShowXPToast(true);
+
+                    // Log detailed XP breakdown
+                    console.log("[XP] 🎉 Planting XP Breakdown:", {
+                        total: totalXP,
+                        breakdown: xpBreakdown,
+                        message: toastMessage,
+                        subtitle: toastSubtitle,
+                    });
+
+                    // Log achievement details if any were unlocked
+                    if (achievementResult.unlocked.length > 0) {
+                        console.log(
+                            "[XP] 🏆 New achievements unlocked:",
+                            achievementResult.unlocked
+                        );
+                    }
+                } else {
+                    console.log("[XP] ℹ️ No XP awarded for planting");
+                }
+            } catch (error) {
+                const errorMsg = `Toast/refresh exception: ${error instanceof Error ? error.message : "Unknown error"}`;
+                errors.push(errorMsg);
+                console.error("[XP] ❌ Exception in toast/refresh:", error);
+            }
+
+            // 5. Log final summary with any errors
+            if (errors.length > 0) {
+                console.warn("[XP] ⚠️ Planting XP completed with errors:", {
+                    totalXP,
+                    errors,
+                    plantName,
+                    weatherCondition,
+                });
+            } else {
+                console.log("[XP] ✅ Planting XP completed successfully:", {
+                    totalXP,
+                    plantName,
+                    weatherCondition,
+                });
+            }
+        } catch (error) {
+            console.error("[XP] ❌ Error awarding planting XP:", error);
+            // Don't throw - XP failures shouldn't break planting
+        }
+    };
+
     // Local state for UI interactions
     const [showMenu, setShowMenu] = useState(false);
     const [refreshingContacts, setRefreshingContacts] = useState(false);
@@ -161,6 +526,13 @@ export default function Home() {
     const [selectedPlant, setSelectedPlant] = useState<any>(null);
     const [selectedPlanterName, setSelectedPlanterName] =
         useState<string>("Unknown");
+
+    // XP Toast state
+    const [showXPToast, setShowXPToast] = useState(false);
+    const [xpToastMessage, setXpToastMessage] = useState("");
+    const [xpToastAmount, setXpToastAmount] = useState<number | undefined>(
+        undefined
+    );
 
     // User's 5-day forecast data
     const userFiveDayData = useMemo(() => {
@@ -244,6 +616,18 @@ export default function Home() {
 
             // Initial growth update on app load
             updateGrowth();
+
+            // Award daily XP on app launch
+            console.log(
+                "[App] 🎯 Attempting daily XP award, currentUserId:",
+                currentUserId
+            );
+            if (currentUserId) {
+                console.log("[App] 🎯 Calling awardDailyXP...");
+                awardDailyXP();
+            } else {
+                console.log("[App] ⏳ No currentUserId yet, skipping daily XP");
+            }
         }
 
         // Set up periodic growth updates (every 5 minutes)
@@ -271,6 +655,11 @@ export default function Home() {
                     "[App] 📱 App came to foreground, updating growth..."
                 );
                 updateGrowth();
+
+                // Check for daily XP when app comes to foreground
+                if (currentUserId) {
+                    awardDailyXP();
+                }
             }
         };
 
@@ -282,7 +671,17 @@ export default function Home() {
         return () => {
             subscription?.remove();
         };
-    }, [updateGrowth]);
+    }, [updateGrowth, currentUserId]);
+
+    // Award daily XP when currentUserId becomes available (if not already done)
+    useEffect(() => {
+        if (currentUserId && hasInitialized.current) {
+            console.log(
+                "[App] 🎯 currentUserId became available, checking daily XP..."
+            );
+            awardDailyXP();
+        }
+    }, [currentUserId]);
 
     // Set forecast summary when weather data is available
     useEffect(() => {
@@ -467,6 +866,43 @@ export default function Home() {
                 await updateGrowth();
                 // Only update the specific garden that was planted in
                 await updateSingleGarden(friendId);
+
+                // Get the friend's weather condition for XP calculation
+                let friendWeatherCondition = "clear"; // Default fallback
+                try {
+                    if (friendId === currentUserId) {
+                        // Planting in own garden - use user's weather
+                        friendWeatherCondition =
+                            weather?.weather?.[0]?.main || "clear";
+                    } else {
+                        // Planting in friend's garden - get friend's weather
+                        const { data: friendProfile } = await supabase
+                            .from("profiles")
+                            .select("weather_condition")
+                            .eq("id", friendId)
+                            .single();
+                        friendWeatherCondition =
+                            friendProfile?.weather_condition || "clear";
+                    }
+                } catch (error) {
+                    console.warn(
+                        "[XP] Could not get friend weather, using default:",
+                        error
+                    );
+                }
+
+                // Award XP for planting (non-blocking)
+                awardPlantingXP(
+                    plantId,
+                    newPlant.plant?.name || "Unknown Plant",
+                    friendWeatherCondition,
+                    friendId
+                ).catch((error) => {
+                    console.error(
+                        "[XP] Error in planting XP (non-blocking):",
+                        error
+                    );
+                });
             }
         } catch (error: any) {
             if (error.message === "Slot Occupied") {
@@ -616,6 +1052,7 @@ export default function Home() {
                     <HeaderBar
                         points={userProfile?.points || 0}
                         onMenuPress={() => setShowMenu(true)}
+                        xpData={xpData}
                     />
                 </View>
                 {/* Progressive Loading Indicators */}
@@ -733,6 +1170,14 @@ export default function Home() {
                 currentUserId={currentUserId || undefined}
                 friendWeather={selectedPlant?.friendWeather}
                 planterName={selectedPlanterName}
+            />
+
+            {/* XP TOAST NOTIFICATION */}
+            <XPToast
+                visible={showXPToast}
+                message={xpToastMessage}
+                xpAmount={xpToastAmount}
+                onHide={() => setShowXPToast(false)}
             />
         </>
     );

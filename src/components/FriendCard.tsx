@@ -103,67 +103,153 @@ export const FriendCard: React.FC<FriendCardProps> = ({
             style={{
                 alignItems: "center",
                 justifyContent: "center",
-                paddingTop: 120, // Account for header height
-                paddingBottom: 20,
+                padding: 20,
                 zIndex: 1,
                 height: cardHeight,
             }}
         >
             <View
                 style={{
-                    width: cardWidth - 32, // Add some padding for the card
-                    backgroundColor: "#DFEFFF",
+                    width: cardWidth - 30, // Add some padding for the card
                     borderRadius: 20,
                     shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
+                    shadowOffset: {
+                        width: 0,
+                        height: 2,
+                    },
                     shadowOpacity: 0.08,
                     shadowRadius: 8,
                     elevation: 3,
                     alignItems: "center",
                     overflow: "visible",
-                    borderWidth: 0.5,
-                    borderColor: "#DEEFFF",
-                    pointerEvents: "auto",
-                    zIndex: 100,
+                    // borderColor: "#DEEFFF",
+                    // backgroundColor: "#DFEFFF",
                 }}
             >
-                {/* Name at top */}
+                {/* Friend name at top */}
                 <Text
                     style={{
                         fontWeight: "bold",
-                        fontSize: 18,
+                        fontSize: 28,
                         textAlign: "center",
-                        marginTop: 20,
+                        marginTop: 0,
+                        marginBottom: 10,
+                        color: "white",
+                    }}
+                >
+                    {friend.contact_name || "Unknown"}
+                </Text>
+                {/* Points as subheader */}
+                <View
+                    style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: "rgba(0, 122, 255, 0.1)",
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 20,
+                        minWidth: 60,
+                        justifyContent: "center",
                         marginBottom: 20,
                     }}
                 >
-                    {friend.contact_name || "Unknown"}&apos;s Garden
-                </Text>
+                    <Text
+                        style={{
+                            fontSize: 16,
+                            fontWeight: "bold",
+                            color: "#007AFF",
+                            marginRight: 2,
+                        }}
+                    >
+                        {friend.points || 0}
+                    </Text>
+                    <Text
+                        style={{
+                            fontSize: 12,
+                            fontWeight: "500",
+                            color: "#007AFF",
+                            opacity: 0.8,
+                        }}
+                    >
+                        pts
+                    </Text>
+                </View>
+
+                <Image
+                    source={{
+                        uri:
+                            friend.selfie_urls &&
+                            mapWeatherToSelfieKey(friend.weather_condition)
+                                ? friend.selfie_urls[
+                                      mapWeatherToSelfieKey(
+                                          friend.weather_condition
+                                      )
+                                  ]
+                                : undefined,
+                    }}
+                    style={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: 50,
+                        resizeMode: "cover",
+                        backgroundColor: "#eee",
+                        marginTop: 20, // space for Lottie
+                        marginBottom: 0,
+                    }}
+                />
+                {/* Weather text */}
                 <Text
                     style={{
-                        position: "absolute",
-                        top: 20,
-                        right: 20,
-                        fontSize: 16,
-                        fontWeight: "bold",
-                        color: "#007AFF",
+                        fontSize: 20,
+                        color: "white",
+                        textAlign: "center",
+                        marginBottom: 20,
+                        marginTop: 40,
                     }}
                 >
-                    {friend.points || 0}pts
+                    It&apos;s{" "}
+                    <Text style={{ fontWeight: "bold" }}>
+                        {friend.weather_temp
+                            ? Math.round(friend.weather_temp)
+                            : "--"}
+                        °
+                    </Text>{" "}
+                    and{" "}
+                    <Text style={{ fontWeight: "bold" }}>
+                        {getWeatherDescription(friend.weather_condition || "")}
+                    </Text>{" "}
+                    in{" "}
+                    <Text style={{ fontWeight: "bold" }}>
+                        {friend.city_name}
+                    </Text>
                 </Text>
-                {/* Inner card */}
+                {forecastData && forecastData.length > 0 ? (
+                    <FiveDayForecast forecastData={forecastData} />
+                ) : (
+                    <Text
+                        style={{
+                            color: "#999",
+                            fontSize: 12,
+                            marginTop: 10,
+                        }}
+                    >
+                        No forecast data available
+                    </Text>
+                )}
+
                 <View
                     style={{
-                        width: "90%",
-                        backgroundColor: "#fff",
+                        width: "100%",
+                        // backgroundColor: "#fff",
                         borderRadius: 16,
                         alignItems: "center",
-                        paddingVertical: 0,
-                        paddingHorizontal: 0,
                         position: "relative",
-                        marginBottom: 14,
-                        borderWidth: 0.5,
-                        borderColor: "#DEEFFF",
+                        backgroundColor: "white",
+                        borderBottomLeftRadius: 20,
+                        borderBottomRightRadius: 20,
+                        marginBottom: 0,
+                        paddingBottom: 30,
+                        marginTop: 0,
                     }}
                 >
                     {/* Lottie animation floating above, centered */}
@@ -172,7 +258,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                             pointerEvents="none"
                             style={{
                                 position: "absolute",
-                                top: 100,
+                                top: -600,
                                 left: 0,
                                 right: 0,
                                 alignItems: "center",
@@ -186,64 +272,14 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                                 autoPlay
                                 loop
                                 style={{
-                                    width: 200,
-                                    height: 200,
-                                    opacity: 0.7,
+                                    width: 1100,
+                                    height: 1100,
+                                    opacity: 0.2,
                                 }}
                             />
                         </View>
                     )}
-                    {/* Selfie */}
-                    <Image
-                        source={{
-                            uri:
-                                friend.selfie_urls &&
-                                mapWeatherToSelfieKey(friend.weather_condition)
-                                    ? friend.selfie_urls[
-                                          mapWeatherToSelfieKey(
-                                              friend.weather_condition
-                                          )
-                                      ]
-                                    : undefined,
-                        }}
-                        style={{
-                            width: 80,
-                            height: 80,
-                            borderRadius: 40,
-                            resizeMode: "cover",
-                            backgroundColor: "#eee",
-                            marginTop: 32, // space for Lottie
-                            marginBottom: 30,
-                        }}
-                    />
-                    {/* Weather text */}
-                    <Text
-                        style={{
-                            fontSize: 16,
-                            color: "#333",
-                            textAlign: "center",
-                            marginBottom: 70,
-                        }}
-                    >
-                        It&apos;s{" "}
-                        <Text style={{ fontWeight: "bold" }}>
-                            {friend.weather_temp
-                                ? Math.round(friend.weather_temp)
-                                : "--"}
-                            °
-                        </Text>{" "}
-                        and{" "}
-                        <Text style={{ fontWeight: "bold" }}>
-                            {getWeatherDescription(
-                                friend.weather_condition || ""
-                            )}
-                        </Text>{" "}
-                        in{" "}
-                        <Text style={{ fontWeight: "bold" }}>
-                            {friend.city_name}
-                        </Text>
-                    </Text>
-                    {/* Plants */}
+                    {/* Friend's Garden */}
                     <GardenArea
                         gardenOwnerId={friend.id}
                         plants={plantedPlants[friend.id] || []}
@@ -257,7 +293,6 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                         }
                     />
                 </View>
-                <FiveDayForecast forecastData={forecastData} />
             </View>
         </View>
     );

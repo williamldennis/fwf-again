@@ -4,11 +4,18 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 interface HeaderBarProps {
     points: number;
     onMenuPress: () => void;
+    xpData?: {
+        total_xp: number;
+        current_level: number;
+        xp_to_next_level: number;
+        xp_progress: number;
+    } | null;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
     points,
     onMenuPress,
+    xpData,
 }) => {
     return (
         <View style={styles.container}>
@@ -21,15 +28,26 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 <Text style={styles.menuIcon}>☰</Text>
             </TouchableOpacity>
 
-            {/* Center - App title */}
-            <View style={styles.titleContainer}>
-                <Text style={styles.title}>Fair Weather Friends</Text>
-            </View>
+            {/* Right side - XP and Points display */}
+            <View style={styles.rightContainer}>
+                {/* XP Display */}
+                {xpData && (
+                    <View style={styles.xpContainer}>
+                        <Text style={styles.levelText}>
+                            {" "}
+                            {xpData.total_xp} 👍🏻{" "}
+                        </Text>
+                        <Text style={styles.xpText}>
+                            Level {xpData.current_level}
+                        </Text>
+                    </View>
+                )}
 
-            {/* Right side - Points display */}
-            <View style={styles.pointsContainer}>
-                <Text style={styles.pointsText}>{points}</Text>
-                <Text style={styles.pointsLabel}>pts</Text>
+                {/* Points Display */}
+                <View style={styles.pointsContainer}>
+                    <Text style={styles.pointsText}>{points}</Text>
+                    <Text style={styles.pointsLabel}>pts</Text>
+                </View>
             </View>
         </View>
     );
@@ -47,17 +65,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         paddingTop: 60, // Add extra padding to account for status bar
-        backgroundColor: "rgba(255, 255, 255, 0.95)",
-        borderBottomWidth: 1,
-        borderBottomColor: "rgba(0, 0, 0, 0.1)",
+        backgroundColor: "rgba(255, 255, 255, 0.0)",
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
-            height: 2,
+            height: 1,
         },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 2,
         zIndex: 1000,
     },
     menuButton: {
@@ -72,17 +88,6 @@ const styles = StyleSheet.create({
         fontSize: 20,
         color: "#007AFF",
         fontWeight: "600",
-    },
-    titleContainer: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    title: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#333",
-        textAlign: "center",
     },
     pointsContainer: {
         flexDirection: "row",
@@ -105,6 +110,34 @@ const styles = StyleSheet.create({
         fontWeight: "500",
         color: "#007AFF",
         opacity: 0.8,
+    },
+    rightContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+    xpContainer: {
+        alignItems: "center",
+        backgroundColor: "rgba(34, 197, 94, 0.1)",
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        minWidth: 70,
+        justifyContent: "center",
+        flexDirection: "row",
+    },
+    xpText: {
+        fontSize: 14,
+        fontWeight: "bold",
+        color: "#006400",
+        marginBottom: 0,
+        opacity: 0.8,
+    },
+    levelText: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#006400",
+        opacity: 1,
     },
 });
 

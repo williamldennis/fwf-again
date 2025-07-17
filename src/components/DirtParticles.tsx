@@ -189,7 +189,7 @@ const DirtParticle: React.FC<DirtParticleProps> = ({
 
     // Adjust for container offset - particles should start at pot position
     const adjustedX = particle.x + 50; // Account for left: -50px container offset
-    const adjustedY = particle.y + 240; // Account for top: -300px container offset and adjust for pot position
+    const adjustedY = particle.y + 340; // Account for top: -300px container offset and adjust for pot position
 
     return (
         <Animated.View
