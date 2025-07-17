@@ -93,7 +93,7 @@ export const CardStack: React.FC<CardStackProps> = ({
             );
             return aSoonest - bSoonest;
         });
-    }, [friends, plantedPlants]);
+    }, [friends]); // Removed plantedPlants dependency to prevent re-sorting
 
     // Create stack items: user card, friend cards, add friends card
     const stackItems: StackItem[] = useMemo(() => {
