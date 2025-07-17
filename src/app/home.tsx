@@ -162,7 +162,9 @@ export default function Home() {
     const [showMenu, setShowMenu] = useState(false);
     const [refreshingContacts, setRefreshingContacts] = useState(false);
     const headerHeight = useHeaderHeight();
-    const cardWidth = Dimensions.get("window").width - 32; // 16px margin on each side
+    const screenHeight = Dimensions.get("window").height;
+    const screenWidth = Dimensions.get("window").width;
+    const cardWidth = screenWidth; // Full width for TikTok-style scroll
     const [forecastSummary, setForecastSummary] = useState<string>("");
     const [showPlantPicker, setShowPlantPicker] = useState(false);
     const [showPlantDetails, setShowPlantDetails] = useState(false);
@@ -519,10 +521,19 @@ export default function Home() {
     };
 
     const handlePlantHarvested = async () => {
-        console.log(
-            "handlePlantHarvested called - real-time subscription will handle UI update"
-        );
-        // No manual refresh needed - real-time subscription will update the UI automatically
+        console.log("handlePlantHarvested called - updating points...");
+
+        // Update user points after harvest
+        if (currentUserId) {
+            try {
+                await updatePoints();
+                console.log("✅ Points updated successfully after harvest");
+            } catch (error) {
+                console.error("❌ Error updating points after harvest:", error);
+            }
+        }
+
+        // Real-time subscription will handle garden updates automatically
     };
 
     const handleRefreshGrowth = async () => {
@@ -631,22 +642,28 @@ export default function Home() {
     return (
         <>
             <View style={{ flex: 1, backgroundColor }}>
-                {/* Custom Header Bar */}
-                <HeaderBar
-                    points={userProfile?.points || 0}
-                    onMenuPress={() => setShowMenu(true)}
-                    onPointsPress={() => {
-                        // TODO: Implement points modal with level, progress, notifications, store
-                        console.log("Points pressed - future feature");
+                {/* Custom Header Bar - Absolute positioned for TikTok-style */}
+                <View
+                    style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        zIndex: 1000,
                     }}
-                />
+                >
+                    <HeaderBar
+                        points={userProfile?.points || 0}
+                        onMenuPress={() => setShowMenu(true)}
+                    />
+                </View>
                 {/* Progressive Loading Indicators */}
                 {(weatherLoading || availablePlantsLoading) &&
                     !finalShowSkeleton && (
                         <View
                             style={{
                                 position: "absolute",
-                                top: 120,
+                                top: 140, // Adjusted for absolute header
                                 right: 20,
                                 zIndex: 10,
                                 backgroundColor: "rgba(0,0,0,0.8)",
@@ -688,19 +705,17 @@ export default function Home() {
 
                 {/* Show skeleton loading or actual content */}
                 {finalShowSkeleton ? (
-                    <View style={{ flex: 1, paddingTop: 120 }}>
-                        <View style={{ paddingHorizontal: 16 }}>
-                            {/* User card skeleton */}
-                            <SkeletonCard width={cardWidth} height={280} />
-                            {/* Friend card skeletons */}
-                            {[1, 2, 3].map((i) => (
-                                <SkeletonCard
-                                    key={i}
-                                    width={cardWidth}
-                                    height={200}
-                                />
-                            ))}
-                        </View>
+                    <View style={{ flex: 1 }}>
+                        {/* User card skeleton */}
+                        <SkeletonCard width={cardWidth} height={screenHeight} />
+                        {/* Friend card skeletons */}
+                        {[1, 2, 3].map((i) => (
+                            <SkeletonCard
+                                key={i}
+                                width={cardWidth}
+                                height={screenHeight}
+                            />
+                        ))}
                     </View>
                 ) : (
                     <FlatList
@@ -712,11 +727,18 @@ export default function Home() {
                         }}
                         style={{ flex: 1 }}
                         contentContainerStyle={{
-                            paddingHorizontal: 16,
-                            paddingTop: 120, // Account for header bar height
-                            paddingBottom: 16,
+                            paddingTop: 0, // No top padding for TikTok-style
                         }}
                         showsVerticalScrollIndicator={false}
+                        pagingEnabled={true}
+                        snapToInterval={screenHeight}
+                        snapToAlignment="start"
+                        decelerationRate="fast"
+                        getItemLayout={(data, index) => ({
+                            length: screenHeight,
+                            offset: screenHeight * index,
+                            index,
+                        })}
                         renderItem={({ item, index }) => {
                             console.log(
                                 `[Home] 🔍 Debug - Rendering item ${index}:`,
@@ -731,23 +753,27 @@ export default function Home() {
                                     "[Home] 🔍 Debug - Rendering user card"
                                 );
                                 return (
-                                    <UserCard
-                                        weather={weather}
-                                        selfieUrls={
-                                            userProfile?.selfieUrls || null
-                                        }
-                                        userPoints={userProfile?.points || 0}
-                                        currentUserId={currentUserId}
-                                        plantedPlants={plantedPlants}
-                                        onPlantPress={handlePlantPress}
-                                        onPlantDetailsPress={
-                                            handlePlantDetailsPress
-                                        }
-                                        forecastData={userFiveDayData}
-                                        loading={weatherLoading}
-                                        error={weatherError}
-                                        cardWidth={cardWidth}
-                                    />
+                                    <View style={{ height: screenHeight }}>
+                                        <UserCard
+                                            weather={weather}
+                                            selfieUrls={
+                                                userProfile?.selfieUrls || null
+                                            }
+                                            userPoints={
+                                                userProfile?.points || 0
+                                            }
+                                            currentUserId={currentUserId}
+                                            plantedPlants={plantedPlants}
+                                            onPlantPress={handlePlantPress}
+                                            onPlantDetailsPress={
+                                                handlePlantDetailsPress
+                                            }
+                                            forecastData={userFiveDayData}
+                                            loading={weatherLoading}
+                                            error={weatherError}
+                                            cardWidth={cardWidth}
+                                        />
+                                    </View>
                                 );
                             }
 
@@ -757,15 +783,17 @@ export default function Home() {
                                     "[Home] 🔍 Debug - Rendering add friends card"
                                 );
                                 return (
-                                    <AddFriendsCard
-                                        onShare={async () => {
-                                            await Share.share({
-                                                message:
-                                                    "I want to be your Fair Weather Friend\nhttp://willdennis.com",
-                                            });
-                                        }}
-                                        cardWidth={cardWidth}
-                                    />
+                                    <View style={{ height: screenHeight }}>
+                                        <AddFriendsCard
+                                            onShare={async () => {
+                                                await Share.share({
+                                                    message:
+                                                        "I want to be your Fair Weather Friend\nhttp://willdennis.com",
+                                                });
+                                            }}
+                                            cardWidth={cardWidth}
+                                        />
+                                    </View>
                                 );
                             }
 
@@ -776,19 +804,23 @@ export default function Home() {
                                     item.contact_name
                                 );
                                 return (
-                                    <FriendCard
-                                        friend={item}
-                                        plantedPlants={plantedPlants}
-                                        onPlantPress={handlePlantPress}
-                                        onPlantDetailsPress={
-                                            handlePlantDetailsPress
-                                        }
-                                        forecastData={
-                                            friendForecasts[item.id] || []
-                                        }
-                                        cardWidth={cardWidth}
-                                        onFetchForecast={fetchFriendForecast}
-                                    />
+                                    <View style={{ height: screenHeight }}>
+                                        <FriendCard
+                                            friend={item}
+                                            plantedPlants={plantedPlants}
+                                            onPlantPress={handlePlantPress}
+                                            onPlantDetailsPress={
+                                                handlePlantDetailsPress
+                                            }
+                                            forecastData={
+                                                friendForecasts[item.id] || []
+                                            }
+                                            cardWidth={cardWidth}
+                                            onFetchForecast={
+                                                fetchFriendForecast
+                                            }
+                                        />
+                                    </View>
                                 );
                             }
 

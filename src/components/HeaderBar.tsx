@@ -4,13 +4,11 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 interface HeaderBarProps {
     points: number;
     onMenuPress: () => void;
-    onPointsPress?: () => void;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
     points,
     onMenuPress,
-    onPointsPress,
 }) => {
     return (
         <View style={styles.container}>
@@ -23,21 +21,16 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 <Text style={styles.menuIcon}>☰</Text>
             </TouchableOpacity>
 
-            {/* Center - App title (optional, can be removed if not needed) */}
+            {/* Center - App title */}
             <View style={styles.titleContainer}>
                 <Text style={styles.title}>Fair Weather Friends</Text>
             </View>
 
             {/* Right side - Points display */}
-            <TouchableOpacity
-                style={styles.pointsContainer}
-                onPress={onPointsPress}
-                activeOpacity={onPointsPress ? 0.7 : 1}
-                disabled={!onPointsPress}
-            >
+            <View style={styles.pointsContainer}>
                 <Text style={styles.pointsText}>{points}</Text>
                 <Text style={styles.pointsLabel}>pts</Text>
-            </TouchableOpacity>
+            </View>
         </View>
     );
 };

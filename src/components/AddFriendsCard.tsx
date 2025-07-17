@@ -12,66 +12,76 @@ export const AddFriendsCard: React.FC<AddFriendsCardProps> = ({
     cardWidth,
 }) => {
     return (
-        <TouchableOpacity
-            onPress={onShare}
+        <View
             style={{
-                width: cardWidth,
-                backgroundColor: "#fffbe6",
-                borderRadius: 16,
-                padding: 16,
+                flex: 1,
                 alignItems: "center",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.08,
-                shadowRadius: 4,
-                elevation: 2,
                 justifyContent: "center",
-                overflow: "visible",
-                height: 240, // Match the height of friend cards
-                pointerEvents: "auto",
-                zIndex: 100,
+                paddingTop: 120, // Account for header height
+                paddingBottom: 20,
+                zIndex: 1,
             }}
         >
-            <Image
-                source={sunCloudTrans}
+            <TouchableOpacity
+                onPress={onShare}
                 style={{
-                    width: 80,
-                    height: 80,
-                    marginBottom: 16,
-                }}
-                resizeMode="contain"
-            />
-            <Text
-                style={{
-                    color: "#666",
-                    textAlign: "center",
-                    fontSize: 14,
-                    marginBottom: 12,
-                }}
-            >
-                Invite your friends to see their weather
-            </Text>
-            <View
-                style={{
+                    width: cardWidth - 32, // Add some padding for the card
                     backgroundColor: "#fffbe6",
-                    borderRadius: 20,
-                    borderWidth: 2,
-                    borderColor: "#FFD700",
-                    paddingVertical: 8,
-                    paddingHorizontal: 20,
+                    borderRadius: 16,
+                    padding: 16,
+                    alignItems: "center",
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 4,
+                    elevation: 2,
+                    justifyContent: "center",
+                    overflow: "visible",
+                    pointerEvents: "auto",
+                    zIndex: 100,
                 }}
             >
+                <Image
+                    source={sunCloudTrans}
+                    style={{
+                        width: 80,
+                        height: 80,
+                        marginBottom: 16,
+                    }}
+                    resizeMode="contain"
+                />
                 <Text
                     style={{
-                        color: "#222",
-                        fontWeight: "bold",
-                        fontSize: 16,
+                        color: "#666",
+                        textAlign: "center",
+                        fontSize: 14,
+                        marginBottom: 12,
                     }}
                 >
-                    Add Friends
+                    Invite your friends to see their weather
                 </Text>
-            </View>
-        </TouchableOpacity>
+                <View
+                    style={{
+                        backgroundColor: "#fffbe6",
+                        borderRadius: 20,
+                        borderWidth: 2,
+                        borderColor: "#FFD700",
+                        paddingVertical: 8,
+                        paddingHorizontal: 20,
+                    }}
+                >
+                    <Text
+                        style={{
+                            color: "#222",
+                            fontWeight: "bold",
+                            fontSize: 16,
+                        }}
+                    >
+                        Add Friends
+                    </Text>
+                </View>
+            </TouchableOpacity>
+        </View>
     );
 };
 

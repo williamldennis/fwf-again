@@ -102,15 +102,17 @@ export const UserCard: React.FC<UserCardProps> = ({
     return (
         <View
             style={{
+                flex: 1,
                 alignItems: "center",
-                marginTop: 16,
-                marginBottom: 20,
+                justifyContent: "center",
+                paddingTop: 120, // Account for header height
+                paddingBottom: 20,
                 zIndex: 1,
             }}
         >
             <View
                 style={{
-                    width: cardWidth,
+                    width: cardWidth - 32, // Add some padding for the card
                     borderRadius: 20,
                     shadowColor: "#000",
                     shadowOffset: {
@@ -124,8 +126,6 @@ export const UserCard: React.FC<UserCardProps> = ({
                     overflow: "visible",
                     borderWidth: 0.5,
                     borderColor: "#DEEFFF",
-                    marginBottom: 0,
-                    marginTop: 30,
                     backgroundColor: "#DFEFFF",
                 }}
             >
