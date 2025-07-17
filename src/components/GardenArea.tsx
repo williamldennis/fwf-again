@@ -223,8 +223,37 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         const scale = useSharedValue(1);
         const glowOpacity = useSharedValue(0);
 
-        // Check if plant is ready for harvest
-        const isReadyForHarvest = plant.is_mature && !plant.harvested_at;
+        // Check if plant is ready for harvest using real-time calculation
+        // This ensures animation works even if database is_mature field is not updated
+        const plantObject = plant.plant || {
+            id: plant.plant_id,
+            name: plantName,
+            growth_time_hours: plant.growth_time_hours || 0,
+            weather_bonus: plant.weather_bonus || {
+                sunny: 1,
+                cloudy: 1,
+                rainy: 1,
+            },
+            image_path: plant.image_path || "",
+            created_at: plant.planted_at,
+        };
+
+        const isMatureCalculated = GrowthService.isPlantMature(
+            plant,
+            plantObject,
+            weatherCondition
+        );
+        const isReadyForHarvest = isMatureCalculated && !plant.harvested_at;
+
+        // Debug logging for animation state
+        if (isMatureCalculated && !plant.harvested_at) {
+            console.log(
+                `[GardenArea] 🌱 Plant ${plantName} (${plant.id}) is ready for harvest!`
+            );
+            console.log(
+                `[GardenArea] 📊 Database is_mature: ${plant.is_mature}, Calculated: ${isMatureCalculated}`
+            );
+        }
 
         // Start bounce and glow animations if plant is ready for harvest
         useEffect(() => {
@@ -340,10 +369,10 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 alignItems: "flex-end",
                 borderRadius: 8,
                 height: 60,
-                padding: 0,
                 marginTop: 20,
                 marginBottom: 0,
                 position: "relative",
+                backgroundColor: "white",
             }}
         >
             {/* Dirt Particles Animation */}

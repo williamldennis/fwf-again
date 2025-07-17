@@ -29,6 +29,7 @@ const getPlantImageSource = (imagePath: string) => {
 
 interface PlantPickerFullProps extends PlantPickerProps {
     plants: Plant[];
+    loading?: boolean;
 }
 
 export const PlantPicker: React.FC<PlantPickerFullProps> = ({
@@ -37,6 +38,7 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
     onSelectPlant,
     weatherCondition,
     plants,
+    loading = false,
 }) => {
     // Haptic feedback when selecting a plant
     const handlePlantSelection = async (plantId: string) => {
@@ -86,63 +88,75 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
                 <View style={styles.overlay}>
                     <View style={styles.container}>
                         <Text style={styles.title}>Choose a Plant</Text>
-                        <FlatList
-                            data={plants.sort(
-                                (a, b) =>
-                                    (a.harvest_points || 10) -
-                                    (b.harvest_points || 10)
-                            )}
-                            keyExtractor={(item) => item.id}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity
-                                    style={styles.plantRow}
-                                    onPress={() =>
-                                        handlePlantSelection(item.id)
-                                    }
-                                >
-                                    <Image
-                                        source={getPlantImageSource(
-                                            item.image_path
-                                        )}
-                                        style={styles.plantImage}
-                                        contentFit="contain"
-                                        cachePolicy="memory-disk"
-                                        priority="high"
-                                        placeholder={require("../../assets/images/plants/empty_pot.png")}
-                                        transition={200}
-                                    />
-                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                        {loading ? (
+                            <View style={styles.loadingContainer}>
+                                <Text style={styles.loadingText}>
+                                    Loading plants...
+                                </Text>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={plants.sort(
+                                    (a, b) =>
+                                        (a.harvest_points || 10) -
+                                        (b.harvest_points || 10)
+                                )}
+                                keyExtractor={(item) => item.id}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={styles.plantRow}
+                                        onPress={() =>
+                                            handlePlantSelection(item.id)
+                                        }
+                                    >
+                                        <Image
+                                            source={getPlantImageSource(
+                                                item.image_path
+                                            )}
+                                            style={styles.plantImage}
+                                            contentFit="contain"
+                                            cachePolicy="memory-disk"
+                                            priority="high"
+                                            placeholder={require("../../assets/images/plants/empty_pot.png")}
+                                            transition={200}
+                                        />
                                         <View
-                                            style={{
-                                                flexDirection: "row",
-                                                alignItems: "center",
-                                                justifyContent: "space-between",
-                                            }}
+                                            style={{ flex: 1, marginLeft: 12 }}
                                         >
-                                            <Text style={styles.plantName}>
-                                                {item.name}
+                                            <View
+                                                style={{
+                                                    flexDirection: "row",
+                                                    alignItems: "center",
+                                                    justifyContent:
+                                                        "space-between",
+                                                }}
+                                            >
+                                                <Text style={styles.plantName}>
+                                                    {item.name}
+                                                </Text>
+                                                <Text style={styles.pointsText}>
+                                                    +{item.harvest_points || 10}{" "}
+                                                    pts
+                                                </Text>
+                                            </View>
+                                            <Text style={styles.plantDesc}>
+                                                {GrowthService.getWeatherPreferenceDescription(
+                                                    item
+                                                )}
                                             </Text>
-                                            <Text style={styles.pointsText}>
-                                                +{item.harvest_points || 10} pts
+                                            <Text style={styles.plantDesc}>
+                                                {GrowthService.getGrowthTimeDescription(
+                                                    item.growth_time_hours
+                                                )}
                                             </Text>
                                         </View>
-                                        <Text style={styles.plantDesc}>
-                                            {GrowthService.getWeatherPreferenceDescription(
-                                                item
-                                            )}
-                                        </Text>
-                                        <Text style={styles.plantDesc}>
-                                            {GrowthService.getGrowthTimeDescription(
-                                                item.growth_time_hours
-                                            )}
-                                        </Text>
-                                    </View>
-                                </TouchableOpacity>
-                            )}
-                            ItemSeparatorComponent={() => (
-                                <View style={{ height: 12 }} />
-                            )}
-                        />
+                                    </TouchableOpacity>
+                                )}
+                                ItemSeparatorComponent={() => (
+                                    <View style={{ height: 12 }} />
+                                )}
+                            />
+                        )}
                         <TouchableOpacity
                             style={styles.closeButton}
                             onPress={onClose}
@@ -218,6 +232,17 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: "#333",
         fontWeight: "bold",
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingVertical: 40,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: "#666",
+        textAlign: "center",
     },
 });
 

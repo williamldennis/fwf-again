@@ -176,6 +176,15 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
             return;
         }
 
+        // Debug: Log plant data structure
+        console.log("[Harvest] 🔍 Plant data structure:", {
+            plantId: plant.id,
+            plantName: plantName,
+            plantData: plant.plant,
+            harvestPoints: plant.plant?.harvest_points,
+            fallbackPoints: 10,
+        });
+
         // Add haptic feedback when user taps harvest button
         try {
             await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -239,22 +248,50 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
             // Award points for harvesting
             try {
                 const plantPoints = plant.plant?.harvest_points || 10;
+                console.log(`[Harvest] 🌱 Plant points: ${plantPoints}`);
+
                 const { data: profileData, error: profileError } =
                     await supabase
                         .from("profiles")
                         .select("points")
                         .eq("id", currentUserId)
                         .single();
-                if (!profileError && profileData) {
+
+                if (profileError) {
+                    console.error(
+                        "[Harvest] ❌ Error fetching profile:",
+                        profileError
+                    );
+                } else if (profileData) {
                     const currentPoints = profileData?.points || 0;
                     const newPoints = currentPoints + plantPoints;
-                    await supabase
+                    console.log(
+                        `[Harvest] 💰 Points calculation: ${currentPoints} + ${plantPoints} = ${newPoints}`
+                    );
+
+                    const { error: updateError } = await supabase
                         .from("profiles")
                         .update({ points: newPoints })
                         .eq("id", currentUserId);
+
+                    if (updateError) {
+                        console.error(
+                            "[Harvest] ❌ Error updating points:",
+                            updateError
+                        );
+                    } else {
+                        console.log(
+                            `[Harvest] ✅ Points updated successfully: ${newPoints}`
+                        );
+                    }
+                } else {
+                    console.error("[Harvest] ❌ No profile data found");
                 }
             } catch (pointsError) {
-                console.error("[Harvest] Error awarding points:", pointsError);
+                console.error(
+                    "[Harvest] ❌ Error awarding points:",
+                    pointsError
+                );
             }
 
             Alert.alert("Harvested!", `You harvested ${plantName}!`);
@@ -439,6 +476,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                             ? styles.harvestButtonEnabled
                                             : styles.harvestButtonDisabled,
                                     ]}
+                                    testID="harvest-plant"
                                 >
                                     <Text
                                         style={[

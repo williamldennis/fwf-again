@@ -119,4 +119,15 @@ jest.mock('libphonenumber-js', () => ({
     isValid: jest.fn(() => true),
     number: '+1234567890'
   }))
+}));
+
+// Mock CSS interop and NativeWind
+jest.mock('react-native-css-interop', () => ({
+  createStyleSheet: jest.fn(() => ({})),
+  css: jest.fn(() => ({})),
+}));
+
+jest.mock('nativewind', () => ({
+  styled: jest.fn((component) => component),
+  css: jest.fn(() => ({})),
 })); 
