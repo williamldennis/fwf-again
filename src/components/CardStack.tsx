@@ -1,25 +1,14 @@
 import React, { useState, useMemo } from "react";
 import { View, Dimensions } from "react-native";
-import { PanGestureHandler, State } from "react-native-gesture-handler";
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    useAnimatedGestureHandler,
-    withSpring,
-    withTiming,
-    interpolate,
-    Extrapolate,
-    runOnJS,
-} from "react-native-reanimated";
-import { GrowthService } from "../services/growthService";
-import { TimeCalculationService } from "../services/timeCalculationService";
+import Carousel from "react-native-reanimated-carousel";
 import UserCard from "./UserCard";
 import FriendCard from "./FriendCard";
 import AddFriendsCard from "./AddFriendsCard";
 import { Friend } from "../services/contactsService";
+import { GrowthService } from "../services/growthService";
+import { TimeCalculationService } from "../services/timeCalculationService";
 
 interface CardStackProps {
-    // User data
     weather: any;
     selfieUrls: Record<string, string> | null;
     userPoints: number;
@@ -31,13 +20,9 @@ interface CardStackProps {
     loading: boolean;
     error: string | null;
     cardWidth: number;
-
-    // Friends data
     friends: Friend[];
     friendForecasts: Record<string, any[]>;
     onFetchForecast: (friend: any) => void;
-
-    // Add friends
     onShare: () => void;
 }
 
@@ -64,6 +49,7 @@ export const CardStack: React.FC<CardStackProps> = ({
     onFetchForecast,
     onShare,
 }) => {
+    const screenWidth = Dimensions.get("window").width;
     const screenHeight = Dimensions.get("window").height;
     const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -72,14 +58,11 @@ export const CardStack: React.FC<CardStackProps> = ({
         return [...friends].sort((a, b) => {
             const aPlants = plantedPlants[a.id] || [];
             const bPlants = plantedPlants[b.id] || [];
-
-            // Get the soonest harvest time for each friend
             const getSoonestHarvestTime = (
                 plants: any[],
                 friendWeather: string
             ) => {
                 if (plants.length === 0) return Infinity;
-
                 return Math.min(
                     ...plants.map((plant) => {
                         const plantObject = plant.plant || {
@@ -92,7 +75,6 @@ export const CardStack: React.FC<CardStackProps> = ({
                                 rainy: 1,
                             },
                         };
-
                         return TimeCalculationService.getTimeToMaturity(
                             plant.planted_at,
                             plantObject,
@@ -101,7 +83,6 @@ export const CardStack: React.FC<CardStackProps> = ({
                     })
                 );
             };
-
             const aSoonest = getSoonestHarvestTime(
                 aPlants,
                 a.weather_condition || "clear"
@@ -110,101 +91,35 @@ export const CardStack: React.FC<CardStackProps> = ({
                 bPlants,
                 b.weather_condition || "clear"
             );
-
-            return aSoonest - bSoonest; // Soonest first
+            return aSoonest - bSoonest;
         });
     }, [friends, plantedPlants]);
 
     // Create stack items: user card, friend cards, add friends card
     const stackItems: StackItem[] = useMemo(() => {
-        const items: StackItem[] = [{ type: "user", id: "user-card" }];
-
-        // Add friend cards
-        sortedFriends.forEach((friend) => {
-            items.push({ type: "friend", id: friend.id, data: friend });
-        });
-
-        // Add friends card at the end
-        items.push({ type: "add-friends", id: "add-friends" });
-
+        const items: StackItem[] = [
+            { type: "user" as const, id: "user-card" },
+            ...sortedFriends.map((friend) => ({
+                type: "friend" as const,
+                id: friend.id,
+                data: friend,
+            })),
+            { type: "add-friends" as const, id: "add-friends" },
+        ];
         return items;
     }, [sortedFriends]);
 
-    // Animation values
-    const translateY = useSharedValue(0);
-    const scale = useSharedValue(1);
-
-    // Gesture handler for swipe
-    const gestureHandler = useAnimatedGestureHandler({
-        onStart: (_, context: any) => {
-            context.startY = translateY.value;
-        },
-        onActive: (event, context: any) => {
-            translateY.value = context.startY + event.translationY;
-            // Add resistance as user swipes
-            scale.value = interpolate(
-                Math.abs(translateY.value),
-                [0, screenHeight * 0.3],
-                [1, 0.95],
-                Extrapolate.CLAMP
-            );
-        },
-        onEnd: (event) => {
-            const shouldSwipe =
-                Math.abs(event.translationY) > screenHeight * 0.2 ||
-                Math.abs(event.velocityY) > 500;
-
-            if (shouldSwipe) {
-                const direction = event.translationY > 0 ? 1 : -1;
-                runOnJS(handleSwipe)(direction);
-            } else {
-                // Snap back to center
-                translateY.value = withSpring(0);
-                scale.value = withSpring(1);
-            }
-        },
-    });
-
-    const handleSwipe = (direction: number) => {
-        const newIndex =
-            direction > 0
-                ? (currentIndex + 1) % stackItems.length
-                : (currentIndex - 1 + stackItems.length) % stackItems.length;
-
-        setCurrentIndex(newIndex);
-        translateY.value = withSpring(0);
-        scale.value = withSpring(1);
-    };
-
-    // Animated styles
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: translateY.value }, { scale: scale.value }],
-    }));
-
-    // Render a card with stack positioning
-    const renderStackCard = (item: StackItem, index: number) => {
-        const isTopCard = index === currentIndex;
-        const isVisible = index >= currentIndex && index <= currentIndex + 2; // Show 3 cards max
-
-        if (!isVisible) return null;
-
-        const stackIndex = index - currentIndex;
-        const cardStyle = {
-            position: "absolute" as const,
-            top: stackIndex * 40, // 40px spacing between cards
-            left: 0,
-            right: 0,
-            zIndex: 100 - stackIndex, // Higher cards on top
-            transform: [
-                { scale: 1 - stackIndex * 0.05 }, // Scale down each card
-                { translateY: stackIndex * 20 }, // Slight vertical offset
-            ],
-            opacity: 1 - stackIndex * 0.3, // Fade out each card
-        };
-
-        return (
-            <View key={item.id} style={cardStyle}>
-                {item.type === "user" && (
+    // Render a single card
+    const renderCard = ({ item }: { item: StackItem }) => {
+        if (item.type === "user") {
+            return (
+                <View
+                    style={{
+                        flex: 1,
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                >
                     <UserCard
                         weather={weather}
                         selfieUrls={selfieUrls}
@@ -218,9 +133,19 @@ export const CardStack: React.FC<CardStackProps> = ({
                         error={error}
                         cardWidth={cardWidth}
                     />
-                )}
+                </View>
+            );
+        }
 
-                {item.type === "friend" && item.data && (
+        if (item.type === "friend" && item.data) {
+            return (
+                <View
+                    style={{
+                        flex: 1,
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                >
                     <FriendCard
                         friend={item.data}
                         plantedPlants={plantedPlants}
@@ -230,36 +155,63 @@ export const CardStack: React.FC<CardStackProps> = ({
                         cardWidth={cardWidth}
                         onFetchForecast={onFetchForecast}
                     />
-                )}
+                </View>
+            );
+        }
 
-                {item.type === "add-friends" && (
+        if (item.type === "add-friends") {
+            return (
+                <View
+                    style={{
+                        flex: 1,
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                >
                     <AddFriendsCard onShare={onShare} cardWidth={cardWidth} />
-                )}
+                </View>
+            );
+        }
+        // Return a default view to satisfy the type requirement
+        return (
+            <View
+                style={{
+                    flex: 1,
+                    alignItems: "center",
+                    justifyContent: "center",
+                }}
+            >
+                <View />
             </View>
         );
     };
 
     return (
-        <View
-            style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-        >
-            <PanGestureHandler onGestureEvent={gestureHandler}>
-                <Animated.View
-                    style={[{ flex: 1, width: "100%" }, animatedStyle]}
-                >
-                    {stackItems.map((item, index) =>
-                        renderStackCard(item, index)
-                    )}
-                </Animated.View>
-            </PanGestureHandler>
+        <View style={{ flex: 1 }}>
+            <Carousel
+                loop={true}
+                width={screenWidth}
+                height={screenHeight}
+                data={stackItems}
+                renderItem={renderCard}
+                onSnapToItem={setCurrentIndex}
+                mode="parallax"
+                modeConfig={{
+                    parallaxScrollingScale: 0.9,
+                    parallaxScrollingOffset: 50,
+                }}
+            />
 
             {/* Stack indicator dots */}
             <View
                 style={{
                     position: "absolute",
                     bottom: 40,
+                    left: 0,
+                    right: 0,
                     flexDirection: "row",
                     alignItems: "center",
+                    justifyContent: "center",
                     gap: 8,
                 }}
             >
