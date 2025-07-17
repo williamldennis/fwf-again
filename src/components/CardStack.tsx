@@ -114,6 +114,7 @@ export const CardStack: React.FC<CardStackProps> = ({
         if (item.type === "user") {
             return (
                 <View
+                    key={item.id}
                     style={{
                         flex: 1,
                         alignItems: "center",
@@ -141,6 +142,7 @@ export const CardStack: React.FC<CardStackProps> = ({
         if (item.type === "friend" && item.data) {
             return (
                 <View
+                    key={item.id}
                     style={{
                         flex: 1,
                         alignItems: "center",
@@ -164,6 +166,7 @@ export const CardStack: React.FC<CardStackProps> = ({
         if (item.type === "add-friends") {
             return (
                 <View
+                    key={item.id}
                     style={{
                         flex: 1,
                         alignItems: "center",
@@ -181,6 +184,7 @@ export const CardStack: React.FC<CardStackProps> = ({
         // Return a default view to satisfy the type requirement
         return (
             <View
+                key={item.id}
                 style={{
                     flex: 1,
                     alignItems: "center",
@@ -208,6 +212,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                 data={stackItems}
                 renderItem={renderCard}
                 onSnapToItem={setCurrentIndex}
+                windowSize={5}
             />
 
             {/* Stack indicator dots */}

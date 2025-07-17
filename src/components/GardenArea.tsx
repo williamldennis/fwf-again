@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, TouchableOpacity, Text, Alert, Animated } from "react-native";
+import { View, TouchableOpacity, Text, Alert } from "react-native";
 import { Image } from "expo-image";
 import { GardenAreaProps, GrowthStage } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import DirtParticles from "./DirtParticles";
 
+const SLOT_COUNT = 3;
+
+// Simple image mapping - no complex preloading
 const plantStageImages: Record<string, Record<number, any>> = {
     sunflower: {
         3: require("../../assets/images/plants/sunflower/sprout.png"),
@@ -38,10 +41,17 @@ const plantStageImages: Record<string, Record<number, any>> = {
     },
 };
 
-const emptyPotImg = require("../../assets/images/plants/empty_pot.png");
-const dirtImg = require("../../assets/images/plants/dirt.png");
+const getPlantImage = (plantName: string, stage: GrowthStage) => {
+    if (stage === 2) return require("../../assets/images/plants/dirt.png");
 
-const SLOT_COUNT = 3;
+    const plantKey = plantName.toLowerCase().replace(/\s+/g, "_");
+    return (
+        plantStageImages[plantKey]?.[stage] ||
+        require("../../assets/images/plants/dirt.png")
+    );
+};
+
+const emptyPotImg = require("../../assets/images/plants/empty_pot.png");
 
 export const GardenArea: React.FC<GardenAreaProps> = (props) => {
     const {
@@ -198,117 +208,6 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         }
     };
 
-    const getImageForPlant = (plantName: string, stage: GrowthStage) => {
-        if (stage === 2) return dirtImg;
-        // Convert plant name to match the image mapping keys
-        const plantKey = plantName.toLowerCase().replace(/\s+/g, "_");
-        return plantStageImages[plantKey]?.[stage] || dirtImg;
-    };
-
-    // Plant Component with bounce animation
-    const AnimatedPlant: React.FC<{
-        plant: any;
-        plantName: string;
-        stage: GrowthStage;
-        onPress: () => void;
-    }> = ({ plant, plantName, stage, onPress }) => {
-        const bounceScale = useRef(new Animated.Value(1)).current;
-
-        // Check if plant is ready for harvest
-        const plantObject = plant.plant || {
-            id: plant.plant_id,
-            name: plantName,
-            growth_time_hours: plant.growth_time_hours || 0,
-            weather_bonus: plant.weather_bonus || {
-                sunny: 1,
-                cloudy: 1,
-                rainy: 1,
-            },
-            image_path: plant.image_path || "",
-            created_at: plant.planted_at,
-        };
-
-        const isMatureCalculated = GrowthService.isPlantMature(
-            plant,
-            plantObject,
-            weatherCondition
-        );
-        const isReadyForHarvest = isMatureCalculated && !plant.harvested_at;
-
-        // Start bounce animation if plant is ready for harvest
-        useEffect(() => {
-            if (isReadyForHarvest) {
-                // Bounce animation
-                const startBounce = () => {
-                    Animated.sequence([
-                        Animated.timing(bounceScale, {
-                            toValue: 1.1,
-                            duration: 600,
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(bounceScale, {
-                            toValue: 1,
-                            duration: 600,
-                            useNativeDriver: true,
-                        }),
-                    ]).start(() => {
-                        // Wait 2 seconds before next bounce
-                        setTimeout(() => {
-                            if (isReadyForHarvest) {
-                                startBounce();
-                            }
-                        }, 2000);
-                    });
-                };
-
-                startBounce();
-            } else {
-                // Reset to normal
-                Animated.timing(bounceScale, {
-                    toValue: 1,
-                    duration: 300,
-                    useNativeDriver: true,
-                }).start();
-            }
-        }, [isReadyForHarvest, bounceScale]);
-
-        return (
-            <TouchableOpacity
-                onPress={onPress}
-                style={{ flex: 1, alignItems: "center" }}
-            >
-                <Animated.View
-                    style={{
-                        transform: [{ scale: bounceScale }],
-                    }}
-                >
-                    <Image
-                        source={getImageForPlant(plantName, stage)}
-                        style={{ width: 90, height: 90 }}
-                        contentFit="contain"
-                        cachePolicy="memory-disk"
-                        priority="high"
-                        transition={200}
-                    />
-                </Animated.View>
-                <Text
-                    style={{
-                        fontSize: 10,
-                        color: "#333",
-                        marginBottom: 20,
-                        marginTop: 10,
-                        fontWeight: "bold",
-                        padding: 6,
-                        paddingHorizontal: 12,
-                        borderRadius: 10,
-                    }}
-                >
-                    {plantName}
-                </Text>
-            </TouchableOpacity>
-        );
-    };
-
     return (
         <View
             ref={containerRef}
@@ -351,6 +250,17 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 cachePolicy="memory-disk"
                                 priority="high"
                                 transition={200}
+                                recyclingKey={`empty-pot-${idx}`}
+                                placeholder={require("../../assets/images/plants/dirt.png")}
+                                onLoad={() => {
+                                    // Image loaded successfully
+                                }}
+                                onError={(error) => {
+                                    console.warn(
+                                        "Failed to load empty pot image:",
+                                        error
+                                    );
+                                }}
                             />
                             <Text
                                 style={{
@@ -376,13 +286,45 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 const stage = plantStages[plant.id] || 2; // Default to dirt stage
 
                 return (
-                    <AnimatedPlant
+                    <TouchableOpacity
                         key={plant.id || `plant-${idx}`}
-                        plant={plant}
-                        plantName={plantName}
-                        stage={stage}
                         onPress={() => handlePlantPress(plant)}
-                    />
+                        style={{ flex: 1, alignItems: "center" }}
+                    >
+                        <Image
+                            source={getPlantImage(plantName, stage)}
+                            style={{ width: 90, height: 90 }}
+                            contentFit="contain"
+                            cachePolicy="memory-disk"
+                            priority="high"
+                            transition={200}
+                            recyclingKey={`${plantName}-${stage}-${plant.id}`}
+                            placeholder={require("../../assets/images/plants/dirt.png")}
+                            onLoad={() => {
+                                // Image loaded successfully
+                            }}
+                            onError={(error) => {
+                                console.warn(
+                                    "Failed to load plant image:",
+                                    error
+                                );
+                            }}
+                        />
+                        <Text
+                            style={{
+                                fontSize: 10,
+                                color: "#333",
+                                marginBottom: 20,
+                                marginTop: 10,
+                                fontWeight: "bold",
+                                padding: 6,
+                                paddingHorizontal: 12,
+                                borderRadius: 10,
+                            }}
+                        >
+                            {plantName}
+                        </Text>
+                    </TouchableOpacity>
                 );
             })}
         </View>
