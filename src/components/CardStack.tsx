@@ -208,11 +208,6 @@ export const CardStack: React.FC<CardStackProps> = ({
                 data={stackItems}
                 renderItem={renderCard}
                 onSnapToItem={setCurrentIndex}
-                mode="parallax"
-                modeConfig={{
-                    parallaxScrollingScale: 0.9,
-                    parallaxScrollingOffset: 50,
-                }}
             />
 
             {/* Stack indicator dots */}
