@@ -33,8 +33,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 {/* XP Display */}
                 {xpData && (
                     <View style={styles.xpContainer}>
-                        <Text style={styles.xpText}>🌱 {xpData.total_xp}</Text>
                         <Text style={styles.levelText}>
+                            {" "}
+                            {xpData.total_xp} 👍🏻{" "}
+                        </Text>
+                        <Text style={styles.xpText}>
                             Level {xpData.current_level}
                         </Text>
                     </View>
@@ -121,18 +124,20 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         minWidth: 70,
         justifyContent: "center",
+        flexDirection: "row",
     },
     xpText: {
         fontSize: 14,
         fontWeight: "bold",
-        color: "#22C55E",
-        marginBottom: 2,
+        color: "#006400",
+        marginBottom: 0,
+        opacity: 0.8,
     },
     levelText: {
-        fontSize: 10,
-        fontWeight: "500",
-        color: "#22C55E",
-        opacity: 0.8,
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#006400",
+        opacity: 1,
     },
 });
 
