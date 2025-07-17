@@ -476,6 +476,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                             ? styles.harvestButtonEnabled
                                             : styles.harvestButtonDisabled,
                                     ]}
+                                    testID="harvest-plant"
                                 >
                                     <Text
                                         style={[
