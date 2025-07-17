@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, TouchableOpacity, Text, Alert } from "react-native";
+import { View, TouchableOpacity, Text, Alert, Animated } from "react-native";
 import { Image } from "expo-image";
 import { GardenAreaProps, GrowthStage } from "../types/garden";
 import { GrowthService } from "../services/growthService";
@@ -205,26 +205,119 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         return plantStageImages[plantKey]?.[stage] || dirtImg;
     };
 
-    // Animated Plant Component with harvest-ready bounce and glow
+    // Plant Component with breathing border glow
     const AnimatedPlant: React.FC<{
         plant: any;
         plantName: string;
         stage: GrowthStage;
         onPress: () => void;
     }> = ({ plant, plantName, stage, onPress }) => {
+        const glowOpacity = useRef(new Animated.Value(0)).current;
+
+        // Check if plant is ready for harvest
+        const plantObject = plant.plant || {
+            id: plant.plant_id,
+            name: plantName,
+            growth_time_hours: plant.growth_time_hours || 0,
+            weather_bonus: plant.weather_bonus || {
+                sunny: 1,
+                cloudy: 1,
+                rainy: 1,
+            },
+            image_path: plant.image_path || "",
+            created_at: plant.planted_at,
+        };
+
+        const isMatureCalculated = GrowthService.isPlantMature(
+            plant,
+            plantObject,
+            weatherCondition
+        );
+        const isReadyForHarvest = isMatureCalculated && !plant.harvested_at;
+
+        // Start breathing glow animation if plant is ready for harvest
+        useEffect(() => {
+            if (isReadyForHarvest) {
+                const startBreathing = () => {
+                    Animated.sequence([
+                        Animated.timing(glowOpacity, {
+                            toValue: 0.8,
+                            duration: 1500,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(glowOpacity, {
+                            toValue: 0.2,
+                            duration: 1500,
+                            useNativeDriver: true,
+                        }),
+                    ]).start(() => {
+                        // Repeat the animation
+                        startBreathing();
+                    });
+                };
+                startBreathing();
+            } else {
+                // Reset to no glow
+                Animated.timing(glowOpacity, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                }).start();
+            }
+        }, [isReadyForHarvest, glowOpacity]);
+
         return (
             <TouchableOpacity
                 onPress={onPress}
                 style={{ flex: 1, alignItems: "center" }}
             >
-                <Image
-                    source={getImageForPlant(plantName, stage)}
-                    style={{ width: 90, height: 90 }}
-                    contentFit="contain"
-                    cachePolicy="memory-disk"
-                    priority="high"
-                    transition={200}
-                />
+                <View
+                    style={{
+                        position: "relative",
+                        width: 120,
+                        height: 120,
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                >
+                    {/* Glow effect using the image itself */}
+                    <Animated.View
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            opacity: glowOpacity,
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}
+                    >
+                        <Image
+                            source={getImageForPlant(plantName, stage)}
+                            style={{
+                                width: 90,
+                                height: 90,
+                                shadowColor: "#FFAE00",
+                                shadowOffset: { width: 0, height: 0 },
+                                shadowOpacity: 1,
+                                shadowRadius: 15,
+                            }}
+                            contentFit="contain"
+                            cachePolicy="memory-disk"
+                            priority="high"
+                            transition={200}
+                        />
+                    </Animated.View>
+                    <Image
+                        source={getImageForPlant(plantName, stage)}
+                        style={{ width: 90, height: 90 }}
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                        priority="high"
+                        transition={200}
+                    />
+                </View>
                 <Text
                     style={{
                         fontSize: 10,
