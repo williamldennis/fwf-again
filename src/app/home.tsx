@@ -21,6 +21,7 @@ import { useUserProfile } from "../hooks/useUserProfile";
 import { useFriends } from "../hooks/useFriends";
 import { useGardenData } from "../hooks/useGardenData";
 import { useAvailablePlants } from "../hooks/useAvailablePlants";
+import { useXP } from "../hooks/useXP";
 import { useWeatherData } from "../hooks/useWeatherData";
 
 import GardenArea from "../components/GardenArea";
@@ -143,6 +144,14 @@ export default function Home() {
         userProfile?.longitude,
         currentUserId
     );
+
+    // XP data hook
+    const {
+        xpData,
+        loading: xpLoading,
+        error: xpError,
+        refreshXP,
+    } = useXP(currentUserId);
 
     // Local state for UI interactions
     const [showMenu, setShowMenu] = useState(false);
@@ -616,6 +625,7 @@ export default function Home() {
                     <HeaderBar
                         points={userProfile?.points || 0}
                         onMenuPress={() => setShowMenu(true)}
+                        xpData={xpData}
                     />
                 </View>
                 {/* Progressive Loading Indicators */}

@@ -4,11 +4,18 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 interface HeaderBarProps {
     points: number;
     onMenuPress: () => void;
+    xpData?: {
+        total_xp: number;
+        current_level: number;
+        xp_to_next_level: number;
+        xp_progress: number;
+    } | null;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
     points,
     onMenuPress,
+    xpData,
 }) => {
     return (
         <View style={styles.container}>
@@ -21,10 +28,23 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 <Text style={styles.menuIcon}>☰</Text>
             </TouchableOpacity>
 
-            {/* Right side - Points display */}
-            <View style={styles.pointsContainer}>
-                <Text style={styles.pointsText}>{points}</Text>
-                <Text style={styles.pointsLabel}>pts</Text>
+            {/* Right side - XP and Points display */}
+            <View style={styles.rightContainer}>
+                {/* XP Display */}
+                {xpData && (
+                    <View style={styles.xpContainer}>
+                        <Text style={styles.xpText}>🌱 {xpData.total_xp}</Text>
+                        <Text style={styles.levelText}>
+                            Level {xpData.current_level}
+                        </Text>
+                    </View>
+                )}
+
+                {/* Points Display */}
+                <View style={styles.pointsContainer}>
+                    <Text style={styles.pointsText}>{points}</Text>
+                    <Text style={styles.pointsLabel}>pts</Text>
+                </View>
             </View>
         </View>
     );
@@ -86,6 +106,32 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: "500",
         color: "#007AFF",
+        opacity: 0.8,
+    },
+    rightContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+    xpContainer: {
+        alignItems: "center",
+        backgroundColor: "rgba(34, 197, 94, 0.1)",
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        minWidth: 70,
+        justifyContent: "center",
+    },
+    xpText: {
+        fontSize: 14,
+        fontWeight: "bold",
+        color: "#22C55E",
+        marginBottom: 2,
+    },
+    levelText: {
+        fontSize: 10,
+        fontWeight: "500",
+        color: "#22C55E",
         opacity: 0.8,
     },
 });
