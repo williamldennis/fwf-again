@@ -335,4 +335,47 @@ describe('useUserProfile', () => {
     expect(result.current.profile).toBeNull();
     expect(result.current.error).toBeNull();
   });
+
+  it('should increase points by harvest_points after harvesting', async () => {
+    const initialPoints = 100;
+    const harvestPoints = 25;
+    const mockUserId = 'test-user-id';
+
+    // Initial profile fetch
+    (supabase.from as jest.Mock).mockReturnValueOnce({
+      select: jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValue({
+            data: { ...mockProfile, points: initialPoints },
+            error: null,
+          }),
+        }),
+      }),
+    } as any);
+
+    const { result } = renderHook(() => useUserProfile(mockUserId));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.profile?.points).toBe(initialPoints);
+
+    // Simulate harvesting: update points in DB and refetch
+    const newPoints = initialPoints + harvestPoints;
+    (supabase.from as jest.Mock).mockReturnValueOnce({
+      select: jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValue({
+            data: { ...mockProfile, points: newPoints },
+            error: null,
+          }),
+        }),
+      }),
+    } as any);
+
+    let updatedPoints: number = 0;
+    await act(async () => {
+      updatedPoints = await result.current.updatePoints();
+    });
+
+    expect(updatedPoints).toBe(newPoints);
+    expect(result.current.profile?.points).toBe(newPoints);
+  });
 }); 
