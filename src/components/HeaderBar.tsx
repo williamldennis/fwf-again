@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { BlurView } from "expo-blur";
 
 interface HeaderBarProps {
     points: number;
@@ -11,54 +12,50 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     onMenuPress,
 }) => {
     return (
-        <View style={styles.container}>
-            {/* Left side - Menu button */}
-            <TouchableOpacity
-                style={styles.menuButton}
-                onPress={onMenuPress}
-                activeOpacity={0.7}
-            >
-                <Text style={styles.menuIcon}>☰</Text>
-            </TouchableOpacity>
+        <BlurView intensity={20} tint="light" style={styles.blurContainer}>
+            <View style={styles.container}>
+                {/* Left side - Menu button */}
+                <TouchableOpacity
+                    style={styles.menuButton}
+                    onPress={onMenuPress}
+                    activeOpacity={0.7}
+                >
+                    <Text style={styles.menuIcon}>☰</Text>
+                </TouchableOpacity>
 
-            {/* Center - App title */}
-            <View style={styles.titleContainer}>
-                <Text style={styles.title}>Fair Weather Friends</Text>
+                {/* Right side - Points display */}
+                <View style={styles.pointsContainer}>
+                    <Text style={styles.pointsText}>{points}</Text>
+                    <Text style={styles.pointsLabel}>pts</Text>
+                </View>
             </View>
-
-            {/* Right side - Points display */}
-            <View style={styles.pointsContainer}>
-                <Text style={styles.pointsText}>{points}</Text>
-                <Text style={styles.pointsLabel}>pts</Text>
-            </View>
-        </View>
+        </BlurView>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    blurContainer: {
         position: "absolute",
         top: 0,
         left: 0,
         right: 0,
+        zIndex: 1000,
+    },
+    container: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 16,
         paddingVertical: 12,
         paddingTop: 60, // Add extra padding to account for status bar
-        backgroundColor: "rgba(255, 255, 255, 0.95)",
-        borderBottomWidth: 1,
-        borderBottomColor: "rgba(0, 0, 0, 0.1)",
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
-            height: 2,
+            height: 1,
         },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        zIndex: 1000,
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 2,
     },
     menuButton: {
         padding: 8,
@@ -72,17 +69,6 @@ const styles = StyleSheet.create({
         fontSize: 20,
         color: "#007AFF",
         fontWeight: "600",
-    },
-    titleContainer: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    title: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#333",
-        textAlign: "center",
     },
     pointsContainer: {
         flexDirection: "row",
