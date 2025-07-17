@@ -23,6 +23,7 @@ import { useGardenData } from "../hooks/useGardenData";
 import { useAvailablePlants } from "../hooks/useAvailablePlants";
 import { useXP } from "../hooks/useXP";
 import { useWeatherData } from "../hooks/useWeatherData";
+import { XPService } from "../services/xpService";
 
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
@@ -153,6 +154,30 @@ export default function Home() {
         refreshXP,
     } = useXP(currentUserId);
 
+    // Daily XP award function
+    const awardDailyXP = async () => {
+        if (!currentUserId) return;
+
+        try {
+            console.log("[XP] 🌅 Checking daily XP eligibility...");
+            const result = await XPService.awardDailyXP(currentUserId);
+
+            if (result.success) {
+                console.log("[XP] ✅ Daily XP awarded:", result.newTotalXP);
+                // Refresh XP data to update the display
+                await refreshXP();
+
+                // Show toast notification (we'll implement this later)
+                // For now, just log the success
+                console.log("[XP] 🎉 +5 XP Daily Reward!");
+            } else {
+                console.log("[XP] ⏰ Daily XP already awarded today");
+            }
+        } catch (error) {
+            console.error("[XP] ❌ Error awarding daily XP:", error);
+        }
+    };
+
     // Local state for UI interactions
     const [showMenu, setShowMenu] = useState(false);
     const [refreshingContacts, setRefreshingContacts] = useState(false);
@@ -253,6 +278,11 @@ export default function Home() {
 
             // Initial growth update on app load
             updateGrowth();
+
+            // Award daily XP on app launch
+            if (currentUserId) {
+                awardDailyXP();
+            }
         }
 
         // Set up periodic growth updates (every 5 minutes)
@@ -280,6 +310,11 @@ export default function Home() {
                     "[App] 📱 App came to foreground, updating growth..."
                 );
                 updateGrowth();
+
+                // Check for daily XP when app comes to foreground
+                if (currentUserId) {
+                    awardDailyXP();
+                }
             }
         };
 
@@ -291,7 +326,7 @@ export default function Home() {
         return () => {
             subscription?.remove();
         };
-    }, [updateGrowth]);
+    }, [updateGrowth, currentUserId]);
 
     // Set forecast summary when weather data is available
     useEffect(() => {
