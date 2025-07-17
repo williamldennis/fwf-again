@@ -647,6 +647,22 @@ export class AchievementService {
   }
 
   /**
+   * Get achievement details by IDs
+   * @param achievementIds - Array of achievement IDs
+   * @returns Achievement[]
+   */
+  static getAchievementsByIds(achievementIds: string[]): Achievement[] {
+    try {
+      return achievementIds
+        .map(id => this.ACHIEVEMENTS[id])
+        .filter(achievement => achievement !== undefined);
+    } catch (error) {
+      console.error("[AchievementService] Exception in getAchievementsByIds:", error);
+      return [];
+    }
+  }
+
+  /**
    * Get user's achievement statistics
    * @param userId - The user's UUID
    * @returns Promise<Record<string, number>>

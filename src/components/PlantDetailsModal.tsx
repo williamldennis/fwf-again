@@ -34,7 +34,12 @@ interface PlantDetailsModalProps {
     currentUserId?: string; // Current user's ID to check if they can harvest
     friendWeather?: string; // Friend's current weather for accurate growth calculation
     planterName: string; // Name of the person who planted the plant
-    onShowXPToast?: (message: string, amount: number) => void; // Callback to show XP toast on parent screen
+    onShowXPToast?: (
+        message: string,
+        subtitle: string,
+        amount: number,
+        achievements?: string[]
+    ) => void; // Callback to show XP toast on parent screen
 }
 
 export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
@@ -415,17 +420,25 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                     // Show XP toast notification on parent screen
                     if (onShowXPToast) {
                         let toastMessage: string;
+                        let toastSubtitle: string;
 
                         if (xpResult.achievements.length > 0) {
                             toastMessage = `Harvest Reward + ${xpResult.achievements.length} Achievement${xpResult.achievements.length > 1 ? "s" : ""}!`;
+                            toastSubtitle = `+${xpResult.baseXP} XP for harvesting + ${xpResult.achievementXP} XP for achievements`;
                             console.log(
                                 `[Harvest] 🏆 Achievements unlocked: ${xpResult.achievements.join(", ")}`
                             );
                         } else {
                             toastMessage = "Harvest Reward!";
+                            toastSubtitle = `+${xpResult.baseXP} XP for harvesting`;
                         }
 
-                        onShowXPToast(toastMessage, xpResult.totalXP);
+                        onShowXPToast(
+                            toastMessage,
+                            toastSubtitle,
+                            xpResult.totalXP,
+                            xpResult.achievements
+                        );
                         console.log(
                             `[Harvest] 🎉 XP toast triggered: ${toastMessage} (+${xpResult.totalXP} XP)`
                         );

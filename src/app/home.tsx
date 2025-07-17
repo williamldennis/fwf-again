@@ -25,6 +25,7 @@ import { useXP } from "../hooks/useXP";
 import { useWeatherData } from "../hooks/useWeatherData";
 import { XPService } from "../services/xpService";
 import XPToast from "../components/XPToast";
+import AchievementToast from "../components/AchievementToast";
 
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
@@ -178,6 +179,7 @@ export default function Home() {
 
                 // Show toast notification
                 setXpToastMessage("Daily Reward!");
+                setXpToastSubtitle("You opened the app today!");
                 setXpToastAmount(5);
                 setShowXPToast(true);
 
@@ -518,6 +520,7 @@ export default function Home() {
 
                     // Set toast with enhanced information
                     setXpToastMessage(toastMessage);
+                    setXpToastSubtitle(toastSubtitle);
                     setXpToastAmount(totalXP);
                     setShowXPToast(true);
 
@@ -535,6 +538,17 @@ export default function Home() {
                             "[XP] 🏆 New achievements unlocked:",
                             achievementResult.unlocked
                         );
+
+                        // Show achievement toast
+                        const achievementDetails =
+                            AchievementService.getAchievementsByIds(
+                                achievementResult.unlocked
+                            );
+                        setAchievementToastData({
+                            achievements: achievementDetails,
+                            totalXPAwarded: achievementResult.xpAwarded,
+                        });
+                        setShowAchievementToast(true);
                     }
                 } else {
                     console.log("[XP] ℹ️ No XP awarded for planting");
@@ -587,9 +601,19 @@ export default function Home() {
     // XP Toast state
     const [showXPToast, setShowXPToast] = useState(false);
     const [xpToastMessage, setXpToastMessage] = useState("");
+    const [xpToastSubtitle, setXpToastSubtitle] = useState<string | undefined>(
+        undefined
+    );
     const [xpToastAmount, setXpToastAmount] = useState<number | undefined>(
         undefined
     );
+
+    // Achievement Toast state
+    const [showAchievementToast, setShowAchievementToast] = useState(false);
+    const [achievementToastData, setAchievementToastData] = useState<{
+        achievements: any[];
+        totalXPAwarded: number;
+    }>({ achievements: [], totalXPAwarded: 0 });
 
     // User's 5-day forecast data
     const userFiveDayData = useMemo(() => {
@@ -1227,12 +1251,35 @@ export default function Home() {
                 currentUserId={currentUserId || undefined}
                 friendWeather={selectedPlant?.friendWeather}
                 planterName={selectedPlanterName}
-                onShowXPToast={async (message: string, amount: number) => {
+                onShowXPToast={async (
+                    message: string,
+                    subtitle: string,
+                    amount: number,
+                    achievements?: string[]
+                ) => {
                     // Add a small delay to ensure modal is fully closed before showing toast
                     setTimeout(() => {
                         setXpToastMessage(message);
+                        setXpToastSubtitle(subtitle);
                         setXpToastAmount(amount);
                         setShowXPToast(true);
+
+                        // Show achievement toast if achievements were unlocked
+                        if (achievements && achievements.length > 0) {
+                            const achievementDetails =
+                                AchievementService.getAchievementsByIds(
+                                    achievements
+                                );
+                            setAchievementToastData({
+                                achievements: achievementDetails,
+                                totalXPAwarded: achievementDetails.reduce(
+                                    (total, achievement) =>
+                                        total + achievement.xpReward,
+                                    0
+                                ),
+                            });
+                            setShowAchievementToast(true);
+                        }
                     }, 100);
                     await refreshXP();
                 }}
@@ -1242,8 +1289,17 @@ export default function Home() {
             <XPToast
                 visible={showXPToast}
                 message={xpToastMessage}
+                subtitle={xpToastSubtitle}
                 xpAmount={xpToastAmount}
                 onHide={() => setShowXPToast(false)}
+            />
+
+            {/* ACHIEVEMENT TOAST NOTIFICATION */}
+            <AchievementToast
+                visible={showAchievementToast}
+                achievements={achievementToastData.achievements}
+                totalXPAwarded={achievementToastData.totalXPAwarded}
+                onHide={() => setShowAchievementToast(false)}
             />
         </>
     );

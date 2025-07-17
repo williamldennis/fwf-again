@@ -5,6 +5,7 @@ interface XPToastProps {
     visible: boolean;
     message: string;
     xpAmount?: number;
+    subtitle?: string; // Detailed breakdown of XP sources
     onHide: () => void;
 }
 
@@ -12,6 +13,7 @@ const XPToast: React.FC<XPToastProps> = ({
     visible,
     message,
     xpAmount,
+    subtitle,
     onHide,
 }) => {
     const translateY = new Animated.Value(-100);
@@ -36,7 +38,7 @@ const XPToast: React.FC<XPToastProps> = ({
             // Hide after 3 seconds
             const timer = setTimeout(() => {
                 hideToast();
-            }, 3000);
+            }, 5000);
 
             return () => clearTimeout(timer);
         }
@@ -75,6 +77,9 @@ const XPToast: React.FC<XPToastProps> = ({
                 <Text style={styles.icon}>🎉</Text>
                 <View style={styles.content}>
                     <Text style={styles.message}>{message}</Text>
+                    {subtitle && (
+                        <Text style={styles.subtitle}>{subtitle}</Text>
+                    )}
                     {xpAmount && (
                         <Text style={styles.xpAmount}>+{xpAmount} XP</Text>
                     )}
@@ -120,6 +125,16 @@ const styles = StyleSheet.create({
         color: "white",
         fontSize: 16,
         fontWeight: "700",
+        marginBottom: 2,
+        textShadowColor: "rgba(0, 0, 0, 0.3)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
+    },
+    subtitle: {
+        color: "white",
+        fontSize: 12,
+        fontWeight: "500",
+        opacity: 0.9,
         marginBottom: 2,
         textShadowColor: "rgba(0, 0, 0, 0.3)",
         textShadowOffset: { width: 0, height: 1 },
