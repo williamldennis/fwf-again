@@ -369,10 +369,10 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 alignItems: "flex-end",
                 borderRadius: 8,
                 height: 60,
-                padding: 0,
                 marginTop: 20,
                 marginBottom: 0,
                 position: "relative",
+                backgroundColor: "white",
             }}
         >
             {/* Dirt Particles Animation */}

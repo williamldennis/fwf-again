@@ -106,7 +106,6 @@ export const UserCard: React.FC<UserCardProps> = ({
             style={{
                 alignItems: "center",
                 justifyContent: "center",
-                paddingTop: 120, // Account for header height
                 paddingBottom: 20,
                 zIndex: 1,
                 height: cardHeight,
@@ -114,7 +113,7 @@ export const UserCard: React.FC<UserCardProps> = ({
         >
             <View
                 style={{
-                    width: cardWidth - 32, // Add some padding for the card
+                    width: cardWidth, // Add some padding for the card
                     borderRadius: 20,
                     shadowColor: "#000",
                     shadowOffset: {
@@ -126,177 +125,87 @@ export const UserCard: React.FC<UserCardProps> = ({
                     elevation: 3,
                     alignItems: "center",
                     overflow: "visible",
-                    borderWidth: 0.5,
-                    borderColor: "#DEEFFF",
-                    backgroundColor: "#DFEFFF",
+                    // borderColor: "#DEEFFF",
+                    // backgroundColor: "#DFEFFF",
                 }}
             >
-                <Text
+                <Image
+                    source={{
+                        uri:
+                            selfieUrls &&
+                            weather &&
+                            weather.weather &&
+                            mapWeatherToSelfieKey(weather.weather[0].main)
+                                ? selfieUrls[
+                                      mapWeatherToSelfieKey(
+                                          weather.weather[0].main
+                                      )
+                                  ]
+                                : undefined,
+                    }}
                     style={{
-                        fontWeight: "bold",
-                        fontSize: 18,
-                        textAlign: "center",
-                        marginTop: 20,
+                        width: 100,
+                        height: 100,
+                        borderRadius: 50,
+                        resizeMode: "cover",
+                        backgroundColor: "#eee",
+                        marginTop: 60, // space for Lottie
                         marginBottom: 20,
                     }}
-                >
-                    Your Garden
-                </Text>
+                />
+                {/* Weather text */}
                 <Text
                     style={{
-                        position: "absolute",
-                        top: 20,
-                        right: 20,
-                        fontSize: 16,
-                        fontWeight: "bold",
-                        color: "#007AFF",
+                        fontSize: 20,
+                        color: "white",
+                        textAlign: "center",
+                        marginBottom: 20,
+                        marginTop: 40,
                     }}
                 >
-                    {userPoints}pts
-                </Text>
-                <View
-                    style={{
-                        width: "90%",
-                        backgroundColor: "#fff",
-                        borderRadius: 16,
-                        alignItems: "center",
-                        paddingVertical: 0,
-                        paddingHorizontal: 0,
-                        position: "relative",
-                        marginBottom: 14,
-                        borderWidth: 0.5,
-                        borderColor: "#DEEFFF",
-                    }}
-                >
-                    {/* Lottie animation floating above, centered */}
-                    {weather && weather.weather && weather.weather[0] && (
-                        <View
-                            pointerEvents="none"
-                            style={{
-                                position: "absolute",
-                                top: 100,
-                                left: 0,
-                                right: 0,
-                                alignItems: "center",
-                                zIndex: 3,
-                            }}
-                        >
-                            <LottieView
-                                source={getWeatherLottie(
-                                    weather.weather[0].main
-                                )}
-                                autoPlay
-                                loop
+                    {loading ? (
+                        <Text style={{ fontStyle: "italic", color: "#666" }}>
+                            Loading weather...
+                        </Text>
+                    ) : weather && weather.main && weather.main.temp ? (
+                        <>
+                            It&apos;s{" "}
+                            <Text
                                 style={{
-                                    width: 200,
-                                    height: 200,
-                                    opacity: 0.7,
+                                    fontWeight: "bold",
                                 }}
-                            />
-                        </View>
-                    )}
-                    {/* Selfie */}
-                    <Image
-                        source={{
-                            uri:
-                                selfieUrls &&
-                                weather &&
+                            >
+                                {Math.round(weather.main.temp)}°
+                            </Text>{" "}
+                            and{" "}
+                            <Text
+                                style={{
+                                    fontWeight: "bold",
+                                }}
+                            >
+                                {weather &&
                                 weather.weather &&
-                                mapWeatherToSelfieKey(weather.weather[0].main)
-                                    ? selfieUrls[
-                                          mapWeatherToSelfieKey(
-                                              weather.weather[0].main
-                                          )
-                                      ]
-                                    : undefined,
-                        }}
-                        style={{
-                            width: 80,
-                            height: 80,
-                            borderRadius: 40,
-                            resizeMode: "cover",
-                            backgroundColor: "#eee",
-                            marginTop: 32, // space for Lottie
-                            marginBottom: 30,
-                        }}
-                    />
-                    {/* Weather text */}
-                    <Text
-                        style={{
-                            fontSize: 16,
-                            color: "#333",
-                            textAlign: "center",
-                            marginBottom: 60,
-                        }}
-                    >
-                        {loading ? (
+                                weather.weather[0]
+                                    ? getWeatherDescription(
+                                          weather.weather[0].main
+                                      )
+                                    : "--"}
+                            </Text>{" "}
+                            in{" "}
                             <Text
-                                style={{ fontStyle: "italic", color: "#666" }}
+                                style={{
+                                    fontWeight: "bold",
+                                }}
                             >
-                                Loading weather...
+                                {weather && weather.name ? weather.name : "--"}
                             </Text>
-                        ) : weather && weather.main && weather.main.temp ? (
-                            <>
-                                It&apos;s{" "}
-                                <Text
-                                    style={{
-                                        fontWeight: "bold",
-                                    }}
-                                >
-                                    {Math.round(weather.main.temp)}°
-                                </Text>{" "}
-                                and{" "}
-                                <Text
-                                    style={{
-                                        fontWeight: "bold",
-                                    }}
-                                >
-                                    {weather &&
-                                    weather.weather &&
-                                    weather.weather[0]
-                                        ? getWeatherDescription(
-                                              weather.weather[0].main
-                                          )
-                                        : "--"}
-                                </Text>{" "}
-                                in{" "}
-                                <Text
-                                    style={{
-                                        fontWeight: "bold",
-                                    }}
-                                >
-                                    {weather && weather.name
-                                        ? weather.name
-                                        : "--"}
-                                </Text>
-                            </>
-                        ) : (
-                            <Text
-                                style={{ fontStyle: "italic", color: "#666" }}
-                            >
-                                Weather data unavailable
-                            </Text>
-                        )}
-                    </Text>
-                    {/* User's Garden */}
-                    <GardenArea
-                        gardenOwnerId={currentUserId || ""}
-                        plants={plantedPlants[currentUserId || ""] || []}
-                        weatherCondition={
-                            weather && weather.weather && weather.weather[0]
-                                ? weather.weather[0].main
-                                : "clear"
-                        }
-                        onPlantPress={(slotIdx) =>
-                            onPlantPress(currentUserId || "", slotIdx)
-                        }
-                        onPlantDetailsPress={onPlantDetailsPress}
-                        isGardenFull={
-                            (plantedPlants[currentUserId || ""] || []).length >=
-                            3
-                        }
-                    />
-                </View>
+                        </>
+                    ) : (
+                        <Text style={{ fontStyle: "italic", color: "#666" }}>
+                            Weather data unavailable
+                        </Text>
+                    )}
+                </Text>
                 {forecastData && forecastData.length > 0 ? (
                     <FiveDayForecast forecastData={forecastData} />
                 ) : loading ? (
@@ -321,6 +230,94 @@ export const UserCard: React.FC<UserCardProps> = ({
                         No forecast data available
                     </Text>
                 )}
+
+                {/* <Text
+                    style={{
+                        position: "absolute",
+                        top: 20,
+                        right: 20,
+                        fontSize: 16,
+                        fontWeight: "bold",
+                        color: "#007AFF",
+                    }}
+                >
+                    {userPoints}pts
+                </Text> */}
+                <View
+                    style={{
+                        width: "100%",
+                        // backgroundColor: "#fff",
+                        borderRadius: 16,
+                        alignItems: "center",
+                        position: "relative",
+                        backgroundColor: "white",
+                        borderBottomLeftRadius: 20,
+                        borderBottomRightRadius: 20,
+                        marginBottom: 0,
+                        paddingBottom: 20,
+                        marginTop: 20,
+                    }}
+                >
+                    {/* Lottie animation floating above, centered */}
+                    {weather && weather.weather && weather.weather[0] && (
+                        <View
+                            pointerEvents="none"
+                            style={{
+                                position: "absolute",
+                                top: -900,
+                                left: 0,
+                                right: 0,
+                                alignItems: "center",
+                                zIndex: 3,
+                            }}
+                        >
+                            <LottieView
+                                source={getWeatherLottie(
+                                    weather.weather[0].main
+                                )}
+                                autoPlay
+                                loop
+                                style={{
+                                    width: 1100,
+                                    height: 1100,
+                                    opacity: 0.2,
+                                }}
+                            />
+                        </View>
+                    )}
+                    {/* Selfie */}
+
+                    {/* User's Garden */}
+                    <Text
+                        style={{
+                            fontWeight: "bold",
+                            fontSize: 18,
+                            textAlign: "center",
+                            marginTop: 20,
+                            marginBottom: 20,
+                            color: "white",
+                        }}
+                    >
+                        Your Garden
+                    </Text>
+                    <GardenArea
+                        gardenOwnerId={currentUserId || ""}
+                        plants={plantedPlants[currentUserId || ""] || []}
+                        weatherCondition={
+                            weather && weather.weather && weather.weather[0]
+                                ? weather.weather[0].main
+                                : "clear"
+                        }
+                        onPlantPress={(slotIdx) =>
+                            onPlantPress(currentUserId || "", slotIdx)
+                        }
+                        onPlantDetailsPress={onPlantDetailsPress}
+                        isGardenFull={
+                            (plantedPlants[currentUserId || ""] || []).length >=
+                            3
+                        }
+                    />
+                </View>
             </View>
             {error && !loading && (
                 <View
