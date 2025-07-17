@@ -24,6 +24,7 @@ import { useAvailablePlants } from "../hooks/useAvailablePlants";
 import { useXP } from "../hooks/useXP";
 import { useWeatherData } from "../hooks/useWeatherData";
 import { XPService } from "../services/xpService";
+import XPToast from "../components/XPToast";
 
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
@@ -156,22 +157,35 @@ export default function Home() {
 
     // Daily XP award function
     const awardDailyXP = async () => {
-        if (!currentUserId) return;
+        if (!currentUserId) {
+            console.log("[XP] ❌ No currentUserId available for daily XP");
+            return;
+        }
+
+        console.log("[XP] 🌅 Starting daily XP check for user:", currentUserId);
 
         try {
             console.log("[XP] 🌅 Checking daily XP eligibility...");
             const result = await XPService.awardDailyXP(currentUserId);
+
+            console.log("[XP] 📊 Daily XP result:", result);
 
             if (result.success) {
                 console.log("[XP] ✅ Daily XP awarded:", result.newTotalXP);
                 // Refresh XP data to update the display
                 await refreshXP();
 
-                // Show toast notification (we'll implement this later)
-                // For now, just log the success
+                // Show toast notification
+                setXpToastMessage("Daily Reward!");
+                setXpToastAmount(5);
+                setShowXPToast(true);
+
                 console.log("[XP] 🎉 +5 XP Daily Reward!");
             } else {
-                console.log("[XP] ⏰ Daily XP already awarded today");
+                console.log(
+                    "[XP] ⏰ Daily XP already awarded today or failed:",
+                    result.error
+                );
             }
         } catch (error) {
             console.error("[XP] ❌ Error awarding daily XP:", error);
@@ -195,6 +209,13 @@ export default function Home() {
     const [selectedPlant, setSelectedPlant] = useState<any>(null);
     const [selectedPlanterName, setSelectedPlanterName] =
         useState<string>("Unknown");
+
+    // XP Toast state
+    const [showXPToast, setShowXPToast] = useState(false);
+    const [xpToastMessage, setXpToastMessage] = useState("");
+    const [xpToastAmount, setXpToastAmount] = useState<number | undefined>(
+        undefined
+    );
 
     // User's 5-day forecast data
     const userFiveDayData = useMemo(() => {
@@ -280,8 +301,15 @@ export default function Home() {
             updateGrowth();
 
             // Award daily XP on app launch
+            console.log(
+                "[App] 🎯 Attempting daily XP award, currentUserId:",
+                currentUserId
+            );
             if (currentUserId) {
+                console.log("[App] 🎯 Calling awardDailyXP...");
                 awardDailyXP();
+            } else {
+                console.log("[App] ⏳ No currentUserId yet, skipping daily XP");
             }
         }
 
@@ -327,6 +355,16 @@ export default function Home() {
             subscription?.remove();
         };
     }, [updateGrowth, currentUserId]);
+
+    // Award daily XP when currentUserId becomes available (if not already done)
+    useEffect(() => {
+        if (currentUserId && hasInitialized.current) {
+            console.log(
+                "[App] 🎯 currentUserId became available, checking daily XP..."
+            );
+            awardDailyXP();
+        }
+    }, [currentUserId]);
 
     // Set forecast summary when weather data is available
     useEffect(() => {
@@ -778,6 +816,14 @@ export default function Home() {
                 currentUserId={currentUserId || undefined}
                 friendWeather={selectedPlant?.friendWeather}
                 planterName={selectedPlanterName}
+            />
+
+            {/* XP TOAST NOTIFICATION */}
+            <XPToast
+                visible={showXPToast}
+                message={xpToastMessage}
+                xpAmount={xpToastAmount}
+                onHide={() => setShowXPToast(false)}
             />
         </>
     );
