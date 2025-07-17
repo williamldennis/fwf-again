@@ -90,10 +90,10 @@ const styles = StyleSheet.create({
         top: 120, // Below header
         left: 20,
         right: 20,
-        zIndex: 2000,
+        zIndex: 9999, // Very high z-index to ensure it appears above modals
     },
     toast: {
-        backgroundColor: "rgba(34, 197, 94, 0.95)",
+        backgroundColor: "rgba(34, 197, 94, 1.0)",
         borderRadius: 12,
         padding: 16,
         flexDirection: "row",
@@ -101,11 +101,13 @@ const styles = StyleSheet.create({
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
-            height: 2,
+            height: 4,
         },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+        borderWidth: 1,
+        borderColor: "rgba(255, 255, 255, 0.2)",
     },
     icon: {
         fontSize: 24,
@@ -117,14 +119,20 @@ const styles = StyleSheet.create({
     message: {
         color: "white",
         fontSize: 16,
-        fontWeight: "600",
+        fontWeight: "700",
         marginBottom: 2,
+        textShadowColor: "rgba(0, 0, 0, 0.3)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     xpAmount: {
         color: "white",
         fontSize: 14,
-        fontWeight: "500",
-        opacity: 0.9,
+        fontWeight: "600",
+        opacity: 1.0,
+        textShadowColor: "rgba(0, 0, 0, 0.3)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
 });
 

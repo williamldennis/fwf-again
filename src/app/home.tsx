@@ -1170,6 +1170,15 @@ export default function Home() {
                 currentUserId={currentUserId || undefined}
                 friendWeather={selectedPlant?.friendWeather}
                 planterName={selectedPlanterName}
+                onShowXPToast={async (message: string, amount: number) => {
+                    // Add a small delay to ensure modal is fully closed before showing toast
+                    setTimeout(() => {
+                        setXpToastMessage(message);
+                        setXpToastAmount(amount);
+                        setShowXPToast(true);
+                    }, 100);
+                    await refreshXP();
+                }}
             />
 
             {/* XP TOAST NOTIFICATION */}
