@@ -1,0 +1,454 @@
+import React, { useEffect, useRef } from "react";
+import {
+    View,
+    Text,
+    Modal,
+    TouchableOpacity,
+    StyleSheet,
+    Dimensions,
+    Animated,
+    ScrollView,
+} from "react-native";
+import {
+    GestureHandlerRootView,
+    PanGestureHandler,
+    State,
+} from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
+
+const { height: screenHeight } = Dimensions.get("window");
+const DRAWER_HEIGHT = screenHeight * 0.9;
+
+interface AchievementDrawerProps {
+    visible: boolean;
+    onClose: () => void;
+    xpData?: {
+        total_xp: number;
+        current_level: number;
+        xp_to_next_level: number;
+        xp_progress: number;
+    } | null;
+}
+
+export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
+    visible,
+    onClose,
+    xpData,
+}) => {
+    const translateY = useRef(new Animated.Value(screenHeight)).current;
+    const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (visible) {
+            // Trigger haptic feedback on open
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
+                () => {
+                    // Ignore haptic errors
+                }
+            );
+
+            // Animate drawer opening
+            Animated.parallel([
+                Animated.spring(translateY, {
+                    toValue: screenHeight - DRAWER_HEIGHT,
+                    useNativeDriver: true,
+                    tension: 100,
+                    friction: 8,
+                }),
+                Animated.timing(backdropOpacity, {
+                    toValue: 0.5,
+                    duration: 300,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        } else {
+            // Animate drawer closing
+            Animated.parallel([
+                Animated.spring(translateY, {
+                    toValue: screenHeight,
+                    useNativeDriver: true,
+                    tension: 100,
+                    friction: 8,
+                }),
+                Animated.timing(backdropOpacity, {
+                    toValue: 0,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        }
+    }, [visible]);
+
+    const handleBackdropPress = () => {
+        // Trigger haptic feedback on close
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+            // Ignore haptic errors
+        });
+        onClose();
+    };
+
+    const handleGestureEvent = (event: any) => {
+        const { translationY, state } = event.nativeEvent;
+
+        if (state === State.ACTIVE) {
+            const newTranslateY = Math.max(
+                screenHeight - DRAWER_HEIGHT,
+                screenHeight - DRAWER_HEIGHT + translationY
+            );
+            translateY.setValue(newTranslateY);
+        } else if (state === State.END) {
+            const shouldClose = translationY > 100;
+
+            if (shouldClose) {
+                // Trigger haptic feedback on close
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
+                    () => {
+                        // Ignore haptic errors
+                    }
+                );
+                onClose();
+            } else {
+                // Snap back to open position
+                Animated.spring(translateY, {
+                    toValue: screenHeight - DRAWER_HEIGHT,
+                    useNativeDriver: true,
+                    tension: 100,
+                    friction: 8,
+                }).start();
+            }
+        }
+    };
+
+    return (
+        <Modal
+            visible={visible}
+            transparent
+            animationType="none"
+            onRequestClose={onClose}
+        >
+            <GestureHandlerRootView style={styles.container}>
+                {/* Backdrop */}
+                <Animated.View
+                    style={[
+                        styles.backdrop,
+                        {
+                            opacity: backdropOpacity,
+                        },
+                    ]}
+                >
+                    <TouchableOpacity
+                        style={styles.backdropTouchable}
+                        onPress={handleBackdropPress}
+                        activeOpacity={1}
+                    />
+                </Animated.View>
+
+                {/* Drawer */}
+                <Animated.View
+                    style={[
+                        styles.drawer,
+                        {
+                            transform: [{ translateY }],
+                        },
+                    ]}
+                >
+                    <PanGestureHandler onGestureEvent={handleGestureEvent}>
+                        <Animated.View style={styles.drawerContent}>
+                            {/* Handle bar */}
+                            <View style={styles.handleBar} />
+
+                            {/* Level Progress Section */}
+                            <View style={styles.levelProgressSection}>
+                                <Text style={styles.levelTitle}>
+                                    🌱 Level {xpData?.current_level || 1}
+                                </Text>
+                                <Text style={styles.xpDisplay}>
+                                    {xpData?.total_xp || 0} /{" "}
+                                    {(xpData?.total_xp || 0) +
+                                        (xpData?.xp_to_next_level || 0)}{" "}
+                                    XP
+                                </Text>
+
+                                {/* Progress Bar */}
+                                <View style={styles.progressBarContainer}>
+                                    <View style={styles.progressBar}>
+                                        <View
+                                            style={[
+                                                styles.progressFill,
+                                                {
+                                                    width: `${xpData?.xp_progress || 0}%`,
+                                                },
+                                            ]}
+                                        />
+                                    </View>
+                                    <Text style={styles.progressText}>
+                                        {xpData?.xp_progress || 0}%
+                                    </Text>
+                                </View>
+
+                                <Text style={styles.xpToNext}>
+                                    {xpData?.xp_to_next_level || 0} XP to Level{" "}
+                                    {(xpData?.current_level || 1) + 1}
+                                </Text>
+                            </View>
+
+                            {/* Next Level Benefits */}
+                            <View style={styles.benefitsSection}>
+                                <Text style={styles.benefitsTitle}>
+                                    🎁 Next Level Benefits
+                                </Text>
+                                <Text style={styles.benefitsText}>
+                                    Unlock: Premium plants access
+                                </Text>
+                            </View>
+
+                            {/* Recent XP Transactions */}
+                            <View style={styles.transactionsSection}>
+                                <Text style={styles.sectionTitle}>
+                                    📊 Recent XP Activity
+                                </Text>
+                                <View style={styles.transactionItem}>
+                                    <Text style={styles.transactionText}>
+                                        🌱 Daily Use +5 XP • 2 min ago
+                                    </Text>
+                                </View>
+                                <View style={styles.transactionItem}>
+                                    <Text style={styles.transactionText}>
+                                        🌱 Plant Seed +10 XP • 5 min ago
+                                    </Text>
+                                </View>
+                                <View style={styles.transactionItem}>
+                                    <Text style={styles.transactionText}>
+                                        🌱 Harvest Plant +20 XP • 10 min ago
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Achievement Categories Placeholder */}
+                            <View style={styles.achievementsSection}>
+                                <Text style={styles.sectionTitle}>
+                                    🌞 Daily (2/3 completed)
+                                </Text>
+                                <View style={styles.achievementCard}>
+                                    <Text style={styles.achievementTitle}>
+                                        🌱 First Steps
+                                    </Text>
+                                    <Text style={styles.achievementDescription}>
+                                        Plant your first seed
+                                    </Text>
+                                    <Text style={styles.achievementReward}>
+                                        50 XP • ✅ Completed
+                                    </Text>
+                                </View>
+                                <View style={styles.achievementCard}>
+                                    <Text style={styles.achievementTitle}>
+                                        🌱 Getting the Hang of It
+                                    </Text>
+                                    <Text style={styles.achievementDescription}>
+                                        Plant 10 total seeds
+                                    </Text>
+                                    <Text style={styles.achievementReward}>
+                                        100 XP • 7/10 seeds planted
+                                    </Text>
+                                    <View style={styles.achievementProgressBar}>
+                                        <View
+                                            style={[
+                                                styles.achievementProgressFill,
+                                                { width: "70%" },
+                                            ]}
+                                        />
+                                    </View>
+                                </View>
+                            </View>
+                        </Animated.View>
+                    </PanGestureHandler>
+                </Animated.View>
+            </GestureHandlerRootView>
+        </Modal>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+    },
+    backdrop: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "#000",
+    },
+    backdropTouchable: {
+        flex: 1,
+    },
+    drawer: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: "flex-end",
+    },
+    drawerContent: {
+        height: DRAWER_HEIGHT,
+        backgroundColor: "#fff",
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: -2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+    },
+    handleBar: {
+        width: 40,
+        height: 4,
+        backgroundColor: "#e0e0e0",
+        borderRadius: 2,
+        alignSelf: "center",
+        marginTop: 12,
+        marginBottom: 8,
+    },
+    levelProgressSection: {
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        backgroundColor: "rgba(34, 197, 94, 0.05)",
+        marginHorizontal: 16,
+        marginBottom: 16,
+        borderRadius: 12,
+    },
+    levelTitle: {
+        fontSize: 24,
+        fontWeight: "bold",
+        color: "#006400",
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    xpDisplay: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: "#006400",
+        textAlign: "center",
+        marginBottom: 12,
+    },
+    progressBarContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 8,
+    },
+    progressBar: {
+        flex: 1,
+        height: 8,
+        backgroundColor: "rgba(34, 197, 94, 0.2)",
+        borderRadius: 4,
+        marginRight: 12,
+        overflow: "hidden",
+    },
+    progressFill: {
+        height: "100%",
+        backgroundColor: "#22c55e",
+        borderRadius: 4,
+    },
+    progressText: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#006400",
+        minWidth: 40,
+    },
+    xpToNext: {
+        fontSize: 14,
+        color: "#006400",
+        textAlign: "center",
+        opacity: 0.8,
+    },
+    benefitsSection: {
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        marginHorizontal: 16,
+        marginBottom: 16,
+        backgroundColor: "rgba(255, 193, 7, 0.1)",
+        borderRadius: 12,
+    },
+    benefitsTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#b8860b",
+        marginBottom: 4,
+    },
+    benefitsText: {
+        fontSize: 14,
+        color: "#b8860b",
+        opacity: 0.9,
+    },
+    transactionsSection: {
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        marginHorizontal: 16,
+        marginBottom: 16,
+        backgroundColor: "rgba(59, 130, 246, 0.05)",
+        borderRadius: 12,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#1e40af",
+        marginBottom: 8,
+    },
+    transactionItem: {
+        paddingVertical: 4,
+    },
+    transactionText: {
+        fontSize: 14,
+        color: "#1e40af",
+        opacity: 0.9,
+    },
+    achievementsSection: {
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        marginHorizontal: 16,
+        marginBottom: 20,
+    },
+    achievementCard: {
+        backgroundColor: "#f8f9fa",
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 12,
+        borderLeftWidth: 4,
+        borderLeftColor: "#22c55e",
+    },
+    achievementTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#006400",
+        marginBottom: 4,
+    },
+    achievementDescription: {
+        fontSize: 14,
+        color: "#666",
+        marginBottom: 8,
+    },
+    achievementReward: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#006400",
+        marginBottom: 8,
+    },
+    achievementProgressBar: {
+        height: 6,
+        backgroundColor: "rgba(34, 197, 94, 0.2)",
+        borderRadius: 3,
+        overflow: "hidden",
+    },
+    achievementProgressFill: {
+        height: "100%",
+        backgroundColor: "#22c55e",
+        borderRadius: 3,
+    },
+});
+
+export default AchievementDrawer;

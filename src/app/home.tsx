@@ -37,6 +37,7 @@ import CardStack from "../components/CardStack";
 import DropdownMenu from "../components/DropdownMenu";
 import HeaderBar from "../components/HeaderBar";
 import SkeletonCard from "../components/SkeletonCard";
+import AchievementDrawer from "../components/AchievementDrawer";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -630,6 +631,9 @@ export default function Home() {
         Record<string, any[]>
     >({});
 
+    // Achievement drawer state
+    const [showAchievementDrawer, setShowAchievementDrawer] = useState(false);
+
     // Helper to fetch and cache friend forecast
     const fetchFriendForecast = async (friend: any) => {
         if (!friend.latitude || !friend.longitude) return;
@@ -1052,6 +1056,15 @@ export default function Home() {
         setShowPlantPicker(false);
     };
 
+    // Achievement drawer handlers
+    const openAchievementDrawer = () => {
+        setShowAchievementDrawer(true);
+    };
+
+    const closeAchievementDrawer = () => {
+        setShowAchievementDrawer(false);
+    };
+
     // Fetch available plants when PlantPicker is opened and not already loaded
     useEffect(() => {
         if (showPlantPicker && availablePlants.length === 0) {
@@ -1133,6 +1146,7 @@ export default function Home() {
                     <HeaderBar
                         points={userProfile?.points || 0}
                         onMenuPress={() => setShowMenu(true)}
+                        onXPPress={openAchievementDrawer}
                         xpData={xpData}
                     />
                 </View>
@@ -1300,6 +1314,13 @@ export default function Home() {
                 achievements={achievementToastData.achievements}
                 totalXPAwarded={achievementToastData.totalXPAwarded}
                 onHide={() => setShowAchievementToast(false)}
+            />
+
+            {/* ACHIEVEMENT DRAWER */}
+            <AchievementDrawer
+                visible={showAchievementDrawer}
+                onClose={closeAchievementDrawer}
+                xpData={xpData}
             />
         </>
     );

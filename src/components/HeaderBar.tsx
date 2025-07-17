@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 interface HeaderBarProps {
     points: number;
     onMenuPress: () => void;
+    onXPPress?: () => void;
     xpData?: {
         total_xp: number;
         current_level: number;
@@ -15,6 +16,7 @@ interface HeaderBarProps {
 export const HeaderBar: React.FC<HeaderBarProps> = ({
     points,
     onMenuPress,
+    onXPPress,
     xpData,
 }) => {
     return (
@@ -32,7 +34,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <View style={styles.rightContainer}>
                 {/* XP Display */}
                 {xpData && (
-                    <View style={styles.xpContainer}>
+                    <TouchableOpacity
+                        style={styles.xpContainer}
+                        onPress={onXPPress}
+                        activeOpacity={0.7}
+                    >
                         <Text style={styles.levelText}>
                             {" "}
                             {xpData.total_xp} 👍🏻{" "}
@@ -40,7 +46,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                         <Text style={styles.xpText}>
                             Level {xpData.current_level}
                         </Text>
-                    </View>
+                    </TouchableOpacity>
                 )}
 
                 {/* Points Display */}

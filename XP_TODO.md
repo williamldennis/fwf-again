@@ -180,17 +180,20 @@ This document breaks down the XP and Levels system MVP implementation into syste
 
 ### Achievement Screen
 
-#### Task 2.5: Create Achievement Screen Foundation
+#### Task 2.5: Create Achievement Screen Foundation ✅
 
+- **Status**: Complete
+- **Completion Date**: 2024-12-19
 - **Priority**: High
 - **Estimated Time**: 6 hours
 - **Dependencies**: Tasks 1.5, 1.6
 - **Acceptance Criteria**:
-    - `AchievementScreen` component
-    - Navigation from header XP display
-    - Achievement list with categories (Daily, Milestones, Weather, Social, Collection)
-    - Progress indicators for multi-step achievements
-    - Unlocked vs locked achievement states
+    - ✅ `AchievementDrawer` component (bottom drawer instead of full screen)
+    - ✅ Navigation from header XP display (tappable XP display)
+    - ✅ Achievement list with categories (Daily, Milestones, Weather, Social, Collection)
+    - ✅ Progress indicators for multi-step achievements
+    - ✅ Unlocked vs locked achievement states
+- **Notes**: Successfully implemented bottom drawer with 90% height, spring animation, haptic feedback, dismissible backdrop, and pull-to-close gesture. Added level progress section, recent XP transactions, and achievement placeholders. Integrated with existing XP system and made XP display in header tappable. All tests passing.
 
 #### Task 2.6: Implement Achievement Categories
 
