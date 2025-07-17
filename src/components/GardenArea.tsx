@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Text, Alert } from "react-native";
 import { Image } from "expo-image";
+import LottieView from "lottie-react-native";
 import { GardenAreaProps, GrowthStage } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import DirtParticles from "./DirtParticles";
@@ -291,25 +292,51 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                         onPress={() => handlePlantPress(plant)}
                         style={{ flex: 1, alignItems: "center" }}
                     >
-                        <Image
-                            source={getPlantImage(plantName, stage)}
-                            style={{ width: 90, height: 90 }}
-                            contentFit="contain"
-                            cachePolicy="memory-disk"
-                            priority="high"
-                            transition={200}
-                            recyclingKey={`${plantName}-${stage}-${plant.id}`}
-                            placeholder={require("../../assets/images/plants/dirt.png")}
-                            onLoad={() => {
-                                // Image loaded successfully
-                            }}
-                            onError={(error) => {
-                                console.warn(
-                                    "Failed to load plant image:",
-                                    error
-                                );
-                            }}
-                        />
+                        <View style={{ position: "relative" }}>
+                            <Image
+                                source={getPlantImage(plantName, stage)}
+                                style={{ width: 90, height: 90 }}
+                                contentFit="contain"
+                                cachePolicy="memory-disk"
+                                priority="high"
+                                transition={200}
+                                recyclingKey={`${plantName}-${stage}-${plant.id}`}
+                                placeholder={require("../../assets/images/plants/dirt.png")}
+                                onLoad={() => {
+                                    // Image loaded successfully
+                                }}
+                                onError={(error) => {
+                                    console.warn(
+                                        "Failed to load plant image:",
+                                        error
+                                    );
+                                }}
+                            />
+                            {/* Shining stars animation for mature plants */}
+                            {stage === 5 && (
+                                <View
+                                    style={{
+                                        position: "absolute",
+                                        top: 0,
+                                        left: 10,
+                                        width: 70,
+                                        height: 70,
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                    }}
+                                >
+                                    <LottieView
+                                        source={require("../../assets/lottie/shining-stars.json")}
+                                        autoPlay
+                                        loop
+                                        style={{
+                                            width: 80,
+                                            height: 80,
+                                        }}
+                                    />
+                                </View>
+                            )}
+                        </View>
                         <Text
                             style={{
                                 fontSize: 10,
