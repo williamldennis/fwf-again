@@ -29,6 +29,7 @@ import PlantDetailsModal from "../components/PlantDetailsModal";
 import UserCard from "../components/UserCard";
 import FriendCard from "../components/FriendCard";
 import AddFriendsCard from "../components/AddFriendsCard";
+import CardStack from "../components/CardStack";
 import DropdownMenu from "../components/DropdownMenu";
 import HeaderBar from "../components/HeaderBar";
 import SkeletonCard from "../components/SkeletonCard";
@@ -40,21 +41,6 @@ import { ContactsService } from "../services/contactsService";
 import { Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { GardenService } from "../services/gardenService";
-
-type FlatListItem =
-    | { type: "user-card"; id: "user-card" }
-    | { type: "add-friends" }
-    | Friend;
-
-// Helper function to check if an item is a Friend
-const isFriend = (item: FlatListItem): item is Friend => {
-    return (
-        item != null &&
-        "id" in item &&
-        "contact_name" in item &&
-        !("type" in item)
-    );
-};
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -413,9 +399,6 @@ export default function Home() {
         );
     }
 
-    // Before rendering FlatList:
-    const friendsListData = [...friends, { type: "add-friends" }];
-
     // Handler for planting
     const handlePlantPress = (friendId: string, slotIdx: number) => {
         setSelectedFriendId(friendId);
@@ -617,28 +600,6 @@ export default function Home() {
         );
     }
 
-    const flatListData: FlatListItem[] = [
-        { type: "user-card", id: "user-card" },
-        ...friends,
-        { type: "add-friends" },
-    ];
-
-    // Debug: Log friends data
-    console.log("[Home] 🔍 Debug - Friends count:", friends.length);
-    console.log(
-        "[Home] 🔍 Debug - Friends IDs:",
-        friends.map((f) => ({
-            id: f.id,
-            name: f.contact_name,
-            phone: f.phone_number,
-        }))
-    );
-    console.log("[Home] 🔍 Debug - FlatList data count:", flatListData.length);
-    console.log(
-        "[Home] 🔍 Debug - FlatList item types:",
-        flatListData.map((item) => ("type" in item ? item.type : "friend"))
-    );
-
     return (
         <>
             <View style={{ flex: 1, backgroundColor }}>
@@ -718,131 +679,27 @@ export default function Home() {
                         ))}
                     </View>
                 ) : (
-                    <FlatList
-                        data={flatListData}
-                        keyExtractor={(item, idx) => {
-                            if ("id" in item) return item.id;
-                            if ("type" in item) return item.type;
-                            return idx.toString();
+                    <CardStack
+                        weather={weather}
+                        selfieUrls={userProfile?.selfieUrls || null}
+                        userPoints={userProfile?.points || 0}
+                        currentUserId={currentUserId}
+                        plantedPlants={plantedPlants}
+                        onPlantPress={handlePlantPress}
+                        onPlantDetailsPress={handlePlantDetailsPress}
+                        forecastData={userFiveDayData}
+                        loading={weatherLoading}
+                        error={weatherError}
+                        cardWidth={cardWidth}
+                        friends={friends}
+                        friendForecasts={friendForecasts}
+                        onFetchForecast={fetchFriendForecast}
+                        onShare={async () => {
+                            await Share.share({
+                                message:
+                                    "I want to be your Fair Weather Friend\nhttp://willdennis.com",
+                            });
                         }}
-                        style={{ flex: 1 }}
-                        contentContainerStyle={{
-                            paddingTop: 0, // No top padding for TikTok-style
-                        }}
-                        showsVerticalScrollIndicator={false}
-                        pagingEnabled={true}
-                        snapToInterval={screenHeight}
-                        snapToAlignment="start"
-                        decelerationRate="fast"
-                        getItemLayout={(data, index) => ({
-                            length: screenHeight,
-                            offset: screenHeight * index,
-                            index,
-                        })}
-                        renderItem={({ item, index }) => {
-                            console.log(
-                                `[Home] 🔍 Debug - Rendering item ${index}:`,
-                                "type" in item
-                                    ? item.type
-                                    : `friend: ${item.contact_name}`
-                            );
-
-                            // User card as first item
-                            if ("type" in item && item.type === "user-card") {
-                                console.log(
-                                    "[Home] 🔍 Debug - Rendering user card"
-                                );
-                                return (
-                                    <View style={{ height: screenHeight }}>
-                                        <UserCard
-                                            weather={weather}
-                                            selfieUrls={
-                                                userProfile?.selfieUrls || null
-                                            }
-                                            userPoints={
-                                                userProfile?.points || 0
-                                            }
-                                            currentUserId={currentUserId}
-                                            plantedPlants={plantedPlants}
-                                            onPlantPress={handlePlantPress}
-                                            onPlantDetailsPress={
-                                                handlePlantDetailsPress
-                                            }
-                                            forecastData={userFiveDayData}
-                                            loading={weatherLoading}
-                                            error={weatherError}
-                                            cardWidth={cardWidth}
-                                        />
-                                    </View>
-                                );
-                            }
-
-                            // Add friends card
-                            if ("type" in item && item.type === "add-friends") {
-                                console.log(
-                                    "[Home] 🔍 Debug - Rendering add friends card"
-                                );
-                                return (
-                                    <View style={{ height: screenHeight }}>
-                                        <AddFriendsCard
-                                            onShare={async () => {
-                                                await Share.share({
-                                                    message:
-                                                        "I want to be your Fair Weather Friend\nhttp://willdennis.com",
-                                                });
-                                            }}
-                                            cardWidth={cardWidth}
-                                        />
-                                    </View>
-                                );
-                            }
-
-                            // Friend cards
-                            if (isFriend(item)) {
-                                console.log(
-                                    "[Home] 🔍 Debug - Rendering friend card for:",
-                                    item.contact_name
-                                );
-                                return (
-                                    <View style={{ height: screenHeight }}>
-                                        <FriendCard
-                                            friend={item}
-                                            plantedPlants={plantedPlants}
-                                            onPlantPress={handlePlantPress}
-                                            onPlantDetailsPress={
-                                                handlePlantDetailsPress
-                                            }
-                                            forecastData={
-                                                friendForecasts[item.id] || []
-                                            }
-                                            cardWidth={cardWidth}
-                                            onFetchForecast={
-                                                fetchFriendForecast
-                                            }
-                                        />
-                                    </View>
-                                );
-                            }
-
-                            console.log(
-                                "[Home] 🔍 Debug - Item not matched, returning null"
-                            );
-                            // Fallback (should never reach here)
-                            return null;
-                        }}
-                        ListEmptyComponent={
-                            <View style={{ padding: 20, alignItems: "center" }}>
-                                {availablePlantsLoading ? (
-                                    <Text style={{ color: "#666" }}>
-                                        Loading plants...
-                                    </Text>
-                                ) : (
-                                    <Text style={{ color: "#666" }}>
-                                        No plants available. Add some!
-                                    </Text>
-                                )}
-                            </View>
-                        }
                     />
                 )}
             </View>
