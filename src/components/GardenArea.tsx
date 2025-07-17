@@ -250,9 +250,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 contentFit="contain"
                                 cachePolicy="memory-disk"
                                 priority="high"
-                                transition={200}
                                 recyclingKey={`empty-pot-${idx}`}
-                                placeholder={require("../../assets/images/plants/dirt.png")}
                                 onLoad={() => {
                                     // Image loaded successfully
                                 }}
@@ -301,7 +299,6 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 priority="high"
                                 transition={200}
                                 recyclingKey={`${plantName}-${stage}-${plant.id}`}
-                                placeholder={require("../../assets/images/plants/dirt.png")}
                                 onLoad={() => {
                                     // Image loaded successfully
                                 }}
