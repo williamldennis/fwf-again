@@ -264,7 +264,7 @@ export const UserCard: React.FC<UserCardProps> = ({
                             pointerEvents="none"
                             style={{
                                 position: "absolute",
-                                top: -900,
+                                top: -600,
                                 left: 0,
                                 right: 0,
                                 alignItems: "center",
@@ -288,18 +288,6 @@ export const UserCard: React.FC<UserCardProps> = ({
                     {/* Selfie */}
 
                     {/* User's Garden */}
-                    <Text
-                        style={{
-                            fontWeight: "bold",
-                            fontSize: 18,
-                            textAlign: "center",
-                            marginTop: 20,
-                            marginBottom: 20,
-                            color: "white",
-                        }}
-                    >
-                        Your Garden
-                    </Text>
                     <GardenArea
                         gardenOwnerId={currentUserId || ""}
                         plants={plantedPlants[currentUserId || ""] || []}

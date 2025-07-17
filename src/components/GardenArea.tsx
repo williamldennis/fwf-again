@@ -368,7 +368,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 justifyContent: "space-between",
                 alignItems: "flex-end",
                 borderRadius: 8,
-                height: 60,
+                height: 160,
                 marginTop: 20,
                 marginBottom: 0,
                 position: "relative",

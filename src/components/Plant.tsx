@@ -34,8 +34,7 @@ export const Plant: React.FC<PlantProps> = ({ plant, weatherCondition }) => {
         <View style={{ alignItems: "center" }}>
             <Image
                 source={getPlantImage(plant.plant_name, stage)}
-                style={{ width: 36, height: 36 }}
-                contentFit="contain"
+                style={{ width: 90, height: 90 }}
                 cachePolicy="memory-disk"
             />
             <Text style={{ fontSize: 10, color: "#333", marginTop: 2 }}>
