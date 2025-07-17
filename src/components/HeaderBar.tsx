@@ -1,6 +1,5 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { BlurView } from "expo-blur";
 
 interface HeaderBarProps {
     points: number;
@@ -12,42 +11,38 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     onMenuPress,
 }) => {
     return (
-        <BlurView intensity={20} tint="light" style={styles.blurContainer}>
-            <View style={styles.container}>
-                {/* Left side - Menu button */}
-                <TouchableOpacity
-                    style={styles.menuButton}
-                    onPress={onMenuPress}
-                    activeOpacity={0.7}
-                >
-                    <Text style={styles.menuIcon}>☰</Text>
-                </TouchableOpacity>
+        <View style={styles.container}>
+            {/* Left side - Menu button */}
+            <TouchableOpacity
+                style={styles.menuButton}
+                onPress={onMenuPress}
+                activeOpacity={0.7}
+            >
+                <Text style={styles.menuIcon}>☰</Text>
+            </TouchableOpacity>
 
-                {/* Right side - Points display */}
-                <View style={styles.pointsContainer}>
-                    <Text style={styles.pointsText}>{points}</Text>
-                    <Text style={styles.pointsLabel}>pts</Text>
-                </View>
+            {/* Right side - Points display */}
+            <View style={styles.pointsContainer}>
+                <Text style={styles.pointsText}>{points}</Text>
+                <Text style={styles.pointsLabel}>pts</Text>
             </View>
-        </BlurView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    blurContainer: {
+    container: {
         position: "absolute",
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 1000,
-    },
-    container: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 16,
         paddingVertical: 12,
         paddingTop: 60, // Add extra padding to account for status bar
+        backgroundColor: "rgba(255, 255, 255, 0.0)",
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
@@ -56,6 +51,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 2,
         elevation: 2,
+        zIndex: 1000,
     },
     menuButton: {
         padding: 8,

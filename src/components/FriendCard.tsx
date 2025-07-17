@@ -132,7 +132,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                         fontWeight: "bold",
                         fontSize: 28,
                         textAlign: "center",
-                        marginTop: 60,
+                        marginTop: 0,
                         marginBottom: 10,
                         color: "white",
                     }}
@@ -194,7 +194,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                         resizeMode: "cover",
                         backgroundColor: "#eee",
                         marginTop: 20, // space for Lottie
-                        marginBottom: 20,
+                        marginBottom: 10,
                     }}
                 />
                 {/* Weather text */}
