@@ -341,7 +341,54 @@ export default function Home() {
                 );
             }
 
-            // 3. Check and award achievements
+            // 3. Award social XP for planting in friend gardens (25 XP)
+            try {
+                const isFriendGarden = friendId !== currentUserId;
+
+                if (isFriendGarden) {
+                    const socialXP = 25;
+                    const socialResult = await XPService.awardXP(
+                        currentUserId,
+                        socialXP,
+                        "social_planting",
+                        `Planted ${plantName} in friend's garden`,
+                        {
+                            plant_id: plantId,
+                            plant_name: plantName,
+                            garden_owner_id: friendId,
+                            planter_id: currentUserId,
+                            is_friend_garden: true,
+                        }
+                    );
+
+                    if (socialResult.success) {
+                        totalXP += socialXP;
+                        xpBreakdown.push(`+${socialXP} XP social planting`);
+                        console.log(
+                            "[XP] ✅ Social XP awarded:",
+                            socialXP,
+                            `(${plantName} in friend's garden)`
+                        );
+                    } else {
+                        const errorMsg = `Social XP failed: ${socialResult.error}`;
+                        errors.push(errorMsg);
+                        console.error(
+                            "[XP] ❌ Failed to award social XP:",
+                            socialResult.error
+                        );
+                    }
+                } else {
+                    console.log(
+                        "[XP] ℹ️ No social XP - planting in own garden"
+                    );
+                }
+            } catch (error) {
+                const errorMsg = `Social XP exception: ${error instanceof Error ? error.message : "Unknown error"}`;
+                errors.push(errorMsg);
+                console.error("[XP] ❌ Exception awarding social XP:", error);
+            }
+
+            // 4. Check and award achievements
             let achievementResult = { xpAwarded: 0, unlocked: [] as string[] };
             try {
                 const isFriendGarden = friendId !== currentUserId;
@@ -422,7 +469,7 @@ export default function Home() {
                 );
             }
 
-            // 4. Refresh XP data and show toast
+            // 5. Refresh XP data and show toast
             try {
                 if (totalXP > 0) {
                     await refreshXP();
@@ -440,11 +487,14 @@ export default function Home() {
                         toastMessage = "Planting Reward!";
                         toastSubtitle = xpBreakdown.join(" + ");
                     } else {
-                        // Multiple XP sources (base + weather + achievements)
+                        // Multiple XP sources (base + weather + social + achievements)
                         const baseAndWeather = xpBreakdown.filter(
                             (x) =>
                                 x.includes("planting") ||
                                 x.includes("optimal weather")
+                        );
+                        const socialXP = xpBreakdown.filter((x) =>
+                            x.includes("social planting")
                         );
                         const achievementXP = xpBreakdown.filter((x) =>
                             x.includes("achievements")
@@ -452,7 +502,14 @@ export default function Home() {
 
                         if (achievementXP.length > 0) {
                             toastMessage = "Planting Reward + Achievements!";
-                            toastSubtitle = `${baseAndWeather.join(" + ")} + ${achievementXP.join(" + ")}`;
+                            const baseWeatherSocial = [
+                                ...baseAndWeather,
+                                ...socialXP,
+                            ];
+                            toastSubtitle = `${baseWeatherSocial.join(" + ")} + ${achievementXP.join(" + ")}`;
+                        } else if (socialXP.length > 0) {
+                            toastMessage = "Planting Reward!";
+                            toastSubtitle = xpBreakdown.join(" + ");
                         } else {
                             toastMessage = "Planting Reward!";
                             toastSubtitle = xpBreakdown.join(" + ");
@@ -488,7 +545,7 @@ export default function Home() {
                 console.error("[XP] ❌ Exception in toast/refresh:", error);
             }
 
-            // 5. Log final summary with any errors
+            // 6. Log final summary with any errors
             if (errors.length > 0) {
                 console.warn("[XP] ⚠️ Planting XP completed with errors:", {
                     totalXP,

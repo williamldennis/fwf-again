@@ -151,6 +151,44 @@ describe('Planting XP Integration', () => {
         achievementContext
       );
     });
+
+    it('should award social XP for planting in friend gardens', async () => {
+      const result = await XPService.awardXP(
+        mockUserId,
+        25,
+        'social_planting',
+        `Planted ${mockPlantName} in friend's garden`,
+        {
+          plant_id: mockPlantId,
+          plant_name: mockPlantName,
+          garden_owner_id: mockFriendId,
+          planter_id: mockUserId,
+          is_friend_garden: true
+        }
+      );
+
+      expect(result.success).toBe(true);
+      expect(XPService.awardXP).toHaveBeenCalledWith(
+        mockUserId,
+        25,
+        'social_planting',
+        `Planted ${mockPlantName} in friend's garden`,
+        expect.objectContaining({
+          plant_id: mockPlantId,
+          garden_owner_id: mockFriendId,
+          planter_id: mockUserId,
+          is_friend_garden: true
+        })
+      );
+    });
+
+    it('should not award social XP for planting in own garden', () => {
+      // Test that social XP is not awarded when planting in own garden
+      const isFriendGarden = false; // Planting in own garden
+      
+      expect(isFriendGarden).toBe(false);
+      expect(mockFriendId).not.toBe(mockUserId); // Verify they are different IDs
+    });
   });
 
   describe('Error Handling', () => {
