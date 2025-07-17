@@ -30,6 +30,7 @@ import FriendCard from "../components/FriendCard";
 import AddFriendsCard from "../components/AddFriendsCard";
 import DropdownMenu from "../components/DropdownMenu";
 import HeaderBar from "../components/HeaderBar";
+import SkeletonCard from "../components/SkeletonCard";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -505,21 +506,23 @@ export default function Home() {
         }
     }, [showPlantPicker, availablePlants.length, fetchPlants]);
 
-    // Show loading state only for critical app initialization
-    // Don't show loading for lazy-loaded content like available plants
-    if (weatherLoading && !userProfile) {
-        return (
-            <View
-                style={{
-                    flex: 1,
-                    justifyContent: "center",
-                    alignItems: "center",
-                }}
-            >
-                <Text>Loading...</Text>
-            </View>
-        );
-    }
+    // Show skeleton loading for initial app setup
+    // This provides a better user experience than a blank loading screen
+    const showSkeletonLoading = weatherLoading || (!userProfile && !weather);
+
+    // TEMPORARY: Force skeleton loading for testing (remove this later)
+    const forceSkeletonForTesting = false; // Set to false to disable
+    const finalShowSkeleton = showSkeletonLoading || forceSkeletonForTesting;
+
+    // Debug logging for loading states
+    console.log("[Home] 🔍 Loading Debug:", {
+        weatherLoading,
+        userProfile: !!userProfile,
+        weather: !!weather,
+        showSkeletonLoading,
+        finalShowSkeleton,
+        friendsCount: friends.length,
+    });
 
     // Show error state
     if (error) {
@@ -596,133 +599,178 @@ export default function Home() {
                     }}
                 />
                 {/* Progressive Loading Indicators */}
-                {(weatherLoading || availablePlantsLoading) && (
-                    <View
-                        style={{
-                            position: "absolute",
-                            top: 120,
-                            right: 20,
-                            zIndex: 10,
-                            backgroundColor: "rgba(0,0,0,0.7)",
-                            borderRadius: 8,
-                            padding: 8,
-                        }}
-                    >
-                        <Text style={{ color: "white", fontSize: 12 }}>
-                            {weatherLoading && "🌤️ Loading weather..."}
-                            {availablePlantsLoading && "🌱 Loading plants..."}
-                        </Text>
-                    </View>
-                )}
-
-                {/* Single FlatList containing both user card and friends */}
-                <FlatList
-                    data={flatListData}
-                    keyExtractor={(item, idx) => {
-                        if ("id" in item) return item.id;
-                        if ("type" in item) return item.type;
-                        return idx.toString();
-                    }}
-                    style={{ flex: 1 }}
-                    contentContainerStyle={{
-                        paddingHorizontal: 16,
-                        paddingTop: 120, // Account for header bar height
-                        paddingBottom: 16,
-                    }}
-                    showsVerticalScrollIndicator={false}
-                    renderItem={({ item, index }) => {
-                        console.log(
-                            `[Home] 🔍 Debug - Rendering item ${index}:`,
-                            "type" in item
-                                ? item.type
-                                : `friend: ${item.contact_name}`
-                        );
-
-                        // User card as first item
-                        if ("type" in item && item.type === "user-card") {
-                            console.log(
-                                "[Home] 🔍 Debug - Rendering user card"
-                            );
-                            return (
-                                <UserCard
-                                    weather={weather}
-                                    selfieUrls={userProfile?.selfieUrls || null}
-                                    userPoints={userProfile?.points || 0}
-                                    currentUserId={currentUserId}
-                                    plantedPlants={plantedPlants}
-                                    onPlantPress={handlePlantPress}
-                                    onPlantDetailsPress={
-                                        handlePlantDetailsPress
-                                    }
-                                    forecastData={userFiveDayData}
-                                    loading={weatherLoading}
-                                    error={weatherError}
-                                    cardWidth={cardWidth}
-                                />
-                            );
-                        }
-
-                        // Add friends card
-                        if ("type" in item && item.type === "add-friends") {
-                            console.log(
-                                "[Home] 🔍 Debug - Rendering add friends card"
-                            );
-                            return (
-                                <AddFriendsCard
-                                    onShare={async () => {
-                                        await Share.share({
-                                            message:
-                                                "I want to be your Fair Weather Friend\nhttp://willdennis.com",
-                                        });
-                                    }}
-                                    cardWidth={cardWidth}
-                                />
-                            );
-                        }
-
-                        // Friend cards
-                        if (isFriend(item)) {
-                            console.log(
-                                "[Home] 🔍 Debug - Rendering friend card for:",
-                                item.contact_name
-                            );
-                            return (
-                                <FriendCard
-                                    friend={item}
-                                    plantedPlants={plantedPlants}
-                                    onPlantPress={handlePlantPress}
-                                    onPlantDetailsPress={
-                                        handlePlantDetailsPress
-                                    }
-                                    forecastData={
-                                        friendForecasts[item.id] || []
-                                    }
-                                    cardWidth={cardWidth}
-                                    onFetchForecast={fetchFriendForecast}
-                                />
-                            );
-                        }
-
-                        console.log(
-                            "[Home] 🔍 Debug - Item not matched, returning null"
-                        );
-                        // Fallback (should never reach here)
-                        return null;
-                    }}
-                    ListEmptyComponent={
-                        <View style={{ padding: 20, alignItems: "center" }}>
-                            {availablePlantsLoading ? (
-                                <Text style={{ color: "#666" }}>
-                                    Loading plants...
-                                </Text>
-                            ) : (
-                                <Text style={{ color: "#666" }}>
-                                    No plants available. Add some!
-                                </Text>
-                            )}
+                {(weatherLoading || availablePlantsLoading) &&
+                    !finalShowSkeleton && (
+                        <View
+                            style={{
+                                position: "absolute",
+                                top: 120,
+                                right: 20,
+                                zIndex: 10,
+                                backgroundColor: "rgba(0,0,0,0.8)",
+                                borderRadius: 12,
+                                padding: 12,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.25,
+                                shadowRadius: 4,
+                                elevation: 5,
+                            }}
+                        >
+                            <View
+                                style={{
+                                    width: 12,
+                                    height: 12,
+                                    borderRadius: 6,
+                                    borderWidth: 2,
+                                    borderColor: "#fff",
+                                    borderTopColor: "transparent",
+                                    marginRight: 8,
+                                }}
+                            />
+                            <Text
+                                style={{
+                                    color: "white",
+                                    fontSize: 14,
+                                    fontWeight: "500",
+                                }}
+                            >
+                                {weatherLoading && "🌤️ Loading weather..."}
+                                {availablePlantsLoading &&
+                                    "🌱 Loading plants..."}
+                            </Text>
                         </View>
-                    }
-                />
+                    )}
+
+                {/* Show skeleton loading or actual content */}
+                {finalShowSkeleton ? (
+                    <View style={{ flex: 1, paddingTop: 120 }}>
+                        <View style={{ paddingHorizontal: 16 }}>
+                            {/* User card skeleton */}
+                            <SkeletonCard width={cardWidth} height={280} />
+                            {/* Friend card skeletons */}
+                            {[1, 2, 3].map((i) => (
+                                <SkeletonCard
+                                    key={i}
+                                    width={cardWidth}
+                                    height={200}
+                                />
+                            ))}
+                        </View>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={flatListData}
+                        keyExtractor={(item, idx) => {
+                            if ("id" in item) return item.id;
+                            if ("type" in item) return item.type;
+                            return idx.toString();
+                        }}
+                        style={{ flex: 1 }}
+                        contentContainerStyle={{
+                            paddingHorizontal: 16,
+                            paddingTop: 120, // Account for header bar height
+                            paddingBottom: 16,
+                        }}
+                        showsVerticalScrollIndicator={false}
+                        renderItem={({ item, index }) => {
+                            console.log(
+                                `[Home] 🔍 Debug - Rendering item ${index}:`,
+                                "type" in item
+                                    ? item.type
+                                    : `friend: ${item.contact_name}`
+                            );
+
+                            // User card as first item
+                            if ("type" in item && item.type === "user-card") {
+                                console.log(
+                                    "[Home] 🔍 Debug - Rendering user card"
+                                );
+                                return (
+                                    <UserCard
+                                        weather={weather}
+                                        selfieUrls={
+                                            userProfile?.selfieUrls || null
+                                        }
+                                        userPoints={userProfile?.points || 0}
+                                        currentUserId={currentUserId}
+                                        plantedPlants={plantedPlants}
+                                        onPlantPress={handlePlantPress}
+                                        onPlantDetailsPress={
+                                            handlePlantDetailsPress
+                                        }
+                                        forecastData={userFiveDayData}
+                                        loading={weatherLoading}
+                                        error={weatherError}
+                                        cardWidth={cardWidth}
+                                    />
+                                );
+                            }
+
+                            // Add friends card
+                            if ("type" in item && item.type === "add-friends") {
+                                console.log(
+                                    "[Home] 🔍 Debug - Rendering add friends card"
+                                );
+                                return (
+                                    <AddFriendsCard
+                                        onShare={async () => {
+                                            await Share.share({
+                                                message:
+                                                    "I want to be your Fair Weather Friend\nhttp://willdennis.com",
+                                            });
+                                        }}
+                                        cardWidth={cardWidth}
+                                    />
+                                );
+                            }
+
+                            // Friend cards
+                            if (isFriend(item)) {
+                                console.log(
+                                    "[Home] 🔍 Debug - Rendering friend card for:",
+                                    item.contact_name
+                                );
+                                return (
+                                    <FriendCard
+                                        friend={item}
+                                        plantedPlants={plantedPlants}
+                                        onPlantPress={handlePlantPress}
+                                        onPlantDetailsPress={
+                                            handlePlantDetailsPress
+                                        }
+                                        forecastData={
+                                            friendForecasts[item.id] || []
+                                        }
+                                        cardWidth={cardWidth}
+                                        onFetchForecast={fetchFriendForecast}
+                                    />
+                                );
+                            }
+
+                            console.log(
+                                "[Home] 🔍 Debug - Item not matched, returning null"
+                            );
+                            // Fallback (should never reach here)
+                            return null;
+                        }}
+                        ListEmptyComponent={
+                            <View style={{ padding: 20, alignItems: "center" }}>
+                                {availablePlantsLoading ? (
+                                    <Text style={{ color: "#666" }}>
+                                        Loading plants...
+                                    </Text>
+                                ) : (
+                                    <Text style={{ color: "#666" }}>
+                                        No plants available. Add some!
+                                    </Text>
+                                )}
+                            </View>
+                        }
+                    />
+                )}
             </View>
 
             {/* Dropdown Menu */}

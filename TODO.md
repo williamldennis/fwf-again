@@ -6,7 +6,7 @@
 
 - [x] **Header Bar** - Persistent points display with access to levels, store, notifications
 - [x] **Loading spinner on sign in** - Critical UX, prevents user confusion during auth
-- [ ] **Improve home page loading** - High impact, reduces abandonment on first impression
+- [x] **Improve home page loading** - High impact, reduces abandonment on first impression
 
 ### Core Game Loop
 
