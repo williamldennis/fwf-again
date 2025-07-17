@@ -16,6 +16,7 @@ interface UserCardProps {
     loading: boolean;
     error: string | null;
     cardWidth: number;
+    cardHeight?: number;
 }
 
 // Add Lottie animation mapping
@@ -98,16 +99,17 @@ export const UserCard: React.FC<UserCardProps> = ({
     loading,
     error,
     cardWidth,
+    cardHeight,
 }) => {
     return (
         <View
             style={{
-                flex: 1,
                 alignItems: "center",
                 justifyContent: "center",
                 paddingTop: 120, // Account for header height
                 paddingBottom: 20,
                 zIndex: 1,
+                height: cardHeight,
             }}
         >
             <View

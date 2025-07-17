@@ -5,21 +5,23 @@ import sunCloudTrans from "../../assets/images/sun-cloud-trans.png";
 interface AddFriendsCardProps {
     onShare: () => void;
     cardWidth: number;
+    cardHeight?: number;
 }
 
 export const AddFriendsCard: React.FC<AddFriendsCardProps> = ({
     onShare,
     cardWidth,
+    cardHeight,
 }) => {
     return (
         <View
             style={{
-                flex: 1,
                 alignItems: "center",
                 justifyContent: "center",
                 paddingTop: 120, // Account for header height
                 paddingBottom: 20,
                 zIndex: 1,
+                height: cardHeight,
             }}
         >
             <TouchableOpacity

@@ -11,6 +11,7 @@ interface FriendCardProps {
     onPlantDetailsPress: (plant: any, friendWeather: string) => void;
     forecastData: any[];
     cardWidth: number;
+    cardHeight?: number;
     onFetchForecast: (friend: any) => void;
 }
 
@@ -89,6 +90,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({
     onPlantDetailsPress,
     forecastData,
     cardWidth,
+    cardHeight,
     onFetchForecast,
 }) => {
     // Trigger forecast fetch when component renders
@@ -99,12 +101,12 @@ export const FriendCard: React.FC<FriendCardProps> = ({
     return (
         <View
             style={{
-                flex: 1,
                 alignItems: "center",
                 justifyContent: "center",
                 paddingTop: 120, // Account for header height
                 paddingBottom: 20,
                 zIndex: 1,
+                height: cardHeight,
             }}
         >
             <View

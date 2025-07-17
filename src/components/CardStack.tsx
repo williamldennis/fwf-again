@@ -132,6 +132,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                         loading={loading}
                         error={error}
                         cardWidth={cardWidth}
+                        cardHeight={screenHeight}
                     />
                 </View>
             );
@@ -153,6 +154,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                         onPlantDetailsPress={onPlantDetailsPress}
                         forecastData={friendForecasts[item.data.id] || []}
                         cardWidth={cardWidth}
+                        cardHeight={screenHeight}
                         onFetchForecast={onFetchForecast}
                     />
                 </View>
@@ -168,7 +170,11 @@ export const CardStack: React.FC<CardStackProps> = ({
                         justifyContent: "center",
                     }}
                 >
-                    <AddFriendsCard onShare={onShare} cardWidth={cardWidth} />
+                    <AddFriendsCard
+                        onShare={onShare}
+                        cardWidth={cardWidth}
+                        cardHeight={screenHeight}
+                    />
                 </View>
             );
         }
@@ -187,10 +193,17 @@ export const CardStack: React.FC<CardStackProps> = ({
     };
 
     return (
-        <View style={{ flex: 1 }}>
+        <View
+            style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+            }}
+        >
             <Carousel
                 loop={true}
-                width={screenWidth}
+                width={cardWidth}
                 height={screenHeight}
                 data={stackItems}
                 renderItem={renderCard}
