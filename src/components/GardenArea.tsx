@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Text, Alert } from "react-native";
 import { Image } from "expo-image";
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withRepeat,
-    withTiming,
-    withSequence,
-    Easing,
-} from "react-native-reanimated";
 import { GardenAreaProps, GrowthStage } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import DirtParticles from "./DirtParticles";
@@ -220,127 +212,19 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         stage: GrowthStage;
         onPress: () => void;
     }> = ({ plant, plantName, stage, onPress }) => {
-        const scale = useSharedValue(1);
-        const glowOpacity = useSharedValue(0);
-
-        // Check if plant is ready for harvest using real-time calculation
-        // This ensures animation works even if database is_mature field is not updated
-        const plantObject = plant.plant || {
-            id: plant.plant_id,
-            name: plantName,
-            growth_time_hours: plant.growth_time_hours || 0,
-            weather_bonus: plant.weather_bonus || {
-                sunny: 1,
-                cloudy: 1,
-                rainy: 1,
-            },
-            image_path: plant.image_path || "",
-            created_at: plant.planted_at,
-        };
-
-        const isMatureCalculated = GrowthService.isPlantMature(
-            plant,
-            plantObject,
-            weatherCondition
-        );
-        const isReadyForHarvest = isMatureCalculated && !plant.harvested_at;
-
-        // Debug logging for animation state
-        if (isMatureCalculated && !plant.harvested_at) {
-            console.log(
-                `[GardenArea] 🌱 Plant ${plantName} (${plant.id}) is ready for harvest!`
-            );
-            console.log(
-                `[GardenArea] 📊 Database is_mature: ${plant.is_mature}, Calculated: ${isMatureCalculated}`
-            );
-        }
-
-        // Start bounce and glow animations if plant is ready for harvest
-        useEffect(() => {
-            if (isReadyForHarvest) {
-                // Scale bounce animation
-                scale.value = withRepeat(
-                    withSequence(
-                        withTiming(1.1, {
-                            duration: 800,
-                            easing: Easing.out(Easing.quad),
-                        }),
-                        withTiming(1, {
-                            duration: 800,
-                            easing: Easing.in(Easing.quad),
-                        })
-                    ),
-                    -1, // Infinite repeat
-                    true // Reverse
-                );
-
-                // Glow pulse animation
-                glowOpacity.value = withRepeat(
-                    withSequence(
-                        withTiming(0.8, {
-                            duration: 800,
-                            easing: Easing.out(Easing.quad),
-                        }),
-                        withTiming(0.2, {
-                            duration: 800,
-                            easing: Easing.in(Easing.quad),
-                        })
-                    ),
-                    -1, // Infinite repeat
-                    true // Reverse
-                );
-            } else {
-                // Stop animations and reset to normal
-                scale.value = withTiming(1, { duration: 300 });
-                glowOpacity.value = withTiming(0, { duration: 300 });
-            }
-        }, [isReadyForHarvest]);
-
-        const animatedStyle = useAnimatedStyle(() => ({
-            transform: [{ scale: scale.value }],
-        }));
-
-        const glowStyle = useAnimatedStyle(() => ({
-            opacity: glowOpacity.value,
-        }));
-
         return (
             <TouchableOpacity
                 onPress={onPress}
                 style={{ flex: 1, alignItems: "center" }}
             >
-                <Animated.View style={animatedStyle}>
-                    {/* Subtle glow outline effect */}
-                    <Animated.View
-                        style={[
-                            {
-                                position: "absolute",
-                                width: 90,
-                                height: 90,
-                                shadowColor: "#FFAE00",
-                                shadowOffset: { width: 0, height: 0 },
-                                shadowOpacity: 1,
-                                shadowRadius: 10,
-                                elevation: 10,
-                                zIndex: -1,
-                            },
-                            glowStyle,
-                        ]}
-                    >
-                        <Image
-                            source={getImageForPlant(plantName, stage)}
-                            style={{ width: 90, height: 90 }}
-                            contentFit="contain"
-                            cachePolicy="memory-disk"
-                        />
-                    </Animated.View>
-                    <Image
-                        source={getImageForPlant(plantName, stage)}
-                        style={{ width: 90, height: 90 }}
-                        contentFit="contain"
-                        cachePolicy="memory-disk"
-                    />
-                </Animated.View>
+                <Image
+                    source={getImageForPlant(plantName, stage)}
+                    style={{ width: 90, height: 90 }}
+                    contentFit="contain"
+                    cachePolicy="memory-disk"
+                    priority="high"
+                    transition={200}
+                />
                 <Text
                     style={{
                         fontSize: 10,
@@ -399,6 +283,8 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 style={{ width: 90, height: 90 }}
                                 contentFit="contain"
                                 cachePolicy="memory-disk"
+                                priority="high"
+                                transition={200}
                             />
                             <Text
                                 style={{

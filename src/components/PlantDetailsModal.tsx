@@ -462,6 +462,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                         ]}
                                         contentFit="contain"
                                         cachePolicy="memory-disk"
+                                        priority="high"
+                                        transition={200}
                                     />
                                 </Animated.View>
                             </View>
@@ -624,6 +626,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     style={styles.plantInfoImage}
                                     contentFit="contain"
                                     cachePolicy="memory-disk"
+                                    priority="high"
+                                    transition={200}
                                 />
                                 {/* Name and grow time on right */}
                                 <View style={styles.plantInfoTextCol}>

@@ -77,6 +77,8 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
                     }}
                     contentFit="contain"
                     cachePolicy="memory-disk"
+                    priority="high"
+                    transition={200}
                 />
             ))}
             <Modal

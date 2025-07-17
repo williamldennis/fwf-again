@@ -36,6 +36,8 @@ export const Plant: React.FC<PlantProps> = ({ plant, weatherCondition }) => {
                 source={getPlantImage(plant.plant_name, stage)}
                 style={{ width: 90, height: 90 }}
                 cachePolicy="memory-disk"
+                priority="high"
+                transition={200}
             />
             <Text style={{ fontSize: 10, color: "#333", marginTop: 2 }}>
                 {plant.plant_name}
