@@ -1280,7 +1280,7 @@ export default function Home() {
                             });
                             setShowAchievementToast(true);
                         }
-                    }, 100);
+                    }, 300); // Increased delay to ensure modal is fully closed
                     await refreshXP();
                 }}
             />

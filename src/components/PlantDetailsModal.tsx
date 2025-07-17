@@ -301,6 +301,9 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
             console.log("[Haptics] Could not trigger haptic feedback:", error);
         }
 
+        // Close modal immediately for better UX (like PlantPicker)
+        onClose();
+
         try {
             const { data, error } = await supabase
                 .from("planted_plants")
@@ -467,9 +470,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 // XP errors don't prevent harvest completion
             }
 
-            Alert.alert("Harvested!", `You harvested ${plantName}!`);
+            // Call harvest callback to refresh data
             if (onHarvest) onHarvest();
-            onClose();
         } catch (error) {
             console.error("[Harvest] Error in handleHarvest:", error);
             Alert.alert(
