@@ -370,7 +370,7 @@ export class AchievementService {
 
       const { data, error } = await supabase.rpc('has_achievement', {
         user_uuid: userId,
-        achievement_id: achievementId
+        achievement_id_param: achievementId
       });
 
       if (error) {
@@ -411,7 +411,7 @@ export class AchievementService {
 
       const { data, error } = await supabase.rpc('unlock_achievement', {
         user_uuid: userId,
-        achievement_id: achievementId,
+        achievement_id_param: achievementId,
         progress_data: { progress: progress.currentProgress }
       });
 

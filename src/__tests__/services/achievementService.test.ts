@@ -198,7 +198,7 @@ describe('AchievementService', () => {
 
       expect(supabase.rpc).toHaveBeenCalledWith('has_achievement', {
         user_uuid: mockUserId,
-        achievement_id: 'first_seed'
+        achievement_id_param: 'first_seed'
       });
 
       expect(result).toBe(true);
@@ -241,7 +241,7 @@ describe('AchievementService', () => {
 
       expect(supabase.rpc).toHaveBeenCalledWith('unlock_achievement', {
         user_uuid: mockUserId,
-        achievement_id: 'first_seed',
+        achievement_id_param: 'first_seed',
         progress_data: { progress: 1 }
       });
 
