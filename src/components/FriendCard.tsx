@@ -194,7 +194,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                         resizeMode: "cover",
                         backgroundColor: "#eee",
                         marginTop: 20, // space for Lottie
-                        marginBottom: 10,
+                        marginBottom: 0,
                     }}
                 />
                 {/* Weather text */}
