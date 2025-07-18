@@ -233,18 +233,38 @@ export class AchievementService {
 
       // Check each achievement that matches the action type
       for (const [achievementId, achievement] of Object.entries(this.ACHIEVEMENTS)) {
-        if (achievement.requirements.action === actionType) {
+        // For social achievements, also check social_planting actions
+        const shouldCheckAchievement = 
+          achievement.requirements.action === actionType ||
+          (achievement.category === 'social' && actionType === 'social_planting');
+        
+        // Debug logging for achievement checking
+        if (achievement.category === 'social') {
+          console.log(`[AchievementService] Checking social achievement ${achievementId}:`, {
+            actionType,
+            achievementAction: achievement.requirements.action,
+            shouldCheck: shouldCheckAchievement,
+            context: { friend_garden: context.friend_garden, garden_owner_id: context.garden_owner_id }
+          });
+        }
+        
+        if (shouldCheckAchievement) {
           const progress = await this.calculateAchievementProgress(
             userId,
             achievement,
             context
           );
 
+          if (achievement.category === 'social') {
+            console.log(`[AchievementService] Progress for ${achievementId}:`, progress);
+          }
+
           // Add to progress list
           result.progress.push(progress);
 
           // Check if achievement should be unlocked
           if (!unlockedAchievementIds.has(achievementId) && progress.isUnlocked) {
+            console.log(`[AchievementService] 🏆 Unlocking achievement ${achievementId}`);
             const unlockResult = await this.unlockAchievement(
               userId,
               achievementId,
@@ -460,7 +480,12 @@ export class AchievementService {
           break;
 
         case 'unique':
-          currentProgress = await this.getUniqueActionCount(userId, achievement.requirements.action, context);
+          // Merge achievement conditions with action context for proper filtering
+          const mergedContext = {
+            ...context,
+            ...achievement.requirements.conditions
+          };
+          currentProgress = await this.getUniqueActionCount(userId, achievement.requirements.action, mergedContext);
           break;
 
         case 'streak':
@@ -547,32 +572,61 @@ export class AchievementService {
     context: Record<string, any>
   ): Promise<number> {
     try {
-      const { data, error } = await supabase
+      // Debug logging for social achievements
+      if (context.friend_garden || context.friend_gardens) {
+        console.log(`[AchievementService] getUniqueActionCount for social achievement:`, {
+          actionType,
+          context: { friend_garden: context.friend_garden, friend_gardens: context.friend_gardens }
+        });
+      }
+
+      // For social achievements, also include social_planting actions
+      let query = supabase
         .from('xp_transactions')
-        .select('context_data')
-        .eq('user_id', userId)
-        .eq('action_type', actionType);
+        .select('context_data, action_type')
+        .eq('user_id', userId);
+
+      if (context.friend_garden || context.friend_gardens) {
+        // For social achievements, check both plant_seed and social_planting actions
+        query = query.in('action_type', ['plant_seed', 'social_planting']);
+        console.log(`[AchievementService] Querying for social achievements: plant_seed OR social_planting`);
+      } else {
+        query = query.eq('action_type', actionType);
+        console.log(`[AchievementService] Querying for action type: ${actionType}`);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("[AchievementService] Error getting unique action count:", error);
         return 0;
       }
 
+              if (context.friend_garden || context.friend_gardens) {
+          console.log(`[AchievementService] Found ${data?.length || 0} social transactions`);
+        }
+
       if (!data) return 0;
 
       // Extract unique values based on context
       const uniqueValues = new Set();
       
-      data.forEach(transaction => {
-        if (transaction.context_data) {
-          if (context.unique_plants && transaction.context_data.plantId) {
-            uniqueValues.add(transaction.context_data.plantId);
-          } else if (context.friend_gardens && transaction.context_data.friendId) {
-            uniqueValues.add(transaction.context_data.friendId);
+              data.forEach(transaction => {
+          if (transaction.context_data) {
+            if (context.unique_plants && transaction.context_data.plantId) {
+              uniqueValues.add(transaction.context_data.plantId);
+            } else if (context.friend_gardens && transaction.context_data.garden_owner_id) {
+              uniqueValues.add(transaction.context_data.garden_owner_id);
+            } else if (context.friend_garden && transaction.context_data.garden_owner_id) {
+              // For single friend garden visit achievement
+              uniqueValues.add(transaction.context_data.garden_owner_id);
+            }
           }
-        }
-      });
+        });
 
+      if (context.friend_garden || context.friend_gardens) {
+        console.log(`[AchievementService] Total unique social values: ${uniqueValues.size}`);
+      }
       return uniqueValues.size;
 
     } catch (error) {

@@ -462,6 +462,9 @@ export default function Home() {
                         "[XP] 🏆 Unlocked achievements:",
                         achievementResult.unlocked
                     );
+
+                    // Trigger achievement drawer refresh
+                    setAchievementRefreshTrigger((prev) => prev + 1);
                 }
             } catch (error) {
                 const errorMsg = `Achievement check exception: ${error instanceof Error ? error.message : "Unknown error"}`;
@@ -550,6 +553,9 @@ export default function Home() {
                             totalXPAwarded: achievementResult.xpAwarded,
                         });
                         setShowAchievementToast(true);
+
+                        // Trigger achievement drawer refresh (in case it's already open)
+                        setAchievementRefreshTrigger((prev) => prev + 1);
                     }
                 } else {
                     console.log("[XP] ℹ️ No XP awarded for planting");
@@ -615,6 +621,10 @@ export default function Home() {
         achievements: any[];
         totalXPAwarded: number;
     }>({ achievements: [], totalXPAwarded: 0 });
+
+    // Achievement drawer refresh trigger
+    const [achievementRefreshTrigger, setAchievementRefreshTrigger] =
+        useState(0);
 
     // User's 5-day forecast data
     const userFiveDayData = useMemo(() => {
@@ -1059,6 +1069,8 @@ export default function Home() {
     // Achievement drawer handlers
     const openAchievementDrawer = () => {
         setShowAchievementDrawer(true);
+        // Trigger refresh when opening drawer to ensure latest data
+        setAchievementRefreshTrigger((prev) => prev + 1);
     };
 
     const closeAchievementDrawer = () => {
@@ -1322,6 +1334,7 @@ export default function Home() {
                 onClose={closeAchievementDrawer}
                 userId={currentUserId}
                 xpData={xpData}
+                refreshTrigger={achievementRefreshTrigger}
             />
         </>
     );

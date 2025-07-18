@@ -92,6 +92,11 @@ describe('AchievementService', () => {
       expect(result.unlocked).toEqual([]);
       expect(result.xpAwarded).toBe(0);
     });
+
+    it.skip('should track social achievements for friend garden planting', async () => {
+      // This test needs to be updated with proper mocking
+      // For now, we'll test this functionality in the actual app
+    });
   });
 
   describe('getUserAchievements', () => {

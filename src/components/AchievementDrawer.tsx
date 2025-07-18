@@ -34,6 +34,7 @@ interface AchievementDrawerProps {
         xp_to_next_level: number;
         xp_progress: number;
     } | null;
+    refreshTrigger?: number; // Add this to trigger refresh
 }
 
 export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
@@ -41,6 +42,7 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
     onClose,
     userId,
     xpData,
+    refreshTrigger,
 }) => {
     const translateY = useRef(new Animated.Value(screenHeight)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -111,6 +113,25 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
             ]).start();
         }
     }, [visible]);
+
+    // Refresh achievements when refreshTrigger changes
+    useEffect(() => {
+        if (refreshTrigger && visible) {
+            console.log(
+                "[AchievementDrawer] 🔄 Refreshing achievements due to trigger:",
+                refreshTrigger
+            );
+            refreshAchievements();
+            refreshHistory();
+            refreshBenefits();
+        }
+    }, [
+        refreshTrigger,
+        visible,
+        refreshAchievements,
+        refreshHistory,
+        refreshBenefits,
+    ]);
 
     const handleBackdropPress = () => {
         // Trigger haptic feedback on close
