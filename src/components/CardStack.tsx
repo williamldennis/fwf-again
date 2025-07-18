@@ -16,6 +16,7 @@ interface CardStackProps {
     plantedPlants: Record<string, any[]>;
     onPlantPress: (friendId: string, slotIdx: number) => void;
     onPlantDetailsPress: (plant: any, friendWeather: string) => void;
+    onWeatherPress?: () => void;
     forecastData: any[];
     loading: boolean;
     error: string | null;
@@ -40,6 +41,7 @@ export const CardStack: React.FC<CardStackProps> = ({
     plantedPlants,
     onPlantPress,
     onPlantDetailsPress,
+    onWeatherPress,
     forecastData,
     loading,
     error,
@@ -129,6 +131,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                         plantedPlants={plantedPlants}
                         onPlantPress={onPlantPress}
                         onPlantDetailsPress={onPlantDetailsPress}
+                        onWeatherPress={onWeatherPress}
                         forecastData={forecastData}
                         loading={loading}
                         error={error}

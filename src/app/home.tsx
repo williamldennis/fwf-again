@@ -39,6 +39,7 @@ import HeaderBar from "../components/HeaderBar";
 import SkeletonCard from "../components/SkeletonCard";
 import AchievementDrawer from "../components/AchievementDrawer";
 import PointsInfoModal from "../components/PointsInfoModal";
+import WeatherModal from "../components/WeatherModal";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -702,6 +703,9 @@ export default function Home() {
     // Achievement drawer state
     const [showAchievementDrawer, setShowAchievementDrawer] = useState(false);
 
+    // Weather modal state
+    const [showWeatherModal, setShowWeatherModal] = useState(false);
+
     // Helper to fetch and cache friend forecast
     const fetchFriendForecast = async (friend: any) => {
         if (!friend.latitude || !friend.longitude) return;
@@ -1216,6 +1220,21 @@ export default function Home() {
         setShowPointsInfoModal(false);
     };
 
+    // Weather modal handlers
+    const openWeatherModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowWeatherModal(true);
+    };
+
+    const closeWeatherModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowWeatherModal(false);
+    };
+
     // Fetch available plants when PlantPicker is opened and not already loaded
     useEffect(() => {
         if (showPlantPicker && availablePlants.length === 0) {
@@ -1371,6 +1390,7 @@ export default function Home() {
                         plantedPlants={plantedPlants}
                         onPlantPress={handlePlantPress}
                         onPlantDetailsPress={handlePlantDetailsPress}
+                        onWeatherPress={openWeatherModal}
                         forecastData={userFiveDayData}
                         loading={weatherLoading}
                         error={weatherError}
@@ -1483,6 +1503,16 @@ export default function Home() {
                 visible={showPointsInfoModal}
                 onClose={closePointsInfoModal}
                 currentPoints={userProfile?.points || 0}
+            />
+
+            {/* WEATHER MODAL */}
+            <WeatherModal
+                visible={showWeatherModal}
+                onClose={closeWeatherModal}
+                currentWeather={weather}
+                hourlyForecast={hourly}
+                dailyForecast={daily}
+                cityName={cityName}
             />
         </>
     );

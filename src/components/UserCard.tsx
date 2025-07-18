@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, ActivityIndicator, Image, Dimensions } from "react-native";
+import {
+    View,
+    Text,
+    ActivityIndicator,
+    Image,
+    Dimensions,
+    TouchableOpacity,
+} from "react-native";
 import LottieView from "lottie-react-native";
 import GardenArea from "./GardenArea";
 import FiveDayForecast from "./FiveDayForecast";
@@ -17,6 +24,7 @@ interface UserCardProps {
     plantedPlants: Record<string, any[]>;
     onPlantPress: (friendId: string, slotIdx: number) => void;
     onPlantDetailsPress: (plant: any, friendWeather: string) => void;
+    onWeatherPress?: () => void;
     forecastData: any[];
     loading: boolean;
     error: string | null;
@@ -61,6 +69,7 @@ export const UserCard: React.FC<UserCardProps> = ({
     plantedPlants,
     onPlantPress,
     onPlantDetailsPress,
+    onWeatherPress,
     forecastData,
     loading,
     error,
@@ -120,58 +129,76 @@ export const UserCard: React.FC<UserCardProps> = ({
                     }}
                 />
                 {/* Weather text */}
-                <Text
+                <TouchableOpacity
+                    onPress={onWeatherPress}
+                    disabled={!onWeatherPress}
                     style={{
-                        fontSize: 20,
-                        color: "white",
-                        textAlign: "center",
-                        marginBottom: 20,
-                        marginTop: 40,
+                        padding: 10,
+                        borderRadius: 8,
                     }}
                 >
-                    {loading ? (
-                        <Text style={{ fontStyle: "italic", color: "#666" }}>
-                            Loading weather...
-                        </Text>
-                    ) : weather && weather.main && weather.main.temp ? (
-                        <>
-                            It&apos;s{" "}
+                    <Text
+                        style={{
+                            fontSize: 20,
+                            color: "white",
+                            textAlign: "center",
+                            marginBottom: 20,
+                            marginTop: 40,
+                            textDecorationLine: onWeatherPress
+                                ? "underline"
+                                : "none",
+                        }}
+                    >
+                        {loading ? (
                             <Text
-                                style={{
-                                    fontWeight: "bold",
-                                }}
+                                style={{ fontStyle: "italic", color: "#666" }}
                             >
-                                {Math.round(weather.main.temp)}°
-                            </Text>{" "}
-                            and{" "}
-                            <Text
-                                style={{
-                                    fontWeight: "bold",
-                                }}
-                            >
-                                {weather &&
-                                weather.weather &&
-                                weather.weather[0]
-                                    ? getWeatherDescription(
-                                          weather.weather[0].main
-                                      )
-                                    : "--"}
-                            </Text>{" "}
-                            in{" "}
-                            <Text
-                                style={{
-                                    fontWeight: "bold",
-                                }}
-                            >
-                                {weather && weather.name ? weather.name : "--"}
+                                Loading weather...
                             </Text>
-                        </>
-                    ) : (
-                        <Text style={{ fontStyle: "italic", color: "#666" }}>
-                            Weather data unavailable
-                        </Text>
-                    )}
-                </Text>
+                        ) : weather && weather.main && weather.main.temp ? (
+                            <>
+                                It&apos;s{" "}
+                                <Text
+                                    style={{
+                                        fontWeight: "bold",
+                                    }}
+                                >
+                                    {Math.round(weather.main.temp)}°
+                                </Text>{" "}
+                                and{" "}
+                                <Text
+                                    style={{
+                                        fontWeight: "bold",
+                                    }}
+                                >
+                                    {weather &&
+                                    weather.weather &&
+                                    weather.weather[0]
+                                        ? getWeatherDescription(
+                                              weather.weather[0].main
+                                          )
+                                        : "--"}
+                                </Text>{" "}
+                                in{" "}
+                                <Text
+                                    style={{
+                                        fontWeight: "bold",
+                                    }}
+                                >
+                                    {weather && weather.name
+                                        ? weather.name
+                                        : "--"}
+                                </Text>
+                            </>
+                        ) : (
+                            <Text
+                                style={{ fontStyle: "italic", color: "#666" }}
+                            >
+                                Weather data unavailable
+                            </Text>
+                        )}
+                    </Text>
+                </TouchableOpacity>
                 {forecastData && forecastData.length > 0 ? (
                     <FiveDayForecast forecastData={forecastData} />
                 ) : loading ? (
