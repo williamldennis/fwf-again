@@ -25,7 +25,14 @@ interface CardStackProps {
     error: string | null;
     cardWidth: number;
     friends: Friend[];
-    friendForecasts: Record<string, any[]>;
+    friendForecasts: Record<
+        string,
+        {
+            forecast: any[];
+            hourly: any[];
+            daily: any[];
+        }
+    >;
     onFetchForecast: (friend: any) => void;
     onShare: () => void;
 }
@@ -150,6 +157,7 @@ export const CardStack: React.FC<CardStackProps> = ({
         }
 
         if (item.type === "friend" && item.data) {
+            const friendForecastData = friendForecasts[item.data.id];
             return (
                 <View
                     key={item.id}
@@ -164,10 +172,12 @@ export const CardStack: React.FC<CardStackProps> = ({
                         plantedPlants={plantedPlants}
                         onPlantPress={onPlantPress}
                         onPlantDetailsPress={onPlantDetailsPress}
-                        forecastData={friendForecasts[item.data.id] || []}
+                        forecastData={friendForecastData?.forecast || []}
                         cardWidth={cardWidth}
                         cardHeight={screenHeight}
                         onFetchForecast={onFetchForecast}
+                        hourlyForecast={friendForecastData?.hourly || []}
+                        dailyForecast={friendForecastData?.daily || []}
                     />
                 </View>
             );

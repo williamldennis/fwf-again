@@ -239,8 +239,8 @@ export const UserCard: React.FC<UserCardProps> = ({
                                 borderRadius: 50,
                                 resizeMode: "cover",
                                 backgroundColor: "#eee",
-                                marginTop: 120, // space for Lottie
-                                marginBottom: 30,
+                                marginTop: 150, // space for Lottie
+                                marginBottom: 60,
                             }}
                         />
 

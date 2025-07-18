@@ -695,9 +695,16 @@ export default function Home() {
         }
     }, [forecast]);
 
-    // Friend forecast cache
+    // Friend forecast cache - updated to store complete weather data
     const [friendForecasts, setFriendForecasts] = useState<
-        Record<string, any[]>
+        Record<
+            string,
+            {
+                forecast: any[];
+                hourly: any[];
+                daily: any[];
+            }
+        >
     >({});
 
     // Achievement drawer state
@@ -706,21 +713,34 @@ export default function Home() {
     // Weather modal state
     const [showWeatherModal, setShowWeatherModal] = useState(false);
 
-    // Helper to fetch and cache friend forecast
+    // Helper to fetch and cache friend forecast - updated to fetch complete weather data
     const fetchFriendForecast = async (friend: any) => {
         if (!friend.latitude || !friend.longitude) return;
         if (friendForecasts[friend.id]) return; // Already cached
         try {
-            const forecastData = await WeatherService.fetchFriendForecast(
+            console.log(
+                `[Friends] 🌤️ Fetching complete weather data for ${friend.contact_name} at ${friend.latitude}, ${friend.longitude}`
+            );
+            const weatherData = await WeatherService.fetchWeatherData(
                 friend.latitude,
                 friend.longitude
             );
             setFriendForecasts((prev) => ({
                 ...prev,
-                [friend.id]: forecastData,
+                [friend.id]: {
+                    forecast: weatherData.forecast,
+                    hourly: weatherData.hourly || [],
+                    daily: weatherData.daily || [],
+                },
             }));
+            console.log(
+                `[Friends] ✅ Complete weather data cached for ${friend.contact_name}`
+            );
         } catch (e) {
-            // Ignore errors for now
+            console.warn(
+                `[Friends] ⚠️ Could not fetch weather data for ${friend.contact_name}:`,
+                e
+            );
         }
     };
 
