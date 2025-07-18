@@ -233,18 +233,45 @@ export class AchievementService {
 
       // Check each achievement that matches the action type
       for (const [achievementId, achievement] of Object.entries(this.ACHIEVEMENTS)) {
-        if (achievement.requirements.action === actionType) {
+        // For social achievements, also check social_planting actions
+        const shouldCheckAchievement = 
+          achievement.requirements.action === actionType ||
+          (achievement.category === 'social' && actionType === 'social_planting');
+        
+        // Debug logging for achievement checking
+        console.log(`[AchievementService] Checking achievement ${achievementId}:`, {
+          actionType,
+          achievementAction: achievement.requirements.action,
+          shouldCheck: shouldCheckAchievement,
+          category: achievement.category
+        });
+        
+        if (achievement.category === 'social') {
+          console.log(`[AchievementService] Checking social achievement ${achievementId}:`, {
+            actionType,
+            achievementAction: achievement.requirements.action,
+            shouldCheck: shouldCheckAchievement,
+            context: { friend_garden: context.friend_garden, garden_owner_id: context.garden_owner_id }
+          });
+        }
+        
+        if (shouldCheckAchievement) {
           const progress = await this.calculateAchievementProgress(
             userId,
             achievement,
             context
           );
 
+          if (achievement.category === 'social') {
+            console.log(`[AchievementService] Progress for ${achievementId}:`, progress);
+          }
+
           // Add to progress list
           result.progress.push(progress);
 
           // Check if achievement should be unlocked
           if (!unlockedAchievementIds.has(achievementId) && progress.isUnlocked) {
+            console.log(`[AchievementService] 🏆 Unlocking achievement ${achievementId}`);
             const unlockResult = await this.unlockAchievement(
               userId,
               achievementId,
@@ -435,7 +462,7 @@ export class AchievementService {
    * @param context - Action context
    * @returns Promise<AchievementProgress>
    */
-  private static async calculateAchievementProgress(
+  static async calculateAchievementProgress(
     userId: string,
     achievement: Achievement,
     context: Record<string, any>
@@ -460,7 +487,12 @@ export class AchievementService {
           break;
 
         case 'unique':
-          currentProgress = await this.getUniqueActionCount(userId, achievement.requirements.action, context);
+          // Merge achievement conditions with action context for proper filtering
+          const mergedContext = {
+            ...context,
+            ...achievement.requirements.conditions
+          };
+          currentProgress = await this.getUniqueActionCount(userId, achievement.requirements.action, mergedContext);
           break;
 
         case 'streak':
@@ -547,32 +579,60 @@ export class AchievementService {
     context: Record<string, any>
   ): Promise<number> {
     try {
-      const { data, error } = await supabase
+      // Debug logging for social achievements
+      if (context.friend_garden || context.friend_gardens) {
+        console.log(`[AchievementService] getUniqueActionCount for social achievement:`, {
+          actionType,
+          context: { friend_garden: context.friend_garden, friend_gardens: context.friend_gardens }
+        });
+      }
+
+      // For social achievements, also include social_planting actions
+      let query = supabase
         .from('xp_transactions')
-        .select('context_data')
-        .eq('user_id', userId)
-        .eq('action_type', actionType);
+        .select('context_data, action_type')
+        .eq('user_id', userId);
+
+      if (context.friend_garden || context.friend_gardens) {
+        // For social achievements, check both plant_seed and social_planting actions
+        query = query.in('action_type', ['plant_seed', 'social_planting']);
+        console.log(`[AchievementService] Querying for social achievements: plant_seed OR social_planting`);
+      } else {
+        query = query.eq('action_type', actionType);
+        console.log(`[AchievementService] Querying for action type: ${actionType}`);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("[AchievementService] Error getting unique action count:", error);
         return 0;
       }
 
+              if (context.friend_garden || context.friend_gardens) {
+          console.log(`[AchievementService] Found ${data?.length || 0} social transactions`);
+        }
+
       if (!data) return 0;
 
       // Extract unique values based on context
       const uniqueValues = new Set();
-      
       data.forEach(transaction => {
         if (transaction.context_data) {
-          if (context.unique_plants && transaction.context_data.plantId) {
-            uniqueValues.add(transaction.context_data.plantId);
-          } else if (context.friend_gardens && transaction.context_data.friendId) {
-            uniqueValues.add(transaction.context_data.friendId);
+          if (context.unique_plants && (transaction.context_data.plantId || transaction.context_data.plant_id)) {
+            uniqueValues.add(transaction.context_data.plantId || transaction.context_data.plant_id);
+          } else if (context.friend_gardens && transaction.context_data.garden_owner_id) {
+            uniqueValues.add(transaction.context_data.garden_owner_id);
+          } else if (context.friend_garden && transaction.context_data.garden_owner_id) {
+            // For single friend garden visit achievement
+            uniqueValues.add(transaction.context_data.garden_owner_id);
           }
         }
       });
 
+      if (context.friend_garden || context.friend_gardens) {
+        console.log(`[AchievementService] Total unique social values: ${uniqueValues.size}`);
+      }
       return uniqueValues.size;
 
     } catch (error) {
@@ -592,6 +652,8 @@ export class AchievementService {
     actionType: string
   ): Promise<number> {
     try {
+      console.log(`[AchievementService] 🔍 Getting streak for ${actionType}, userId: ${userId}`);
+      
       const { data, error } = await supabase
         .from('xp_transactions')
         .select('created_at')
@@ -599,13 +661,77 @@ export class AchievementService {
         .eq('action_type', actionType)
         .order('created_at', { ascending: false });
 
-      if (error || !data) {
+      if (error) {
+        console.error("[AchievementService] Error getting streak transactions:", error);
+        return 0;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log(`[AchievementService] 📊 No ${actionType} transactions found for user`);
         return 0;
       }
 
-      // Calculate streak logic here
-      // For now, return the total count as a simple implementation
-      return data.length;
+      console.log(`[AchievementService] 📊 Found ${data.length} ${actionType} transactions:`, 
+        data.map(t => new Date(t.created_at).toISOString().split('T')[0]));
+      
+      // Add more detailed logging for debugging
+      console.log(`[AchievementService] 🔍 Raw transaction data:`, data);
+
+      // Calculate consecutive day streak
+      let currentStreak = 0;
+      const today = new Date();
+      // Use UTC for today's date to match the transaction dates
+      const todayStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+      
+      // Group transactions by day (using UTC for consistency)
+      const transactionsByDay = new Map<string, boolean>();
+      data.forEach(transaction => {
+        const transactionDate = new Date(transaction.created_at);
+        // Use UTC date to match the database storage format
+        const dayKey = transactionDate.toISOString().split('T')[0]; // YYYY-MM-DD format in UTC
+        transactionsByDay.set(dayKey, true);
+      });
+
+      console.log(`[AchievementService] 📅 Transactions by day:`, Array.from(transactionsByDay.keys()));
+      console.log(`[AchievementService] 📅 Today: ${todayStart.toISOString().split('T')[0]}`);
+
+      // Check consecutive days starting from today (using UTC for consistency)
+      let checkDate = new Date(todayStart);
+      while (true) {
+        const dayKey = checkDate.toISOString().split('T')[0]; // YYYY-MM-DD format in UTC
+        
+        if (transactionsByDay.has(dayKey)) {
+          currentStreak++;
+          console.log(`[AchievementService] ✅ Found transaction for ${dayKey}, streak: ${currentStreak}`);
+          // Move to previous day
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          console.log(`[AchievementService] ❌ No transaction for ${dayKey}, stopping streak`);
+          // Found a gap, stop counting
+          break;
+        }
+      }
+
+      console.log(`[AchievementService] 🏆 Final calculated streak for ${actionType}: ${currentStreak} days`);
+      
+      // Debug: Check if transaction exists in database
+      if (actionType === 'daily_use' && currentStreak === 0) {
+        console.log(`[AchievementService] 🔍 Debug: Checking for daily_use transaction in database...`);
+        const { data: debugData, error: debugError } = await supabase
+          .from('xp_transactions')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('action_type', 'daily_use')
+          .order('created_at', { ascending: false });
+        
+        if (debugError) {
+          console.error(`[AchievementService] ❌ Debug query error:`, debugError);
+        } else {
+          console.log(`[AchievementService] 🔍 Debug: Found ${debugData?.length || 0} daily_use transactions:`, debugData);
+        }
+      }
+      
+      return currentStreak;
 
     } catch (error) {
       console.error("[AchievementService] Exception in getActionStreak:", error);
@@ -642,6 +768,22 @@ export class AchievementService {
       );
     } catch (error) {
       console.error("[AchievementService] Exception in getAchievementsByCategory:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get achievement details by IDs
+   * @param achievementIds - Array of achievement IDs
+   * @returns Achievement[]
+   */
+  static getAchievementsByIds(achievementIds: string[]): Achievement[] {
+    try {
+      return achievementIds
+        .map(id => this.ACHIEVEMENTS[id])
+        .filter(achievement => achievement !== undefined);
+    } catch (error) {
+      console.error("[AchievementService] Exception in getAchievementsByIds:", error);
       return [];
     }
   }

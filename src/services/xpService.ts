@@ -362,7 +362,7 @@ export class XPService {
         5, // Daily XP amount
         'daily_use',
         'Daily app usage reward',
-        { date: new Date().toISOString().split('T')[0] }
+        { date: new Date().toISOString().split('T')[0] } // Keep UTC for consistency with database
       );
 
     } catch (error) {

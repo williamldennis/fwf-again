@@ -25,6 +25,7 @@ import { useXP } from "../hooks/useXP";
 import { useWeatherData } from "../hooks/useWeatherData";
 import { XPService } from "../services/xpService";
 import XPToast from "../components/XPToast";
+import AchievementToast from "../components/AchievementToast";
 
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
@@ -36,6 +37,7 @@ import CardStack from "../components/CardStack";
 import DropdownMenu from "../components/DropdownMenu";
 import HeaderBar from "../components/HeaderBar";
 import SkeletonCard from "../components/SkeletonCard";
+import AchievementDrawer from "../components/AchievementDrawer";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -167,19 +169,67 @@ export default function Home() {
 
         try {
             console.log("[XP] 🌅 Checking daily XP eligibility...");
+
+            // For new users, ensure they get their first daily XP
+            const canReceive = await XPService.canReceiveDailyXP(currentUserId);
+            console.log("[XP] 📊 Can receive daily XP:", canReceive);
+
             const result = await XPService.awardDailyXP(currentUserId);
 
             console.log("[XP] 📊 Daily XP result:", result);
 
             if (result.success) {
                 console.log("[XP] ✅ Daily XP awarded:", result.newTotalXP);
+
+                // Check for daily achievements (like Daily Gardener)
+                let achievementResult: any = null;
+                try {
+                    achievementResult =
+                        await AchievementService.checkAndAwardAchievements(
+                            currentUserId,
+                            "daily_use",
+                            { date: new Date().toISOString().split("T")[0] }
+                        );
+
+                    if (achievementResult.unlocked.length > 0) {
+                        console.log(
+                            "[XP] 🏆 Daily achievements unlocked:",
+                            achievementResult.unlocked
+                        );
+                        // Show achievement toast if any were unlocked
+                        if (achievementResult.unlocked.includes("daily_use")) {
+                            setXpToastMessage("Daily Gardener!");
+                            setXpToastSubtitle("7 consecutive days!");
+                            setXpToastAmount(50);
+                            setShowXPToast(true);
+                        }
+                    }
+                } catch (achievementError) {
+                    console.error(
+                        "[XP] ❌ Error checking daily achievements:",
+                        achievementError
+                    );
+                }
+
                 // Refresh XP data to update the display
                 await refreshXP();
 
-                // Show toast notification
-                setXpToastMessage("Daily Reward!");
-                setXpToastAmount(5);
-                setShowXPToast(true);
+                // Trigger achievement drawer refresh to update daily streak
+                // Add delay to ensure XP transaction is committed to database
+                setTimeout(() => {
+                    setAchievementRefreshTrigger((prev) => prev + 1);
+                }, 1000);
+
+                // Show toast notification (only if no achievement toast was shown)
+                if (
+                    !achievementResult ||
+                    achievementResult.unlocked.length === 0
+                ) {
+                    setXpToastMessage("Daily Reward!");
+                    setXpToastSubtitle("You opened the app today!");
+                    setXpToastAmount(5);
+                    setShowXPToast(true);
+                }
 
                 console.log("[XP] 🎉 +5 XP Daily Reward!");
             } else {
@@ -341,7 +391,54 @@ export default function Home() {
                 );
             }
 
-            // 3. Check and award achievements
+            // 3. Award social XP for planting in friend gardens (25 XP)
+            try {
+                const isFriendGarden = friendId !== currentUserId;
+
+                if (isFriendGarden) {
+                    const socialXP = 25;
+                    const socialResult = await XPService.awardXP(
+                        currentUserId,
+                        socialXP,
+                        "social_planting",
+                        `Planted ${plantName} in friend's garden`,
+                        {
+                            plant_id: plantId,
+                            plant_name: plantName,
+                            garden_owner_id: friendId,
+                            planter_id: currentUserId,
+                            is_friend_garden: true,
+                        }
+                    );
+
+                    if (socialResult.success) {
+                        totalXP += socialXP;
+                        xpBreakdown.push(`+${socialXP} XP social planting`);
+                        console.log(
+                            "[XP] ✅ Social XP awarded:",
+                            socialXP,
+                            `(${plantName} in friend's garden)`
+                        );
+                    } else {
+                        const errorMsg = `Social XP failed: ${socialResult.error}`;
+                        errors.push(errorMsg);
+                        console.error(
+                            "[XP] ❌ Failed to award social XP:",
+                            socialResult.error
+                        );
+                    }
+                } else {
+                    console.log(
+                        "[XP] ℹ️ No social XP - planting in own garden"
+                    );
+                }
+            } catch (error) {
+                const errorMsg = `Social XP exception: ${error instanceof Error ? error.message : "Unknown error"}`;
+                errors.push(errorMsg);
+                console.error("[XP] ❌ Exception awarding social XP:", error);
+            }
+
+            // 4. Check and award achievements
             let achievementResult = { xpAwarded: 0, unlocked: [] as string[] };
             try {
                 const isFriendGarden = friendId !== currentUserId;
@@ -412,6 +509,9 @@ export default function Home() {
                         "[XP] 🏆 Unlocked achievements:",
                         achievementResult.unlocked
                     );
+
+                    // Trigger achievement drawer refresh
+                    setAchievementRefreshTrigger((prev) => prev + 1);
                 }
             } catch (error) {
                 const errorMsg = `Achievement check exception: ${error instanceof Error ? error.message : "Unknown error"}`;
@@ -422,7 +522,7 @@ export default function Home() {
                 );
             }
 
-            // 4. Refresh XP data and show toast
+            // 5. Refresh XP data and show toast
             try {
                 if (totalXP > 0) {
                     await refreshXP();
@@ -440,11 +540,14 @@ export default function Home() {
                         toastMessage = "Planting Reward!";
                         toastSubtitle = xpBreakdown.join(" + ");
                     } else {
-                        // Multiple XP sources (base + weather + achievements)
+                        // Multiple XP sources (base + weather + social + achievements)
                         const baseAndWeather = xpBreakdown.filter(
                             (x) =>
                                 x.includes("planting") ||
                                 x.includes("optimal weather")
+                        );
+                        const socialXP = xpBreakdown.filter((x) =>
+                            x.includes("social planting")
                         );
                         const achievementXP = xpBreakdown.filter((x) =>
                             x.includes("achievements")
@@ -452,7 +555,14 @@ export default function Home() {
 
                         if (achievementXP.length > 0) {
                             toastMessage = "Planting Reward + Achievements!";
-                            toastSubtitle = `${baseAndWeather.join(" + ")} + ${achievementXP.join(" + ")}`;
+                            const baseWeatherSocial = [
+                                ...baseAndWeather,
+                                ...socialXP,
+                            ];
+                            toastSubtitle = `${baseWeatherSocial.join(" + ")} + ${achievementXP.join(" + ")}`;
+                        } else if (socialXP.length > 0) {
+                            toastMessage = "Planting Reward!";
+                            toastSubtitle = xpBreakdown.join(" + ");
                         } else {
                             toastMessage = "Planting Reward!";
                             toastSubtitle = xpBreakdown.join(" + ");
@@ -461,6 +571,7 @@ export default function Home() {
 
                     // Set toast with enhanced information
                     setXpToastMessage(toastMessage);
+                    setXpToastSubtitle(toastSubtitle);
                     setXpToastAmount(totalXP);
                     setShowXPToast(true);
 
@@ -478,6 +589,20 @@ export default function Home() {
                             "[XP] 🏆 New achievements unlocked:",
                             achievementResult.unlocked
                         );
+
+                        // Show achievement toast
+                        const achievementDetails =
+                            AchievementService.getAchievementsByIds(
+                                achievementResult.unlocked
+                            );
+                        setAchievementToastData({
+                            achievements: achievementDetails,
+                            totalXPAwarded: achievementResult.xpAwarded,
+                        });
+                        setShowAchievementToast(true);
+
+                        // Trigger achievement drawer refresh (in case it's already open)
+                        setAchievementRefreshTrigger((prev) => prev + 1);
                     }
                 } else {
                     console.log("[XP] ℹ️ No XP awarded for planting");
@@ -488,7 +613,7 @@ export default function Home() {
                 console.error("[XP] ❌ Exception in toast/refresh:", error);
             }
 
-            // 5. Log final summary with any errors
+            // 6. Log final summary with any errors
             if (errors.length > 0) {
                 console.warn("[XP] ⚠️ Planting XP completed with errors:", {
                     totalXP,
@@ -530,9 +655,23 @@ export default function Home() {
     // XP Toast state
     const [showXPToast, setShowXPToast] = useState(false);
     const [xpToastMessage, setXpToastMessage] = useState("");
+    const [xpToastSubtitle, setXpToastSubtitle] = useState<string | undefined>(
+        undefined
+    );
     const [xpToastAmount, setXpToastAmount] = useState<number | undefined>(
         undefined
     );
+
+    // Achievement Toast state
+    const [showAchievementToast, setShowAchievementToast] = useState(false);
+    const [achievementToastData, setAchievementToastData] = useState<{
+        achievements: any[];
+        totalXPAwarded: number;
+    }>({ achievements: [], totalXPAwarded: 0 });
+
+    // Achievement drawer refresh trigger
+    const [achievementRefreshTrigger, setAchievementRefreshTrigger] =
+        useState(0);
 
     // User's 5-day forecast data
     const userFiveDayData = useMemo(() => {
@@ -548,6 +687,9 @@ export default function Home() {
     const [friendForecasts, setFriendForecasts] = useState<
         Record<string, any[]>
     >({});
+
+    // Achievement drawer state
+    const [showAchievementDrawer, setShowAchievementDrawer] = useState(false);
 
     // Helper to fetch and cache friend forecast
     const fetchFriendForecast = async (friend: any) => {
@@ -624,7 +766,10 @@ export default function Home() {
             );
             if (currentUserId) {
                 console.log("[App] 🎯 Calling awardDailyXP...");
-                awardDailyXP();
+                // Add a small delay to ensure all initialization is complete
+                setTimeout(() => {
+                    awardDailyXP();
+                }, 500);
             } else {
                 console.log("[App] ⏳ No currentUserId yet, skipping daily XP");
             }
@@ -679,7 +824,10 @@ export default function Home() {
             console.log(
                 "[App] 🎯 currentUserId became available, checking daily XP..."
             );
-            awardDailyXP();
+            // Add a small delay to ensure all initialization is complete
+            setTimeout(() => {
+                awardDailyXP();
+            }, 1000);
         }
     }, [currentUserId]);
 
@@ -829,6 +977,26 @@ export default function Home() {
                 return;
             }
 
+            // Find the selected plant to get its cost
+            const selectedPlant = availablePlants.find((p) => p.id === plantId);
+            if (!selectedPlant) {
+                console.error("[Plant] Selected plant not found");
+                Alert.alert("Error", "Selected plant not found");
+                return;
+            }
+
+            // Check if user has enough points
+            const plantingCost = selectedPlant.planting_cost || 0;
+            const currentPoints = userProfile?.points || 0;
+
+            if (currentPoints < plantingCost) {
+                Alert.alert(
+                    "Insufficient Points",
+                    `You need ${plantingCost} points to plant ${selectedPlant.name}. You have ${currentPoints} points.`
+                );
+                return;
+            }
+
             // Check if slot is already occupied
             const { data: slotPlants, error: slotError } = await supabase
                 .from("planted_plants")
@@ -862,6 +1030,36 @@ export default function Home() {
             });
 
             if (newPlant) {
+                // Deduct planting cost from user points
+                const newPoints = currentPoints - plantingCost;
+                console.log(
+                    `[Plant] Deducting ${plantingCost} points for planting ${selectedPlant.name}. New balance: ${newPoints}`
+                );
+
+                const { error: pointsError } = await supabase
+                    .from("profiles")
+                    .update({ points: newPoints })
+                    .eq("id", user.id);
+
+                if (pointsError) {
+                    console.error(
+                        "[Plant] Error updating points:",
+                        pointsError
+                    );
+                    // Don't fail the planting if points update fails
+                } else {
+                    console.log("[Plant] Points updated successfully");
+                    // Refresh user profile to update points display
+                    try {
+                        await updatePoints();
+                    } catch (error) {
+                        console.warn(
+                            "[Plant] Could not refresh profile:",
+                            error
+                        );
+                    }
+                }
+
                 // Update growth after planting to ensure new plants start correctly
                 await updateGrowth();
                 // Only update the specific garden that was planted in
@@ -922,11 +1120,11 @@ export default function Home() {
         if (plant.planter_id) {
             const { data: profile, error } = await supabase
                 .from("profiles")
-                .select("name")
+                .select("full_name")
                 .eq("id", plant.planter_id)
                 .single();
-            if (profile && profile.name) {
-                planterName = profile.name;
+            if (profile && profile.full_name) {
+                planterName = profile.full_name;
             }
         }
         setSelectedPlanterName(planterName);
@@ -969,6 +1167,24 @@ export default function Home() {
 
     const handleClosePlantPicker = () => {
         setShowPlantPicker(false);
+    };
+
+    // Achievement drawer handlers
+    const openAchievementDrawer = () => {
+        setShowAchievementDrawer(true);
+        // Trigger refresh when opening drawer to ensure latest data
+        setAchievementRefreshTrigger((prev) => prev + 1);
+
+        // Also ensure daily XP is awarded if not already done
+        if (currentUserId) {
+            setTimeout(() => {
+                awardDailyXP();
+            }, 100);
+        }
+    };
+
+    const closeAchievementDrawer = () => {
+        setShowAchievementDrawer(false);
     };
 
     // Fetch available plants when PlantPicker is opened and not already loaded
@@ -1052,6 +1268,7 @@ export default function Home() {
                     <HeaderBar
                         points={userProfile?.points || 0}
                         onMenuPress={() => setShowMenu(true)}
+                        onXPPress={openAchievementDrawer}
                         xpData={xpData}
                     />
                 </View>
@@ -1159,6 +1376,7 @@ export default function Home() {
                 weatherCondition={""}
                 plants={availablePlants}
                 loading={availablePlantsLoading}
+                userPoints={userProfile?.points || 0}
             />
 
             {/* PLANT DETAILS MODAL */}
@@ -1170,14 +1388,64 @@ export default function Home() {
                 currentUserId={currentUserId || undefined}
                 friendWeather={selectedPlant?.friendWeather}
                 planterName={selectedPlanterName}
+                onShowXPToast={async (
+                    message: string,
+                    subtitle: string,
+                    amount: number,
+                    achievements?: string[]
+                ) => {
+                    // Add a small delay to ensure modal is fully closed before showing toast
+                    setTimeout(() => {
+                        setXpToastMessage(message);
+                        setXpToastSubtitle(subtitle);
+                        setXpToastAmount(amount);
+                        setShowXPToast(true);
+
+                        // Show achievement toast if achievements were unlocked
+                        if (achievements && achievements.length > 0) {
+                            const achievementDetails =
+                                AchievementService.getAchievementsByIds(
+                                    achievements
+                                );
+                            setAchievementToastData({
+                                achievements: achievementDetails,
+                                totalXPAwarded: achievementDetails.reduce(
+                                    (total, achievement) =>
+                                        total + achievement.xpReward,
+                                    0
+                                ),
+                            });
+                            setShowAchievementToast(true);
+                        }
+                    }, 300); // Increased delay to ensure modal is fully closed
+                    await refreshXP();
+                }}
             />
 
             {/* XP TOAST NOTIFICATION */}
             <XPToast
                 visible={showXPToast}
                 message={xpToastMessage}
+                subtitle={xpToastSubtitle}
                 xpAmount={xpToastAmount}
                 onHide={() => setShowXPToast(false)}
+            />
+
+            {/* ACHIEVEMENT TOAST NOTIFICATION */}
+            <AchievementToast
+                visible={showAchievementToast}
+                achievements={achievementToastData.achievements}
+                totalXPAwarded={achievementToastData.totalXPAwarded}
+                onHide={() => setShowAchievementToast(false)}
+            />
+
+            {/* ACHIEVEMENT DRAWER */}
+            <AchievementDrawer
+                visible={showAchievementDrawer}
+                onClose={closeAchievementDrawer}
+                userId={currentUserId}
+                xpData={xpData}
+                refreshTrigger={achievementRefreshTrigger}
             />
         </>
     );

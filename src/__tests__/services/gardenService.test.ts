@@ -138,8 +138,8 @@ describe('GardenService', () => {
   describe('plantSeed', () => {
     it('should plant a seed successfully', async () => {
       const mockAvailablePlants = [
-        { id: '1', name: 'Sunflower' },
-        { id: '2', name: 'Cactus' }
+        { id: '1', name: 'Sunflower', planting_cost: 5 },
+        { id: '2', name: 'Cactus', planting_cost: 4 }
       ];
 
       const mockPlantedPlant = {
@@ -196,7 +196,7 @@ describe('GardenService', () => {
     });
 
     it('should throw error when slot is occupied', async () => {
-      const mockAvailablePlants = [{ id: '1', name: 'Sunflower' }];
+      const mockAvailablePlants = [{ id: '1', name: 'Sunflower', planting_cost: 0 }];
       
       const mockSlotQuery = {
         select: jest.fn().mockReturnThis(),
@@ -311,6 +311,70 @@ describe('GardenService', () => {
 
       expect(supabase.from).toHaveBeenCalledWith('planted_plants');
       // Should not make additional calls since no plants to process
+    });
+  });
+
+  describe('planting costs', () => {
+    it('should include planting_cost in plant data structure', async () => {
+      const mockPlants = [
+        { 
+          id: '1', 
+          name: 'Mushroom', 
+          growth_time_hours: 2,
+          planting_cost: 3,
+          harvest_points: 8
+        },
+        { 
+          id: '2', 
+          name: 'Pine Tree', 
+          growth_time_hours: 8,
+          planting_cost: 12,
+          harvest_points: 25
+        }
+      ];
+
+      const mockQuery = {
+        select: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: mockPlants, error: null })
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+
+      const result = await GardenService.fetchAvailablePlants();
+
+      expect(result).toEqual(mockPlants);
+      expect(result[0]).toHaveProperty('planting_cost', 3);
+      expect(result[1]).toHaveProperty('planting_cost', 12);
+    });
+
+    it('should validate planting cost calculations', () => {
+      const mockPlants = [
+        { name: 'Mushroom', planting_cost: 3, harvest_points: 8 },
+        { name: 'Cactus', planting_cost: 4, harvest_points: 12 },
+        { name: 'Sunflower', planting_cost: 0, harvest_points: 5 },
+        { name: 'Water Lily', planting_cost: 7, harvest_points: 18 },
+        { name: 'Fern', planting_cost: 8, harvest_points: 15 },
+        { name: 'Pine Tree', planting_cost: 12, harvest_points: 25 }
+      ];
+
+      // Test profit calculations
+      const profits = mockPlants.map(plant => ({
+        name: plant.name,
+        profit: plant.harvest_points - plant.planting_cost
+      }));
+
+      expect(profits).toEqual([
+        { name: 'Mushroom', profit: 5 },
+        { name: 'Cactus', profit: 8 },
+        { name: 'Sunflower', profit: 5 },
+        { name: 'Water Lily', profit: 11 },
+        { name: 'Fern', profit: 7 },
+        { name: 'Pine Tree', profit: 13 }
+      ]);
+
+      // Verify all plants have positive profit
+      profits.forEach(({ name, profit }) => {
+        expect(profit).toBeGreaterThan(0);
+      });
     });
   });
 }); 

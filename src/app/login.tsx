@@ -127,7 +127,7 @@ export default function Login() {
             const { data: profile, error } = await supabase
                 .from("profiles")
                 .select(
-                    "phone_number, contacts_approved, location_approved, selfie_urls"
+                    "phone_number, full_name, contacts_approved, location_approved, selfie_urls"
                 )
                 .eq("id", user.id)
                 .single();
@@ -139,6 +139,8 @@ export default function Login() {
             // Check phone number first
             if (!profile.phone_number) {
                 router.replace("/phone-number-add");
+            } else if (!profile.full_name) {
+                router.replace("/name-input");
             } else if (!profile.contacts_approved) {
                 router.replace("/contacts-permission");
             } else if (!profile.location_approved) {

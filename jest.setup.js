@@ -9,7 +9,12 @@ jest.mock('expo-contacts', () => ({
     Name: 'name',
   },
 }));
-jest.mock('expo-haptics');
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(),
+  ImpactFeedbackStyle: {
+    Heavy: 'heavy'
+  }
+}));
 jest.mock('expo-image', () => ({
   Image: 'Image'
 }));
@@ -130,4 +135,48 @@ jest.mock('react-native-css-interop', () => ({
 jest.mock('nativewind', () => ({
   styled: jest.fn((component) => component),
   css: jest.fn(() => ({})),
-})); 
+}));
+
+// Mock GrowthService with more sophisticated behavior
+jest.mock('./src/services/growthService', () => {
+  const actualGrowthService = jest.requireActual('./src/services/growthService');
+  return {
+    GrowthService: {
+      ...actualGrowthService.GrowthService,
+      // Override specific methods that need mocking
+      calculateGrowthStage: jest.fn((plantedPlant, plant, weather) => {
+        // Use actual implementation for most cases
+        return actualGrowthService.GrowthService.calculateGrowthStage(plantedPlant, plant, weather);
+      }),
+      getWeatherBonus: jest.fn((plant, weather) => {
+        // Use actual implementation
+        return actualGrowthService.GrowthService.getWeatherBonus(plant, weather);
+      }),
+      isPlantMature: jest.fn((plantedPlant, plant, weather) => {
+        // Use actual implementation
+        return actualGrowthService.GrowthService.isPlantMature(plantedPlant, plant, weather);
+      }),
+      getNextStage: jest.fn((stage) => {
+        // Use actual implementation
+        return actualGrowthService.GrowthService.getNextStage(stage);
+      }),
+      getWeatherPreferenceDescription: jest.fn((plant) => {
+        // Use actual implementation
+        return actualGrowthService.GrowthService.getWeatherPreferenceDescription(plant);
+      }),
+      getGrowthTimeDescription: jest.fn((growthTime) => {
+        // Use actual implementation
+        return actualGrowthService.GrowthService.getGrowthTimeDescription(growthTime);
+      }),
+      validatePlant: jest.fn((plant) => {
+        // Use actual implementation
+        return actualGrowthService.GrowthService.validatePlant(plant);
+      }),
+      validatePlantedPlant: jest.fn((plantedPlant) => {
+        // Use actual implementation
+        return actualGrowthService.GrowthService.validatePlantedPlant(plantedPlant);
+      }),
+      calculateGardenGrowth: jest.fn(() => [])
+    }
+  };
+}); 

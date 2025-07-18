@@ -70,13 +70,13 @@ export function useWeatherData(
 
     // Fetch weather data with caching
     const fetchWeatherData = useCallback(async (lat: number, lon: number) => {
-        console.log(`[Weather] 🌤️ Fetching weather for coordinates: ${lat}, ${lon}`);
+        // console.log(`[Weather] 🌤️ Fetching weather for coordinates: ${lat}, ${lon}`);
         setLoading(true);
         setError(null);
         const cacheKey = getCacheKey(lat, lon);
         const cachedData = weatherCache.get(cacheKey);
         if (cachedData && isCacheValid(cachedData.timestamp)) {
-            console.log("[Weather] ✅ Using cached weather data");
+            // console.log("[Weather] ✅ Using cached weather data");
             setWeather(cachedData.data.current);
             setForecast(cachedData.data.forecast);
             setCityName(cachedData.data.cityName);
@@ -86,7 +86,7 @@ export function useWeatherData(
             return;
         }
         try {
-            console.log("[Weather] 🔄 Fetching fresh weather data...");
+            // console.log("[Weather] 🔄 Fetching fresh weather data...");
             const cityNameResult = await WeatherService.getCityFromCoords(lat, lon);
             let localHour = 12;
             try {
@@ -119,20 +119,20 @@ export function useWeatherData(
             // Update user's weather in database if userId is provided
             if (userId) {
                 try {
-                    console.log("[Weather] 💾 Updating user's weather in database...");
+                    // console.log("[Weather] 💾 Updating user's weather in database...");
                     await WeatherService.updateUserWeatherInDatabase(userId, weatherData);
-                    console.log("[Weather] ✅ Weather updated in database");
+                    // console.log("[Weather] ✅ Weather updated in database");
                 } catch (err) {
                     console.warn("[Weather] ⚠️ Could not update weather in database:", err);
                 }
             }
-            console.log(`[Weather] ✅ Weather data fetched successfully for ${cityNameResult}`);
+            // console.log(`[Weather] ✅ Weather data fetched successfully for ${cityNameResult}`);
         } catch (err) {
             console.error("[Weather] ❌ Error fetching weather data:", err);
             const errorMessage = err instanceof Error ? err.message : "Unknown error";
             setError(`Failed to fetch weather data: ${errorMessage}`);
             if (cachedData) {
-                console.log("[Weather] 🔄 Falling back to cached data");
+                // console.log("[Weather] 🔄 Falling back to cached data");
                 setWeather(cachedData.data.current);
                 setForecast(cachedData.data.forecast);
                 setCityName(cachedData.data.cityName);
@@ -150,7 +150,7 @@ export function useWeatherData(
             console.warn("[Weather] ⚠️ No location set, cannot refresh weather");
             return;
         }
-        console.log("[Weather] 🔄 Refreshing weather data...");
+        // console.log("[Weather] 🔄 Refreshing weather data...");
         const cacheKey = getCacheKey(currentLocation.current.latitude, currentLocation.current.longitude);
         weatherCache.delete(cacheKey);
         await fetchWeatherData(currentLocation.current.latitude, currentLocation.current.longitude);
@@ -179,7 +179,7 @@ export function useWeatherData(
     // Auto-fetch weather when coordinates change
     useEffect(() => {
         if (typeof latitude === "number" && typeof longitude === "number") {
-            console.log(`[Weather] 📍 Coordinates changed to: ${latitude}, ${longitude}`);
+            // console.log(`[Weather] 📍 Coordinates changed to: ${latitude}, ${longitude}`);
             fetchWeatherData(latitude, longitude);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
