@@ -32,6 +32,7 @@
 - [ ] **Improve weather forecast styling** - Better first impression of core feature
 - [ ] **Add cosmetic upgrades to gardens** - Monetization opportunity
 - [ ] fix weather planting achievements
+      = [] fix achievements for first time planting -- you get 400xp off the bat -- i think social planting is being counted when you plant on your own garden - and you get all weather achivements
 
 ### Technical & Security
 
