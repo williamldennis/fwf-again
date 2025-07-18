@@ -11,7 +11,7 @@ import {
 import LottieView from "lottie-react-native";
 import GardenArea from "./GardenArea";
 import FiveDayForecast from "./FiveDayForecast";
-import { WeatherCardCarousel } from "./WeatherCardCarousel";
+import { WeatherCard } from "./WeatherCard";
 import {
     getWeatherLottieFile,
     getWeatherSelfieKey,
@@ -132,372 +132,394 @@ export const UserCard: React.FC<UserCardProps> = ({
     cardHeight,
 }) => {
     return (
-        <ScrollView
+        <View
             style={{
                 flex: 1,
-                zIndex: 1,
                 width: cardWidth,
                 maxWidth: cardWidth,
+                position: "relative",
             }}
-            contentContainerStyle={{
-                width: cardWidth,
-                maxWidth: cardWidth,
-            }}
-            showsVerticalScrollIndicator={false}
-            directionalLockEnabled={true}
-            nestedScrollEnabled={true}
-            scrollEventThrottle={16}
-            horizontal={false}
-            alwaysBounceHorizontal={false}
-            alwaysBounceVertical={true}
-            // Prevent horizontal scrolling to allow carousel gestures to take precedence
-            scrollEnabled={true}
         >
-            <View
+            {/* Lottie animation positioned absolutely above all content */}
+            {weather && weather.weather && weather.weather[0] && (
+                <View
+                    pointerEvents="none"
+                    style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        alignItems: "center",
+                        zIndex: 3,
+                    }}
+                >
+                    <LottieView
+                        source={getWeatherLottie(weather.weather[0].main)}
+                        autoPlay
+                        loop
+                        style={{
+                            width: 1100,
+                            height: 1100,
+                            opacity: 0.2,
+                        }}
+                    />
+                </View>
+            )}
+
+            <ScrollView
                 style={{
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 20,
+                    flex: 1,
                     zIndex: 1,
-                    minHeight: cardHeight,
                     width: cardWidth,
                     maxWidth: cardWidth,
                 }}
+                contentContainerStyle={{
+                    width: cardWidth,
+                    maxWidth: cardWidth,
+                }}
+                showsVerticalScrollIndicator={false}
+                directionalLockEnabled={true}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
+                horizontal={false}
+                alwaysBounceHorizontal={false}
+                alwaysBounceVertical={true}
+                // Prevent horizontal scrolling to allow carousel gestures to take precedence
+                scrollEnabled={true}
             >
                 <View
                     style={{
-                        width: cardWidth - 40, // Reduce width to prevent overflow
-                        maxWidth: cardWidth - 40,
-                        borderRadius: 20,
-                        shadowColor: "#000",
-                        shadowOffset: {
-                            width: 0,
-                            height: 2,
-                        },
-                        shadowOpacity: 0.08,
-                        shadowRadius: 8,
-                        elevation: 3,
                         alignItems: "center",
-                        overflow: "hidden",
-                        // borderColor: "#DEEFFF",
-                        // backgroundColor: "#DFEFFF",
+                        justifyContent: "center",
+                        padding: 20,
+                        zIndex: 1,
+                        minHeight: cardHeight,
+                        width: cardWidth,
+                        maxWidth: cardWidth,
                     }}
                 >
-                    <Image
-                        source={{
-                            uri:
-                                selfieUrls &&
-                                weather &&
-                                weather.weather &&
-                                mapWeatherToSelfieKey(weather.weather[0].main)
-                                    ? selfieUrls[
-                                          mapWeatherToSelfieKey(
-                                              weather.weather[0].main
-                                          )
-                                      ]
-                                    : undefined,
-                        }}
-                        style={{
-                            width: 100,
-                            height: 100,
-                            borderRadius: 50,
-                            resizeMode: "cover",
-                            backgroundColor: "#eee",
-                            marginTop: 60, // space for Lottie
-                            marginBottom: 0,
-                        }}
-                    />
-
                     <View
                         style={{
-                            width: "100%",
-                            // backgroundColor: "#fff",
-                            borderRadius: 16,
-                            alignItems: "center",
-                            position: "relative",
-                            backgroundColor: "white",
-                            borderBottomLeftRadius: 20,
-                            borderBottomRightRadius: 20,
-                            marginBottom: 0,
-                            paddingBottom: 30,
-                            marginTop: 0,
-                        }}
-                    >
-                        {/* Lottie animation floating above, centered */}
-                        {weather && weather.weather && weather.weather[0] && (
-                            <View
-                                pointerEvents="none"
-                                style={{
-                                    position: "absolute",
-                                    top: -600,
-                                    left: 0,
-                                    right: 0,
-                                    alignItems: "center",
-                                    zIndex: 3,
-                                }}
-                            >
-                                <LottieView
-                                    source={getWeatherLottie(
-                                        weather.weather[0].main
-                                    )}
-                                    autoPlay
-                                    loop
-                                    style={{
-                                        width: 1100,
-                                        height: 1100,
-                                        opacity: 0.2,
-                                    }}
-                                />
-                            </View>
-                        )}
-                        {/* Selfie */}
-
-                        {/* User's Garden */}
-                        <GardenArea
-                            gardenOwnerId={currentUserId || ""}
-                            plants={plantedPlants[currentUserId || ""] || []}
-                            weatherCondition={
-                                weather && weather.weather && weather.weather[0]
-                                    ? weather.weather[0].main
-                                    : "clear"
-                            }
-                            onPlantPress={(slotIdx) =>
-                                onPlantPress(currentUserId || "", slotIdx)
-                            }
-                            onPlantDetailsPress={onPlantDetailsPress}
-                            isGardenFull={
-                                (plantedPlants[currentUserId || ""] || [])
-                                    .length >= 3
-                            }
-                        />
-                    </View>
-
-                    {/* Weather Card Carousel */}
-                    {weather &&
-                        hourlyForecast.length > 0 &&
-                        dailyForecast.length > 0 && (
-                            <WeatherCardCarousel
-                                currentWeather={weather}
-                                hourlyForecast={hourlyForecast}
-                                dailyForecast={dailyForecast}
-                                cityName={weather.name || ""}
-                            />
-                        )}
-                </View>
-
-                {/* Hourly Forecast Card */}
-                {hourlyForecast.length > 0 && (
-                    <View
-                        style={{
-                            width: cardWidth - 40,
+                            width: cardWidth - 40, // Reduce width to prevent overflow
                             maxWidth: cardWidth - 40,
-                            backgroundColor: "#fff",
-                            borderRadius: 16,
-                            padding: 20,
-                            marginTop: 20,
+                            borderRadius: 20,
                             shadowColor: "#000",
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.1,
+                            shadowOffset: {
+                                width: 0,
+                                height: 2,
+                            },
+                            shadowOpacity: 0.08,
                             shadowRadius: 8,
                             elevation: 3,
+                            alignItems: "center",
                             overflow: "hidden",
+                            // borderColor: "#DEEFFF",
+                            // backgroundColor: "#DFEFFF",
                         }}
                     >
-                        <Text
+                        <Image
+                            source={{
+                                uri:
+                                    selfieUrls &&
+                                    weather &&
+                                    weather.weather &&
+                                    mapWeatherToSelfieKey(
+                                        weather.weather[0].main
+                                    )
+                                        ? selfieUrls[
+                                              mapWeatherToSelfieKey(
+                                                  weather.weather[0].main
+                                              )
+                                          ]
+                                        : undefined,
+                            }}
                             style={{
-                                fontSize: 18,
-                                fontWeight: "600",
-                                color: "#212529",
-                                marginBottom: 16,
+                                width: 100,
+                                height: 100,
+                                borderRadius: 50,
+                                resizeMode: "cover",
+                                backgroundColor: "#eee",
+                                marginTop: 60, // space for Lottie
+                                marginBottom: 0,
+                            }}
+                        />
+
+                        <View
+                            style={{
+                                width: "100%",
+                                // backgroundColor: "#fff",
+                                borderRadius: 16,
+                                alignItems: "center",
+                                position: "relative",
+                                backgroundColor: "white",
+                                borderBottomLeftRadius: 20,
+                                borderBottomRightRadius: 20,
+                                marginBottom: 0,
+                                paddingBottom: 30,
+                                marginTop: 0,
                             }}
                         >
-                            Today's Hourly Forecast
-                        </Text>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            style={{ marginHorizontal: -10 }}
-                            nestedScrollEnabled={true}
-                            scrollEventThrottle={16}
-                            directionalLockEnabled={true}
-                            alwaysBounceHorizontal={false}
-                            alwaysBounceVertical={false}
-                            // Add gesture handling to work better with carousel
-                            scrollEnabled={true}
+                            {/* Selfie */}
+
+                            {/* User's Garden */}
+                            <GardenArea
+                                gardenOwnerId={currentUserId || ""}
+                                plants={
+                                    plantedPlants[currentUserId || ""] || []
+                                }
+                                weatherCondition={
+                                    weather &&
+                                    weather.weather &&
+                                    weather.weather[0]
+                                        ? weather.weather[0].main
+                                        : "clear"
+                                }
+                                onPlantPress={(slotIdx) =>
+                                    onPlantPress(currentUserId || "", slotIdx)
+                                }
+                                onPlantDetailsPress={onPlantDetailsPress}
+                                isGardenFull={
+                                    (plantedPlants[currentUserId || ""] || [])
+                                        .length >= 3
+                                }
+                            />
+                        </View>
+
+                        {/* Weather Card */}
+                        {weather &&
+                            hourlyForecast.length > 0 &&
+                            dailyForecast.length > 0 && (
+                                <WeatherCard
+                                    currentWeather={weather}
+                                    hourlyForecast={hourlyForecast}
+                                    dailyForecast={dailyForecast}
+                                    cityName={weather.name || ""}
+                                />
+                            )}
+                    </View>
+
+                    {/* Hourly Forecast Card */}
+                    {hourlyForecast.length > 0 && (
+                        <View
+                            style={{
+                                width: cardWidth - 40,
+                                maxWidth: cardWidth - 40,
+                                backgroundColor: "#fff",
+                                borderRadius: 16,
+                                padding: 20,
+                                marginTop: 10,
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 8,
+                                elevation: 3,
+                                overflow: "hidden",
+                            }}
                         >
-                            {hourlyForecast.slice(0, 24).map((hour, index) => (
-                                <View
-                                    key={hour.dt}
-                                    style={{
-                                        alignItems: "center",
-                                        marginHorizontal: 10,
-                                        minWidth: 60,
-                                    }}
-                                >
-                                    <Text
-                                        style={{
-                                            fontSize: 12,
-                                            color: "#6c757d",
-                                            marginBottom: 8,
-                                        }}
-                                    >
-                                        {index === 0
-                                            ? "Now"
-                                            : formatTime(hour.dt)}
-                                    </Text>
-                                    <Image
-                                        source={{
-                                            uri: getWeatherIcon(hour.weather),
-                                        }}
-                                        style={{
-                                            width: 40,
-                                            height: 40,
-                                            marginBottom: 8,
-                                        }}
-                                        resizeMode="contain"
-                                    />
-                                    <Text
-                                        style={{
-                                            fontSize: 16,
-                                            fontWeight: "600",
-                                            color: "#212529",
-                                            marginBottom: 4,
-                                        }}
-                                    >
-                                        {Math.round(hour.temp)}°
-                                    </Text>
-                                    {hour.pop > 0.1 && (
-                                        <Text
+                            <Text
+                                style={{
+                                    fontSize: 18,
+                                    fontWeight: "600",
+                                    color: "#212529",
+                                    marginBottom: 16,
+                                }}
+                            >
+                                Today's Hourly Forecast
+                            </Text>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                style={{ marginHorizontal: -10 }}
+                                nestedScrollEnabled={true}
+                                scrollEventThrottle={16}
+                                directionalLockEnabled={true}
+                                alwaysBounceHorizontal={false}
+                                alwaysBounceVertical={false}
+                                // Add gesture handling to work better with carousel
+                                scrollEnabled={true}
+                            >
+                                {hourlyForecast
+                                    .slice(0, 24)
+                                    .map((hour, index) => (
+                                        <View
+                                            key={hour.dt}
                                             style={{
-                                                fontSize: 10,
-                                                color: "#007bff",
-                                                fontWeight: "500",
+                                                alignItems: "center",
+                                                marginHorizontal: 10,
+                                                minWidth: 60,
                                             }}
                                         >
-                                            {formatPrecipitation(hour.pop)}
+                                            <Text
+                                                style={{
+                                                    fontSize: 12,
+                                                    color: "#6c757d",
+                                                    marginBottom: 8,
+                                                }}
+                                            >
+                                                {index === 0
+                                                    ? "Now"
+                                                    : formatTime(hour.dt)}
+                                            </Text>
+                                            <Image
+                                                source={{
+                                                    uri: getWeatherIcon(
+                                                        hour.weather
+                                                    ),
+                                                }}
+                                                style={{
+                                                    width: 40,
+                                                    height: 40,
+                                                    marginBottom: 8,
+                                                }}
+                                                resizeMode="contain"
+                                            />
+                                            <Text
+                                                style={{
+                                                    fontSize: 16,
+                                                    fontWeight: "600",
+                                                    color: "#212529",
+                                                    marginBottom: 4,
+                                                }}
+                                            >
+                                                {Math.round(hour.temp)}°
+                                            </Text>
+                                            {hour.pop > 0.1 && (
+                                                <Text
+                                                    style={{
+                                                        fontSize: 10,
+                                                        color: "#007bff",
+                                                        fontWeight: "500",
+                                                    }}
+                                                >
+                                                    {formatPrecipitation(
+                                                        hour.pop
+                                                    )}
+                                                </Text>
+                                            )}
+                                        </View>
+                                    ))}
+                            </ScrollView>
+                        </View>
+                    )}
+
+                    {/* 7-Day Forecast Card */}
+                    {dailyForecast.length > 0 && (
+                        <View
+                            style={{
+                                width: cardWidth - 40,
+                                maxWidth: cardWidth - 40,
+                                backgroundColor: "#fff",
+                                borderRadius: 16,
+                                padding: 20,
+                                marginTop: 10,
+                                marginBottom: 20,
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 8,
+                                elevation: 3,
+                                overflow: "hidden",
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 18,
+                                    fontWeight: "600",
+                                    color: "#212529",
+                                    marginBottom: 16,
+                                }}
+                            >
+                                7-Day Forecast
+                            </Text>
+                            {dailyForecast.map((day) => (
+                                <View
+                                    key={day.dt}
+                                    style={{
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        paddingVertical: 12,
+                                        borderBottomWidth: 1,
+                                        borderBottomColor: "#f8f9fa",
+                                    }}
+                                >
+                                    <View style={{ flex: 1 }}>
+                                        <Text
+                                            style={{
+                                                fontSize: 16,
+                                                fontWeight: "600",
+                                                color: "#212529",
+                                                marginBottom: 4,
+                                            }}
+                                        >
+                                            {formatDay(day.dt)}
                                         </Text>
-                                    )}
+                                        <Text
+                                            style={{
+                                                fontSize: 14,
+                                                color: "#6c757d",
+                                                marginBottom: 2,
+                                            }}
+                                        >
+                                            {getWeatherDescriptionFromData(
+                                                day.weather
+                                            )}
+                                        </Text>
+                                        {day.pop > 0.1 && (
+                                            <Text
+                                                style={{
+                                                    fontSize: 12,
+                                                    color: "#007bff",
+                                                }}
+                                            >
+                                                {formatPrecipitation(day.pop)}{" "}
+                                                chance of rain
+                                            </Text>
+                                        )}
+                                    </View>
+                                    <View
+                                        style={{
+                                            alignItems: "center",
+                                            marginHorizontal: 16,
+                                        }}
+                                    >
+                                        <Image
+                                            source={{
+                                                uri: getWeatherIcon(
+                                                    day.weather
+                                                ),
+                                            }}
+                                            style={{
+                                                width: 50,
+                                                height: 50,
+                                            }}
+                                            resizeMode="contain"
+                                        />
+                                    </View>
+                                    <View style={{ alignItems: "flex-end" }}>
+                                        <Text
+                                            style={{
+                                                fontSize: 18,
+                                                fontWeight: "600",
+                                                color: "#212529",
+                                            }}
+                                        >
+                                            {Math.round(day.temp.max)}°
+                                        </Text>
+                                        <Text
+                                            style={{
+                                                fontSize: 16,
+                                                color: "#6c757d",
+                                            }}
+                                        >
+                                            {Math.round(day.temp.min)}°
+                                        </Text>
+                                    </View>
                                 </View>
                             ))}
-                        </ScrollView>
-                    </View>
-                )}
-
-                {/* 7-Day Forecast Card */}
-                {dailyForecast.length > 0 && (
-                    <View
-                        style={{
-                            width: cardWidth - 40,
-                            maxWidth: cardWidth - 40,
-                            backgroundColor: "#fff",
-                            borderRadius: 16,
-                            padding: 20,
-                            marginTop: 20,
-                            marginBottom: 20,
-                            shadowColor: "#000",
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 8,
-                            elevation: 3,
-                            overflow: "hidden",
-                        }}
-                    >
-                        <Text
-                            style={{
-                                fontSize: 18,
-                                fontWeight: "600",
-                                color: "#212529",
-                                marginBottom: 16,
-                            }}
-                        >
-                            7-Day Forecast
-                        </Text>
-                        {dailyForecast.map((day) => (
-                            <View
-                                key={day.dt}
-                                style={{
-                                    flexDirection: "row",
-                                    alignItems: "center",
-                                    paddingVertical: 12,
-                                    borderBottomWidth: 1,
-                                    borderBottomColor: "#f8f9fa",
-                                }}
-                            >
-                                <View style={{ flex: 1 }}>
-                                    <Text
-                                        style={{
-                                            fontSize: 16,
-                                            fontWeight: "600",
-                                            color: "#212529",
-                                            marginBottom: 4,
-                                        }}
-                                    >
-                                        {formatDay(day.dt)}
-                                    </Text>
-                                    <Text
-                                        style={{
-                                            fontSize: 14,
-                                            color: "#6c757d",
-                                            marginBottom: 2,
-                                        }}
-                                    >
-                                        {getWeatherDescriptionFromData(
-                                            day.weather
-                                        )}
-                                    </Text>
-                                    {day.pop > 0.1 && (
-                                        <Text
-                                            style={{
-                                                fontSize: 12,
-                                                color: "#007bff",
-                                            }}
-                                        >
-                                            {formatPrecipitation(day.pop)}{" "}
-                                            chance of rain
-                                        </Text>
-                                    )}
-                                </View>
-                                <View
-                                    style={{
-                                        alignItems: "center",
-                                        marginHorizontal: 16,
-                                    }}
-                                >
-                                    <Image
-                                        source={{
-                                            uri: getWeatherIcon(day.weather),
-                                        }}
-                                        style={{
-                                            width: 50,
-                                            height: 50,
-                                        }}
-                                        resizeMode="contain"
-                                    />
-                                </View>
-                                <View style={{ alignItems: "flex-end" }}>
-                                    <Text
-                                        style={{
-                                            fontSize: 18,
-                                            fontWeight: "600",
-                                            color: "#212529",
-                                        }}
-                                    >
-                                        {Math.round(day.temp.max)}°
-                                    </Text>
-                                    <Text
-                                        style={{
-                                            fontSize: 16,
-                                            color: "#6c757d",
-                                        }}
-                                    >
-                                        {Math.round(day.temp.min)}°
-                                    </Text>
-                                </View>
-                            </View>
-                        ))}
-                    </View>
-                )}
-            </View>
+                        </View>
+                    )}
+                </View>
+            </ScrollView>
             {error && !loading && (
                 <View
                     style={{
@@ -514,7 +536,7 @@ export const UserCard: React.FC<UserCardProps> = ({
                     </Text>
                 </View>
             )}
-        </ScrollView>
+        </View>
     );
 };
 

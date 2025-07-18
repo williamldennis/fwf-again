@@ -1,55 +1,26 @@
-import React, { useState, useRef, useEffect } from "react";
-import {
-    View,
-    Text,
-    TouchableOpacity,
-    ScrollView,
-    Dimensions,
-    StyleSheet,
-} from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { HourlyForecast, DailyForecast } from "../services/weatherService";
 import { getWeatherDisplayName } from "../utils/weatherUtils";
 import WeatherModal from "./WeatherModal";
 
-interface WeatherCardCarouselProps {
+interface WeatherCardProps {
     currentWeather: any;
     hourlyForecast: HourlyForecast[];
     dailyForecast: DailyForecast[];
     cityName: string;
 }
 
-const { width: screenWidth } = Dimensions.get("window");
-
-export const WeatherCardCarousel: React.FC<WeatherCardCarouselProps> = ({
+export const WeatherCard: React.FC<WeatherCardProps> = ({
     currentWeather,
     hourlyForecast,
     dailyForecast,
     cityName,
 }) => {
     const [modalVisible, setModalVisible] = useState(false);
-    const hourlyScrollRef = useRef<ScrollView>(null);
 
     const handleCardPress = () => {
         setModalVisible(true);
-    };
-
-    const formatTime = (timestamp: number): string => {
-        const date = new Date(timestamp * 1000);
-        const hours = date.getHours();
-        if (hours === 0) return "12 AM";
-        if (hours === 12) return "12 PM";
-        return hours > 12 ? `${hours - 12} PM` : `${hours} AM`;
-    };
-
-    const formatDay = (timestamp: number): string => {
-        const date = new Date(timestamp * 1000);
-        const today = new Date();
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        if (date.toDateString() === today.toDateString()) return "Today";
-        if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow";
-        return date.toLocaleDateString("en-US", { weekday: "short" });
     };
 
     return (
@@ -119,26 +90,13 @@ export const WeatherCardCarousel: React.FC<WeatherCardCarouselProps> = ({
 const styles = StyleSheet.create({
     container: {
         width: "100%",
-        marginTop: 20,
-        marginBottom: 20,
+        marginTop: 10,
+        marginBottom: 0,
     },
-    cardTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "white",
-        textAlign: "center",
-        marginBottom: 8,
-    },
-
     card: {
         backgroundColor: "#fff",
         borderRadius: 16,
         padding: 20,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 3,
         minHeight: 200,
     },
     currentWeatherContent: {
@@ -186,3 +144,5 @@ const styles = StyleSheet.create({
         color: "#212529",
     },
 });
+
+export default WeatherCard;
