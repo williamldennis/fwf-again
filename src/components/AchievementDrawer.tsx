@@ -16,7 +16,6 @@ import {
 } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import useAchievements from "../hooks/useAchievements";
-import useLevelBenefits from "../hooks/useLevelBenefits";
 import AchievementCategory from "./AchievementCategory";
 
 const { height: screenHeight } = Dimensions.get("window");
@@ -54,14 +53,6 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
         error: achievementsError,
         refresh: refreshAchievements,
     } = useAchievements(userId);
-
-    // Fetch level benefits
-    const {
-        nextLevelBenefits,
-        loading: benefitsLoading,
-        error: benefitsError,
-        refresh: refreshBenefits,
-    } = useLevelBenefits(xpData?.current_level || null);
 
     useEffect(() => {
         if (visible) {
@@ -112,9 +103,8 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                 refreshTrigger
             );
             refreshAchievements();
-            refreshBenefits();
         }
-    }, [refreshTrigger, visible, refreshAchievements, refreshBenefits]);
+    }, [refreshTrigger, visible, refreshAchievements]);
 
     const handleBackdropPress = () => {
         // Trigger haptic feedback on close
@@ -229,34 +219,6 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                                         {xpData?.xp_to_next_level || 0} XP to
                                         Level {(xpData?.current_level || 1) + 1}
                                     </Text>
-                                </View>
-
-                                {/* Next Level Benefits */}
-                                <View style={styles.benefitsSection}>
-                                    <Text style={styles.benefitsTitle}>
-                                        🎁 Next Level Benefits
-                                    </Text>
-                                    {benefitsLoading ? (
-                                        <Text style={styles.benefitsText}>
-                                            Loading benefits...
-                                        </Text>
-                                    ) : benefitsError ? (
-                                        <Text style={styles.benefitsText}>
-                                            Failed to load benefits
-                                        </Text>
-                                    ) : nextLevelBenefits ? (
-                                        <Text style={styles.benefitsText}>
-                                            {nextLevelBenefits.unlocked_features
-                                                .length > 0
-                                                ? nextLevelBenefits
-                                                      .unlocked_features[0]
-                                                : "New features unlocked!"}
-                                        </Text>
-                                    ) : (
-                                        <Text style={styles.benefitsText}>
-                                            You've reached the maximum level!
-                                        </Text>
-                                    )}
                                 </View>
 
                                 {/* Achievement Categories */}
@@ -455,25 +417,6 @@ const styles = StyleSheet.create({
         color: "#006400",
         textAlign: "center",
         opacity: 0.8,
-    },
-    benefitsSection: {
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        marginHorizontal: 16,
-        marginBottom: 16,
-        backgroundColor: "rgba(255, 193, 7, 0.1)",
-        borderRadius: 12,
-    },
-    benefitsTitle: {
-        fontSize: 16,
-        fontWeight: "bold",
-        color: "#b8860b",
-        marginBottom: 4,
-    },
-    benefitsText: {
-        fontSize: 14,
-        color: "#b8860b",
-        opacity: 0.9,
     },
 
     achievementsSection: {
