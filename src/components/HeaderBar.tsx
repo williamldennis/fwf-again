@@ -39,10 +39,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                         onPress={onXPPress}
                         activeOpacity={0.7}
                     >
-                        <Text style={styles.levelText}>
-                            {" "}
-                            {xpData.total_xp} 👍🏻{" "}
-                        </Text>
                         <Text style={styles.xpText}>
                             Level {xpData.current_level}
                         </Text>

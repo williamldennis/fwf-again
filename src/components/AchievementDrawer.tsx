@@ -207,13 +207,6 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                                     <Text style={styles.levelTitle}>
                                         🌱 Level {xpData?.current_level || 1}
                                     </Text>
-                                    <Text style={styles.xpDisplay}>
-                                        {xpData?.total_xp || 0} /{" "}
-                                        {(xpData?.total_xp || 0) +
-                                            (xpData?.xp_to_next_level ||
-                                                0)}{" "}
-                                        XP
-                                    </Text>
 
                                     {/* Progress Bar */}
                                     <View style={styles.progressBarContainer}>
