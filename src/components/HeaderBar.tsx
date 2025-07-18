@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
     },
     xpText: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: "bold",
         color: "#006400",
         marginBottom: 0,
