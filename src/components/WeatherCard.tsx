@@ -23,6 +23,15 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
         setModalVisible(true);
     };
 
+    // Get today's high/low from daily forecast
+    const todayForecast = dailyForecast.length > 0 ? dailyForecast[0] : null;
+    const todayHigh = todayForecast
+        ? Math.round(todayForecast.temp.max)
+        : Math.round(currentWeather?.main?.temp || 0);
+    const todayLow = todayForecast
+        ? Math.round(todayForecast.temp.min)
+        : Math.round(currentWeather?.main?.temp || 0);
+
     return (
         <View style={styles.container}>
             <TouchableOpacity
@@ -35,8 +44,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
                         {Math.round(currentWeather?.main?.temp || 0)}°
                     </Text>
                     <Text style={styles.feelsLike}>
-                        Feels like{" "}
-                        {Math.round(currentWeather?.main?.feels_like || 0)}°
+                        H:{todayHigh}° L:{todayLow}°
                     </Text>
                     <View style={styles.weatherDescription}>
                         <Text style={styles.weatherText}>
