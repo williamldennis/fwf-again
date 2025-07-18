@@ -3,6 +3,8 @@ const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 export interface WeatherData {
     current: any;
     forecast: any[];
+    hourly?: HourlyForecast[];
+    daily?: DailyForecast[];
 }
 
 export interface FiveDayForecast {
@@ -12,87 +14,173 @@ export interface FiveDayForecast {
     icon: string;
 }
 
+// New interfaces for OneCall API 3.0
+export interface HourlyForecast {
+    dt: number;
+    temp: number;
+    feels_like: number;
+    humidity: number;
+    pressure: number;
+    weather: WeatherCondition[];
+    wind_speed: number;
+    wind_deg: number;
+    pop: number; // precipitation probability (0-1)
+    uvi: number; // UV index
+    visibility?: number;
+    clouds?: number;
+}
+
+export interface DailyForecast {
+    dt: number;
+    temp: {
+        day: number;
+        min: number;
+        max: number;
+        night: number;
+        eve: number;
+        morn: number;
+    };
+    feels_like: {
+        day: number;
+        night: number;
+        eve: number;
+        morn: number;
+    };
+    humidity: number;
+    pressure: number;
+    weather: WeatherCondition[];
+    wind_speed: number;
+    wind_deg: number;
+    pop: number; // precipitation probability (0-1)
+    uvi: number; // UV index
+    clouds?: number;
+}
+
+export interface WeatherCondition {
+    main: string;
+    description: string;
+    icon: string;
+}
+
 export class WeatherService {
     /**
-     * Fetch weather data for a given location using the OpenWeather /forecast API
+     * Fetch weather data for a given location using the OpenWeather OneCall API 3.0
      */
     static async fetchWeatherData(latitude: number, longitude: number): Promise<WeatherData> {
         try {
-            // console.log("[Weather] 🌤️ Fetching weather data with /forecast API...");
+            console.log("[Weather] 🌤️ Fetching weather data with OneCall API 3.0...");
 
             if (!OPENWEATHER_API_KEY) {
                 throw new Error("OpenWeather API key is missing");
             }
 
-            // Use /forecast API to get 5-day, 3-hour forecast
-            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
+            // Use OneCall API 3.0 to get current, hourly (48h), and daily (7 days) forecast
+            const url = `https://api.openweathermap.org/data/3.0/onecall?lat=${latitude}&lon=${longitude}&units=imperial&exclude=minutely,alerts&appid=${OPENWEATHER_API_KEY}`;
 
-            // console.log("[Weather] 📡 Making /forecast API request...");
+            console.log("[Weather] 📡 Making OneCall API 3.0 request...");
             const response = await fetch(url);
             const data = await response.json();
 
-            if (data.cod && data.cod !== "200" && data.cod !== 200) {
+            if (data.cod && data.cod !== 200) {
                 throw new Error(`Weather API error: ${data.message}`);
             }
 
             // Get city name from coordinates
-            // console.log("[Weather] 🏙️ Fetching city name...");
+            console.log("[Weather] 🏙️ Fetching city name...");
             const cityName = await this.getCityFromCoords(latitude, longitude);
-            // console.log(`[Weather] ✅ City name: ${cityName}`);
+            console.log(`[Weather] ✅ City name: ${cityName}`);
 
-            // Log the full geocoding response for debugging
-            try {
-                const geoResponse = await fetch(
-                    `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=5&appid=${OPENWEATHER_API_KEY}`
-                );
-                const geoData = await geoResponse.json();
-                            // console.log(
-            //     "[Weather] 🔍 Full geocoding data:",
-            //     JSON.stringify(geoData, null, 2)
-            // );
-            } catch (e) {
-                console.log("[Weather] ⚠️ Could not log geocoding data:", e);
-            }
+            // Extract current weather
+            const currentWeather = data.current ? {
+                name: cityName,
+                main: {
+                    temp: data.current.temp,
+                    feels_like: data.current.feels_like,
+                    humidity: data.current.humidity,
+                    pressure: data.current.pressure,
+                },
+                weather: [
+                    {
+                        main: data.current.weather[0].main,
+                        description: data.current.weather[0].description,
+                        icon: data.current.weather[0].icon,
+                    },
+                ],
+                wind: {
+                    speed: data.current.wind_speed,
+                    deg: data.current.wind_deg,
+                },
+                dt: data.current.dt,
+                dt_txt: new Date(data.current.dt * 1000).toISOString(),
+            } : null;
 
-            // Extract current weather from the first entry
-            const firstEntry = data.list && data.list.length > 0 ? data.list[0] : null;
-            const currentWeather = firstEntry
-                ? {
-                      name: cityName,
-                      main: {
-                          temp: firstEntry.main.temp,
-                          feels_like: firstEntry.main.feels_like,
-                          humidity: firstEntry.main.humidity,
-                          pressure: firstEntry.main.pressure,
-                      },
-                      weather: [
-                          {
-                              main: firstEntry.weather[0].main,
-                              description: firstEntry.weather[0].description,
-                              icon: firstEntry.weather[0].icon,
-                          },
-                      ],
-                      wind: {
-                          speed: firstEntry.wind.speed,
-                          deg: firstEntry.wind.deg,
-                      },
-                      dt: firstEntry.dt,
-                      dt_txt: firstEntry.dt_txt,
-                  }
-                : null;
+            // Convert hourly forecast to 3-hourly format (matching the old API structure for backward compatibility)
+            const forecastList = data.hourly?.slice(0, 40).map((hour: any) => ({
+                dt: hour.dt,
+                dt_txt: new Date(hour.dt * 1000).toISOString(),
+                main: {
+                    temp: hour.temp,
+                    feels_like: hour.feels_like,
+                    humidity: hour.humidity,
+                    pressure: hour.pressure,
+                    temp_min: hour.temp,
+                    temp_max: hour.temp,
+                },
+                weather: [
+                    {
+                        main: hour.weather[0].main,
+                        description: hour.weather[0].description,
+                        icon: hour.weather[0].icon,
+                    },
+                ],
+                wind: {
+                    speed: hour.wind_speed,
+                    deg: hour.wind_deg,
+                },
+            })) || [];
 
-            const forecastList = data.list || [];
+            // Extract hourly and daily forecasts for enhanced features
+            const hourlyForecast: HourlyForecast[] = data.hourly?.slice(0, 24).map((hour: any) => ({
+                dt: hour.dt,
+                temp: hour.temp,
+                feels_like: hour.feels_like,
+                humidity: hour.humidity,
+                pressure: hour.pressure,
+                weather: hour.weather,
+                wind_speed: hour.wind_speed,
+                wind_deg: hour.wind_deg,
+                pop: hour.pop,
+                uvi: hour.uvi,
+                visibility: hour.visibility,
+                clouds: hour.clouds,
+            })) || [];
 
-            // console.log(
-            //     `[Weather] ✅ Weather loaded: ${currentWeather?.weather?.[0]?.main} ${currentWeather?.main?.temp}°F in ${cityName}`
-            // );
-            // console.log(
-            //     `[Weather] ✅ Forecast loaded: ${forecastList.length} entries`
-            // );
+            const dailyForecast: DailyForecast[] = data.daily?.slice(0, 7).map((day: any) => ({
+                dt: day.dt,
+                temp: day.temp,
+                feels_like: day.feels_like,
+                humidity: day.humidity,
+                pressure: day.pressure,
+                weather: day.weather,
+                wind_speed: day.wind_speed,
+                wind_deg: day.wind_deg,
+                pop: day.pop,
+                uvi: day.uvi,
+                clouds: day.clouds,
+            })) || [];
+
+            console.log(
+                `[Weather] ✅ Weather loaded: ${currentWeather?.weather?.[0]?.main} ${currentWeather?.main?.temp}°F in ${cityName}`
+            );
+            console.log(
+                `[Weather] ✅ Forecast loaded: ${forecastList.length} entries, ${hourlyForecast.length} hourly, ${dailyForecast.length} daily`
+            );
 
             return {
                 current: currentWeather,
                 forecast: forecastList,
+                hourly: hourlyForecast,
+                daily: dailyForecast,
             };
         } catch (error) {
             console.error("[Weather] ❌ Error fetching weather data:", error);

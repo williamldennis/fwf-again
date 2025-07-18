@@ -19,6 +19,8 @@ export interface Friend {
     longitude: number;
     selfie_urls: any;
     points: number;
+    current_level: number;
+    total_xp: number;
     contact_name: string;
     city_name: string;
 }
@@ -234,7 +236,7 @@ export class ContactsService {
                 return supabase
                     .from("profiles")
                     .select(
-                        "id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude, selfie_urls, points"
+                        "id, phone_number, weather_temp, weather_condition, weather_icon, weather_updated_at, latitude, longitude, selfie_urls, points, current_level, total_xp"
                     )
                     .in("phone_number", chunk);
             })

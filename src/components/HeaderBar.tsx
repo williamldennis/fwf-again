@@ -5,6 +5,7 @@ interface HeaderBarProps {
     points: number;
     onMenuPress: () => void;
     onXPPress?: () => void;
+    onPointsPress?: () => void;
     xpData?: {
         total_xp: number;
         current_level: number;
@@ -17,6 +18,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     points,
     onMenuPress,
     onXPPress,
+    onPointsPress,
     xpData,
 }) => {
     return (
@@ -46,10 +48,14 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 )}
 
                 {/* Points Display */}
-                <View style={styles.pointsContainer}>
+                <TouchableOpacity
+                    style={styles.pointsContainer}
+                    onPress={onPointsPress}
+                    activeOpacity={0.7}
+                >
                     <Text style={styles.pointsText}>{points}</Text>
                     <Text style={styles.pointsLabel}>pts</Text>
-                </View>
+                </TouchableOpacity>
             </View>
         </View>
     );

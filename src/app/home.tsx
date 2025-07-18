@@ -38,6 +38,8 @@ import DropdownMenu from "../components/DropdownMenu";
 import HeaderBar from "../components/HeaderBar";
 import SkeletonCard from "../components/SkeletonCard";
 import AchievementDrawer from "../components/AchievementDrawer";
+import PointsInfoModal from "../components/PointsInfoModal";
+import WeatherModal from "../components/WeatherModal";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -47,6 +49,7 @@ import { Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { GardenService } from "../services/gardenService";
 import { AchievementService } from "../services/achievementService";
+import * as Haptics from "expo-haptics";
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -136,6 +139,8 @@ export default function Home() {
     const {
         weather,
         forecast,
+        hourly,
+        daily,
         cityName,
         backgroundColor,
         loading: weatherLoading,
@@ -280,7 +285,11 @@ export default function Home() {
                     baseXP,
                     "plant_seed",
                     `Planted ${plantName}`,
-                    { plant_id: plantId, plant_name: plantName }
+                    {
+                        plant_id: plantId,
+                        plant_name: plantName,
+                        weather_condition: weatherCondition,
+                    }
                 );
 
                 if (baseResult.success) {
@@ -673,6 +682,9 @@ export default function Home() {
     const [achievementRefreshTrigger, setAchievementRefreshTrigger] =
         useState(0);
 
+    // Points info modal state
+    const [showPointsInfoModal, setShowPointsInfoModal] = useState(false);
+
     // User's 5-day forecast data
     const userFiveDayData = useMemo(() => {
         try {
@@ -683,29 +695,52 @@ export default function Home() {
         }
     }, [forecast]);
 
-    // Friend forecast cache
+    // Friend forecast cache - updated to store complete weather data
     const [friendForecasts, setFriendForecasts] = useState<
-        Record<string, any[]>
+        Record<
+            string,
+            {
+                forecast: any[];
+                hourly: any[];
+                daily: any[];
+            }
+        >
     >({});
 
     // Achievement drawer state
     const [showAchievementDrawer, setShowAchievementDrawer] = useState(false);
 
-    // Helper to fetch and cache friend forecast
+    // Weather modal state
+    const [showWeatherModal, setShowWeatherModal] = useState(false);
+
+    // Helper to fetch and cache friend forecast - updated to fetch complete weather data
     const fetchFriendForecast = async (friend: any) => {
         if (!friend.latitude || !friend.longitude) return;
         if (friendForecasts[friend.id]) return; // Already cached
         try {
-            const forecastData = await WeatherService.fetchFriendForecast(
+            console.log(
+                `[Friends] 🌤️ Fetching complete weather data for ${friend.contact_name} at ${friend.latitude}, ${friend.longitude}`
+            );
+            const weatherData = await WeatherService.fetchWeatherData(
                 friend.latitude,
                 friend.longitude
             );
             setFriendForecasts((prev) => ({
                 ...prev,
-                [friend.id]: forecastData,
+                [friend.id]: {
+                    forecast: weatherData.forecast,
+                    hourly: weatherData.hourly || [],
+                    daily: weatherData.daily || [],
+                },
             }));
+            console.log(
+                `[Friends] ✅ Complete weather data cached for ${friend.contact_name}`
+            );
         } catch (e) {
-            // Ignore errors for now
+            console.warn(
+                `[Friends] ⚠️ Could not fetch weather data for ${friend.contact_name}:`,
+                e
+            );
         }
     };
 
@@ -1138,7 +1173,9 @@ export default function Home() {
     };
 
     const handlePlantHarvested = async () => {
-        console.log("handlePlantHarvested called - updating points...");
+        console.log(
+            "handlePlantHarvested called - updating points and gardens..."
+        );
 
         // Update user points after harvest
         if (currentUserId) {
@@ -1150,7 +1187,13 @@ export default function Home() {
             }
         }
 
-        // Real-time subscription will handle garden updates automatically
+        // Explicitly refresh all gardens to ensure UI updates
+        try {
+            await updateAllGardens();
+            console.log("✅ Gardens refreshed successfully after harvest");
+        } catch (error) {
+            console.error("❌ Error refreshing gardens after harvest:", error);
+        }
     };
 
     const handleRefreshGrowth = async () => {
@@ -1184,7 +1227,40 @@ export default function Home() {
     };
 
     const closeAchievementDrawer = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+            // Ignore haptic errors
+        });
         setShowAchievementDrawer(false);
+    };
+
+    // Points info modal handlers
+    const openPointsInfoModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowPointsInfoModal(true);
+    };
+
+    const closePointsInfoModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowPointsInfoModal(false);
+    };
+
+    // Weather modal handlers
+    const openWeatherModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowWeatherModal(true);
+    };
+
+    const closeWeatherModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowWeatherModal(false);
     };
 
     // Fetch available plants when PlantPicker is opened and not already loaded
@@ -1269,6 +1345,7 @@ export default function Home() {
                         points={userProfile?.points || 0}
                         onMenuPress={() => setShowMenu(true)}
                         onXPPress={openAchievementDrawer}
+                        onPointsPress={openPointsInfoModal}
                         xpData={xpData}
                     />
                 </View>
@@ -1341,7 +1418,10 @@ export default function Home() {
                         plantedPlants={plantedPlants}
                         onPlantPress={handlePlantPress}
                         onPlantDetailsPress={handlePlantDetailsPress}
+                        onWeatherPress={openWeatherModal}
                         forecastData={userFiveDayData}
+                        hourlyForecast={hourly}
+                        dailyForecast={daily}
                         loading={weatherLoading}
                         error={weatherError}
                         cardWidth={cardWidth}
@@ -1446,6 +1526,23 @@ export default function Home() {
                 userId={currentUserId}
                 xpData={xpData}
                 refreshTrigger={achievementRefreshTrigger}
+            />
+
+            {/* POINTS INFO MODAL */}
+            <PointsInfoModal
+                visible={showPointsInfoModal}
+                onClose={closePointsInfoModal}
+                currentPoints={userProfile?.points || 0}
+            />
+
+            {/* WEATHER MODAL */}
+            <WeatherModal
+                visible={showWeatherModal}
+                onClose={closeWeatherModal}
+                currentWeather={weather}
+                hourlyForecast={hourly}
+                dailyForecast={daily}
+                cityName={cityName}
             />
         </>
     );

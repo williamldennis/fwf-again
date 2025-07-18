@@ -23,6 +23,9 @@ TO DO
 [] loading spinner on sign in
 [] improve home page loading
 [] tiktok style scroll
+[] make there be a header so the user's points are persistant
+[] allow tapping user's points to reveal level, progress, notifcations, store for improving garden
+[] resolution of mature plants is low now (after carousel change)
 
 POLISH
 [] add full forecast modal when tapping
@@ -32,8 +35,13 @@ POLISH
 [] video playback quality
 [] menu styling
 [] OTP for phone number to verify number
-
-[] allow dragging of selfie animations
+[] add progress bar for each plant
+[] make seeds cost points
+[] add cosmetic upgrades to gardens
+[] add boosters that cost points (like fertilizer, water, greenhouse, etc)
+[] add XP for things like planting, harvesting, planting in friend plots, etc
+[] add levels for users to get additional capabilities (like more planting slots, cosmetic items )
+[] allow dragging of animations on selfie screens
 [] style camera permissions screen
 [] remove 'retake' from selfies flow
 [] make the share sheet default to messages (if possible)

@@ -39,7 +39,7 @@ export const Plant: React.FC<PlantProps> = ({ plant, weatherCondition }) => {
                 priority="high"
                 transition={200}
             />
-            <Text style={{ fontSize: 10, color: "#333", marginTop: 20 }}>
+            <Text style={{ fontSize: 10, color: "#333", marginTop: 2 }}>
                 {plant.plant_name}
             </Text>
         </View>

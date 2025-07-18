@@ -1,9 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { View, Dimensions } from "react-native";
 import Carousel from "react-native-reanimated-carousel";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import UserCard from "./UserCard";
 import FriendCard from "./FriendCard";
 import AddFriendsCard from "./AddFriendsCard";
+import SelfieIndicator from "./SelfieIndicator";
+import CarouselFooter from "./CarouselFooter";
 import { Friend } from "../services/contactsService";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -16,12 +19,22 @@ interface CardStackProps {
     plantedPlants: Record<string, any[]>;
     onPlantPress: (friendId: string, slotIdx: number) => void;
     onPlantDetailsPress: (plant: any, friendWeather: string) => void;
+    onWeatherPress?: () => void;
     forecastData: any[];
+    hourlyForecast?: any[];
+    dailyForecast?: any[];
     loading: boolean;
     error: string | null;
     cardWidth: number;
     friends: Friend[];
-    friendForecasts: Record<string, any[]>;
+    friendForecasts: Record<
+        string,
+        {
+            forecast: any[];
+            hourly: any[];
+            daily: any[];
+        }
+    >;
     onFetchForecast: (friend: any) => void;
     onShare: () => void;
 }
@@ -40,7 +53,10 @@ export const CardStack: React.FC<CardStackProps> = ({
     plantedPlants,
     onPlantPress,
     onPlantDetailsPress,
+    onWeatherPress,
     forecastData,
+    hourlyForecast = [],
+    dailyForecast = [],
     loading,
     error,
     cardWidth,
@@ -52,6 +68,7 @@ export const CardStack: React.FC<CardStackProps> = ({
     const screenWidth = Dimensions.get("window").width;
     const screenHeight = Dimensions.get("window").height;
     const [currentIndex, setCurrentIndex] = useState(0);
+    const carouselRef = React.useRef<any>(null);
 
     // Sort friends by harvest readiness (soonest to be ready)
     const sortedFriends = useMemo(() => {
@@ -129,7 +146,10 @@ export const CardStack: React.FC<CardStackProps> = ({
                         plantedPlants={plantedPlants}
                         onPlantPress={onPlantPress}
                         onPlantDetailsPress={onPlantDetailsPress}
+                        onWeatherPress={onWeatherPress}
                         forecastData={forecastData}
+                        hourlyForecast={hourlyForecast}
+                        dailyForecast={dailyForecast}
                         loading={loading}
                         error={error}
                         cardWidth={cardWidth}
@@ -140,6 +160,7 @@ export const CardStack: React.FC<CardStackProps> = ({
         }
 
         if (item.type === "friend" && item.data) {
+            const friendForecastData = friendForecasts[item.data.id];
             return (
                 <View
                     key={item.id}
@@ -154,10 +175,12 @@ export const CardStack: React.FC<CardStackProps> = ({
                         plantedPlants={plantedPlants}
                         onPlantPress={onPlantPress}
                         onPlantDetailsPress={onPlantDetailsPress}
-                        forecastData={friendForecasts[item.data.id] || []}
+                        forecastData={friendForecastData?.forecast || []}
                         cardWidth={cardWidth}
                         cardHeight={screenHeight}
                         onFetchForecast={onFetchForecast}
+                        hourlyForecast={friendForecastData?.hourly || []}
+                        dailyForecast={friendForecastData?.daily || []}
                     />
                 </View>
             );
@@ -197,51 +220,54 @@ export const CardStack: React.FC<CardStackProps> = ({
     };
 
     return (
-        <View
-            style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-            }}
-        >
-            <Carousel
-                loop={true}
-                width={cardWidth}
-                height={screenHeight}
-                data={stackItems}
-                renderItem={renderCard}
-                onSnapToItem={setCurrentIndex}
-                windowSize={5}
-            />
-
-            {/* Stack indicator dots */}
+        <GestureHandlerRootView style={{ flex: 1 }}>
             <View
                 style={{
-                    position: "absolute",
-                    bottom: 40,
-                    left: 0,
-                    right: 0,
-                    flexDirection: "row",
+                    flex: 1,
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 8,
+                    overflow: "hidden",
                 }}
             >
-                {stackItems.map((_, index) => (
-                    <View
-                        key={index}
-                        style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor:
-                                index === currentIndex ? "#007AFF" : "#D1D5DB",
-                        }}
-                    />
-                ))}
+                <Carousel
+                    ref={carouselRef}
+                    loop={true}
+                    width={cardWidth}
+                    height={screenHeight}
+                    data={stackItems}
+                    renderItem={renderCard}
+                    onSnapToItem={setCurrentIndex}
+                    windowSize={5}
+                />
+
+                {/* Stack indicator selfies with blurred footer */}
+                <CarouselFooter>
+                    {stackItems.map((item, index) => (
+                        <SelfieIndicator
+                            key={index}
+                            item={item}
+                            isActive={index === currentIndex}
+                            selfieUrls={selfieUrls}
+                            weather={weather}
+                            onPress={(pressedIndex) => {
+                                // Navigate to the pressed card
+                                if (
+                                    pressedIndex !== currentIndex &&
+                                    carouselRef.current
+                                ) {
+                                    // Use the carousel's scrollTo method for smooth navigation
+                                    carouselRef.current.scrollTo({
+                                        index: pressedIndex,
+                                        animated: true,
+                                    });
+                                }
+                            }}
+                            index={index}
+                        />
+                    ))}
+                </CarouselFooter>
             </View>
-        </View>
+        </GestureHandlerRootView>
     );
 };
 
