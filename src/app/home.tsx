@@ -1153,7 +1153,9 @@ export default function Home() {
     };
 
     const handlePlantHarvested = async () => {
-        console.log("handlePlantHarvested called - updating points...");
+        console.log(
+            "handlePlantHarvested called - updating points and gardens..."
+        );
 
         // Update user points after harvest
         if (currentUserId) {
@@ -1165,7 +1167,13 @@ export default function Home() {
             }
         }
 
-        // Real-time subscription will handle garden updates automatically
+        // Explicitly refresh all gardens to ensure UI updates
+        try {
+            await updateAllGardens();
+            console.log("✅ Gardens refreshed successfully after harvest");
+        } catch (error) {
+            console.error("❌ Error refreshing gardens after harvest:", error);
+        }
     };
 
     const handleRefreshGrowth = async () => {

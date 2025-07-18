@@ -471,7 +471,15 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
             }
 
             // Call harvest callback to refresh data
-            if (onHarvest) onHarvest();
+            console.log("[Harvest] 🔄 Calling onHarvest callback...");
+            if (onHarvest) {
+                onHarvest();
+                console.log(
+                    "[Harvest] ✅ onHarvest callback called successfully"
+                );
+            } else {
+                console.log("[Harvest] ⚠️ No onHarvest callback provided");
+            }
         } catch (error) {
             console.error("[Harvest] Error in handleHarvest:", error);
             Alert.alert(
