@@ -169,6 +169,11 @@ export default function Home() {
 
         try {
             console.log("[XP] 🌅 Checking daily XP eligibility...");
+
+            // For new users, ensure they get their first daily XP
+            const canReceive = await XPService.canReceiveDailyXP(currentUserId);
+            console.log("[XP] 📊 Can receive daily XP:", canReceive);
+
             const result = await XPService.awardDailyXP(currentUserId);
 
             console.log("[XP] 📊 Daily XP result:", result);
@@ -208,6 +213,12 @@ export default function Home() {
 
                 // Refresh XP data to update the display
                 await refreshXP();
+
+                // Trigger achievement drawer refresh to update daily streak
+                // Add delay to ensure XP transaction is committed to database
+                setTimeout(() => {
+                    setAchievementRefreshTrigger((prev) => prev + 1);
+                }, 1000);
 
                 // Show toast notification (only if no achievement toast was shown)
                 if (
@@ -755,7 +766,10 @@ export default function Home() {
             );
             if (currentUserId) {
                 console.log("[App] 🎯 Calling awardDailyXP...");
-                awardDailyXP();
+                // Add a small delay to ensure all initialization is complete
+                setTimeout(() => {
+                    awardDailyXP();
+                }, 500);
             } else {
                 console.log("[App] ⏳ No currentUserId yet, skipping daily XP");
             }
@@ -810,7 +824,10 @@ export default function Home() {
             console.log(
                 "[App] 🎯 currentUserId became available, checking daily XP..."
             );
-            awardDailyXP();
+            // Add a small delay to ensure all initialization is complete
+            setTimeout(() => {
+                awardDailyXP();
+            }, 1000);
         }
     }, [currentUserId]);
 
@@ -1157,6 +1174,13 @@ export default function Home() {
         setShowAchievementDrawer(true);
         // Trigger refresh when opening drawer to ensure latest data
         setAchievementRefreshTrigger((prev) => prev + 1);
+
+        // Also ensure daily XP is awarded if not already done
+        if (currentUserId) {
+            setTimeout(() => {
+                awardDailyXP();
+            }, 100);
+        }
     };
 
     const closeAchievementDrawer = () => {

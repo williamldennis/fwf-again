@@ -18,7 +18,7 @@ export class WeatherService {
      */
     static async fetchWeatherData(latitude: number, longitude: number): Promise<WeatherData> {
         try {
-            console.log("[Weather] 🌤️ Fetching weather data with /forecast API...");
+            // console.log("[Weather] 🌤️ Fetching weather data with /forecast API...");
 
             if (!OPENWEATHER_API_KEY) {
                 throw new Error("OpenWeather API key is missing");
@@ -27,7 +27,7 @@ export class WeatherService {
             // Use /forecast API to get 5-day, 3-hour forecast
             const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
 
-            console.log("[Weather] 📡 Making /forecast API request...");
+            // console.log("[Weather] 📡 Making /forecast API request...");
             const response = await fetch(url);
             const data = await response.json();
 
@@ -36,9 +36,9 @@ export class WeatherService {
             }
 
             // Get city name from coordinates
-            console.log("[Weather] 🏙️ Fetching city name...");
+            // console.log("[Weather] 🏙️ Fetching city name...");
             const cityName = await this.getCityFromCoords(latitude, longitude);
-            console.log(`[Weather] ✅ City name: ${cityName}`);
+            // console.log(`[Weather] ✅ City name: ${cityName}`);
 
             // Log the full geocoding response for debugging
             try {
@@ -46,10 +46,10 @@ export class WeatherService {
                     `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=5&appid=${OPENWEATHER_API_KEY}`
                 );
                 const geoData = await geoResponse.json();
-                console.log(
-                    "[Weather] 🔍 Full geocoding data:",
-                    JSON.stringify(geoData, null, 2)
-                );
+                            // console.log(
+            //     "[Weather] 🔍 Full geocoding data:",
+            //     JSON.stringify(geoData, null, 2)
+            // );
             } catch (e) {
                 console.log("[Weather] ⚠️ Could not log geocoding data:", e);
             }
@@ -83,12 +83,12 @@ export class WeatherService {
 
             const forecastList = data.list || [];
 
-            console.log(
-                `[Weather] ✅ Weather loaded: ${currentWeather?.weather?.[0]?.main} ${currentWeather?.main?.temp}°F in ${cityName}`
-            );
-            console.log(
-                `[Weather] ✅ Forecast loaded: ${forecastList.length} entries`
-            );
+            // console.log(
+            //     `[Weather] ✅ Weather loaded: ${currentWeather?.weather?.[0]?.main} ${currentWeather?.main?.temp}°F in ${cityName}`
+            // );
+            // console.log(
+            //     `[Weather] ✅ Forecast loaded: ${forecastList.length} entries`
+            // );
 
             return {
                 current: currentWeather,
@@ -252,7 +252,7 @@ export class WeatherService {
                 })
                 .eq("id", userId);
                 
-            console.log("[Weather] ✅ Weather updated in database");
+            // console.log("[Weather] ✅ Weather updated in database");
         } catch (error) {
             console.error("[Weather] ❌ Error updating weather in database:", error);
             throw error;

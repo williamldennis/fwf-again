@@ -652,6 +652,8 @@ export class AchievementService {
     actionType: string
   ): Promise<number> {
     try {
+      console.log(`[AchievementService] 🔍 Getting streak for ${actionType}, userId: ${userId}`);
+      
       const { data, error } = await supabase
         .from('xp_transactions')
         .select('created_at')
@@ -659,39 +661,76 @@ export class AchievementService {
         .eq('action_type', actionType)
         .order('created_at', { ascending: false });
 
-      if (error || !data || data.length === 0) {
+      if (error) {
+        console.error("[AchievementService] Error getting streak transactions:", error);
         return 0;
       }
+      
+      if (!data || data.length === 0) {
+        console.log(`[AchievementService] 📊 No ${actionType} transactions found for user`);
+        return 0;
+      }
+
+      console.log(`[AchievementService] 📊 Found ${data.length} ${actionType} transactions:`, 
+        data.map(t => new Date(t.created_at).toISOString().split('T')[0]));
+      
+      // Add more detailed logging for debugging
+      console.log(`[AchievementService] 🔍 Raw transaction data:`, data);
 
       // Calculate consecutive day streak
       let currentStreak = 0;
       const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      // Use UTC for today's date to match the transaction dates
+      const todayStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
       
-      // Group transactions by day
+      // Group transactions by day (using UTC for consistency)
       const transactionsByDay = new Map<string, boolean>();
       data.forEach(transaction => {
         const transactionDate = new Date(transaction.created_at);
-        const dayKey = transactionDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+        // Use UTC date to match the database storage format
+        const dayKey = transactionDate.toISOString().split('T')[0]; // YYYY-MM-DD format in UTC
         transactionsByDay.set(dayKey, true);
       });
 
-      // Check consecutive days starting from today
+      console.log(`[AchievementService] 📅 Transactions by day:`, Array.from(transactionsByDay.keys()));
+      console.log(`[AchievementService] 📅 Today: ${todayStart.toISOString().split('T')[0]}`);
+
+      // Check consecutive days starting from today (using UTC for consistency)
       let checkDate = new Date(todayStart);
       while (true) {
-        const dayKey = checkDate.toISOString().split('T')[0];
+        const dayKey = checkDate.toISOString().split('T')[0]; // YYYY-MM-DD format in UTC
         
         if (transactionsByDay.has(dayKey)) {
           currentStreak++;
+          console.log(`[AchievementService] ✅ Found transaction for ${dayKey}, streak: ${currentStreak}`);
           // Move to previous day
           checkDate.setDate(checkDate.getDate() - 1);
         } else {
+          console.log(`[AchievementService] ❌ No transaction for ${dayKey}, stopping streak`);
           // Found a gap, stop counting
           break;
         }
       }
 
-      console.log(`[AchievementService] Calculated streak for ${actionType}: ${currentStreak} days`);
+      console.log(`[AchievementService] 🏆 Final calculated streak for ${actionType}: ${currentStreak} days`);
+      
+      // Debug: Check if transaction exists in database
+      if (actionType === 'daily_use' && currentStreak === 0) {
+        console.log(`[AchievementService] 🔍 Debug: Checking for daily_use transaction in database...`);
+        const { data: debugData, error: debugError } = await supabase
+          .from('xp_transactions')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('action_type', 'daily_use')
+          .order('created_at', { ascending: false });
+        
+        if (debugError) {
+          console.error(`[AchievementService] ❌ Debug query error:`, debugError);
+        } else {
+          console.log(`[AchievementService] 🔍 Debug: Found ${debugData?.length || 0} daily_use transactions:`, debugData);
+        }
+      }
+      
       return currentStreak;
 
     } catch (error) {

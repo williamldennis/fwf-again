@@ -250,7 +250,7 @@ export class ContactsService {
         console.log(`Filtered friends (excluding self): ${filteredFriends.length}`);
 
         // Add contact names, city names, and fresh weather data to the friends data
-        console.log("Getting city names and fresh weather for friends...");
+        // console.log("Getting city names and fresh weather for friends...");
         const friendsWithNamesCitiesAndWeather = await Promise.all(
             filteredFriends.map(async (friend) => {
                 const contactName = phoneToNameMap.get(friend.phone_number);
