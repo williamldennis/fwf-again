@@ -222,7 +222,7 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 marginTop: 20,
                 marginBottom: -20,
                 position: "relative",
-                backgroundColor: "white",
+                backgroundColor: "transparent",
             }}
         >
             {/* Dirt Particles Animation */}

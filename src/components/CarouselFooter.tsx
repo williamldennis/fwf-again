@@ -1,6 +1,5 @@
 import React from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
-import { BlurView } from "expo-blur";
 
 interface CarouselFooterProps {
     children: React.ReactNode;
@@ -9,7 +8,7 @@ interface CarouselFooterProps {
 export const CarouselFooter: React.FC<CarouselFooterProps> = ({ children }) => {
     return (
         <View style={styles.container}>
-            <BlurView intensity={20} style={styles.blurContainer}>
+            <View style={styles.footerContainer}>
                 <View style={styles.content}>
                     <ScrollView
                         horizontal
@@ -20,7 +19,7 @@ export const CarouselFooter: React.FC<CarouselFooterProps> = ({ children }) => {
                         {children}
                     </ScrollView>
                 </View>
-            </BlurView>
+            </View>
         </View>
     );
 };
@@ -32,10 +31,13 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 100, // Increased height to accommodate the footer
+        zIndex: 1000, // Ensure it appears above other content
     },
-    blurContainer: {
+    footerContainer: {
         flex: 1,
-        backgroundColor: "rgba(255, 255, 255, 1)", // Subtle white overlay
+        backgroundColor: "white",
+        borderTopWidth: 1,
+        borderTopColor: "#E5E5E5", // Light grey border
     },
     content: {
         flex: 1,

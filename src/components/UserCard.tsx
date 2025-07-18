@@ -243,7 +243,7 @@ export const UserCard: React.FC<UserCardProps> = ({
                                 marginBottom: 60,
                             }}
                         />
-
+                        {/* User's Garden */}
                         <View
                             style={{
                                 width: "100%",
@@ -251,17 +251,13 @@ export const UserCard: React.FC<UserCardProps> = ({
                                 borderRadius: 16,
                                 alignItems: "center",
                                 position: "relative",
-                                backgroundColor: "white",
                                 borderBottomLeftRadius: 20,
                                 borderBottomRightRadius: 20,
                                 marginBottom: 0,
-                                paddingBottom: 30,
+                                paddingBottom: 10,
                                 marginTop: 0,
                             }}
                         >
-                            {/* Selfie */}
-
-                            {/* User's Garden */}
                             <GardenArea
                                 gardenOwnerId={currentUserId || ""}
                                 plants={
@@ -412,7 +408,7 @@ export const UserCard: React.FC<UserCardProps> = ({
                                 borderRadius: 16,
                                 padding: 20,
                                 marginTop: 10,
-                                marginBottom: 20,
+                                marginBottom: 100,
                                 shadowColor: "#000",
                                 shadowOffset: { width: 0, height: 2 },
                                 shadowOpacity: 0.1,
