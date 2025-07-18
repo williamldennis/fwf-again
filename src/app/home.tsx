@@ -175,14 +175,50 @@ export default function Home() {
 
             if (result.success) {
                 console.log("[XP] ✅ Daily XP awarded:", result.newTotalXP);
+
+                // Check for daily achievements (like Daily Gardener)
+                let achievementResult: any = null;
+                try {
+                    achievementResult =
+                        await AchievementService.checkAndAwardAchievements(
+                            currentUserId,
+                            "daily_use",
+                            { date: new Date().toISOString().split("T")[0] }
+                        );
+
+                    if (achievementResult.unlocked.length > 0) {
+                        console.log(
+                            "[XP] 🏆 Daily achievements unlocked:",
+                            achievementResult.unlocked
+                        );
+                        // Show achievement toast if any were unlocked
+                        if (achievementResult.unlocked.includes("daily_use")) {
+                            setXpToastMessage("Daily Gardener!");
+                            setXpToastSubtitle("7 consecutive days!");
+                            setXpToastAmount(50);
+                            setShowXPToast(true);
+                        }
+                    }
+                } catch (achievementError) {
+                    console.error(
+                        "[XP] ❌ Error checking daily achievements:",
+                        achievementError
+                    );
+                }
+
                 // Refresh XP data to update the display
                 await refreshXP();
 
-                // Show toast notification
-                setXpToastMessage("Daily Reward!");
-                setXpToastSubtitle("You opened the app today!");
-                setXpToastAmount(5);
-                setShowXPToast(true);
+                // Show toast notification (only if no achievement toast was shown)
+                if (
+                    !achievementResult ||
+                    achievementResult.unlocked.length === 0
+                ) {
+                    setXpToastMessage("Daily Reward!");
+                    setXpToastSubtitle("You opened the app today!");
+                    setXpToastAmount(5);
+                    setShowXPToast(true);
+                }
 
                 console.log("[XP] 🎉 +5 XP Daily Reward!");
             } else {

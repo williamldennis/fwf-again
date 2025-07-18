@@ -239,6 +239,13 @@ export class AchievementService {
           (achievement.category === 'social' && actionType === 'social_planting');
         
         // Debug logging for achievement checking
+        console.log(`[AchievementService] Checking achievement ${achievementId}:`, {
+          actionType,
+          achievementAction: achievement.requirements.action,
+          shouldCheck: shouldCheckAchievement,
+          category: achievement.category
+        });
+        
         if (achievement.category === 'social') {
           console.log(`[AchievementService] Checking social achievement ${achievementId}:`, {
             actionType,
@@ -455,7 +462,7 @@ export class AchievementService {
    * @param context - Action context
    * @returns Promise<AchievementProgress>
    */
-  private static async calculateAchievementProgress(
+  static async calculateAchievementProgress(
     userId: string,
     achievement: Achievement,
     context: Record<string, any>
@@ -610,19 +617,18 @@ export class AchievementService {
 
       // Extract unique values based on context
       const uniqueValues = new Set();
-      
-              data.forEach(transaction => {
-          if (transaction.context_data) {
-            if (context.unique_plants && transaction.context_data.plantId) {
-              uniqueValues.add(transaction.context_data.plantId);
-            } else if (context.friend_gardens && transaction.context_data.garden_owner_id) {
-              uniqueValues.add(transaction.context_data.garden_owner_id);
-            } else if (context.friend_garden && transaction.context_data.garden_owner_id) {
-              // For single friend garden visit achievement
-              uniqueValues.add(transaction.context_data.garden_owner_id);
-            }
+      data.forEach(transaction => {
+        if (transaction.context_data) {
+          if (context.unique_plants && (transaction.context_data.plantId || transaction.context_data.plant_id)) {
+            uniqueValues.add(transaction.context_data.plantId || transaction.context_data.plant_id);
+          } else if (context.friend_gardens && transaction.context_data.garden_owner_id) {
+            uniqueValues.add(transaction.context_data.garden_owner_id);
+          } else if (context.friend_garden && transaction.context_data.garden_owner_id) {
+            // For single friend garden visit achievement
+            uniqueValues.add(transaction.context_data.garden_owner_id);
           }
-        });
+        }
+      });
 
       if (context.friend_garden || context.friend_gardens) {
         console.log(`[AchievementService] Total unique social values: ${uniqueValues.size}`);
@@ -653,13 +659,40 @@ export class AchievementService {
         .eq('action_type', actionType)
         .order('created_at', { ascending: false });
 
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         return 0;
       }
 
-      // Calculate streak logic here
-      // For now, return the total count as a simple implementation
-      return data.length;
+      // Calculate consecutive day streak
+      let currentStreak = 0;
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      
+      // Group transactions by day
+      const transactionsByDay = new Map<string, boolean>();
+      data.forEach(transaction => {
+        const transactionDate = new Date(transaction.created_at);
+        const dayKey = transactionDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+        transactionsByDay.set(dayKey, true);
+      });
+
+      // Check consecutive days starting from today
+      let checkDate = new Date(todayStart);
+      while (true) {
+        const dayKey = checkDate.toISOString().split('T')[0];
+        
+        if (transactionsByDay.has(dayKey)) {
+          currentStreak++;
+          // Move to previous day
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          // Found a gap, stop counting
+          break;
+        }
+      }
+
+      console.log(`[AchievementService] Calculated streak for ${actionType}: ${currentStreak} days`);
+      return currentStreak;
 
     } catch (error) {
       console.error("[AchievementService] Exception in getActionStreak:", error);

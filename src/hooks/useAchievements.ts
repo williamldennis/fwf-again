@@ -37,18 +37,31 @@ export const useAchievements = (userId: string | null): UseAchievementsReturn =>
             const userAchievements = await AchievementService.getUserAchievements(userId);
             const unlockedAchievementIds = new Set(userAchievements.map(ua => ua.achievement_id));
 
-            // Create progress map using available data
+            // Create progress map by properly calculating progress for each achievement
             const progressMap: Record<string, AchievementProgress> = {};
-            allAchievements.forEach((achievement) => {
-                const isUnlocked = unlockedAchievementIds.has(achievement.id);
-                progressMap[achievement.id] = {
-                    achievementId: achievement.id,
-                    currentProgress: isUnlocked ? achievement.requirements.target : 0,
-                    maxProgress: achievement.requirements.target,
-                    isUnlocked: isUnlocked,
-                    unlockedAt: userAchievements.find(ua => ua.achievement_id === achievement.id)?.unlocked_at,
-                };
-            });
+            
+            // Calculate progress for each achievement
+            for (const achievement of allAchievements) {
+                try {
+                    const progress = await AchievementService.calculateAchievementProgress(
+                        userId,
+                        achievement,
+                        {}
+                    );
+                    progressMap[achievement.id] = progress;
+                } catch (error) {
+                    console.error(`[useAchievements] Error calculating progress for ${achievement.id}:`, error);
+                    // Fallback to basic progress calculation
+                    const isUnlocked = unlockedAchievementIds.has(achievement.id);
+                    progressMap[achievement.id] = {
+                        achievementId: achievement.id,
+                        currentProgress: isUnlocked ? achievement.requirements.target : 0,
+                        maxProgress: achievement.requirements.target,
+                        isUnlocked: isUnlocked,
+                        unlockedAt: userAchievements.find(ua => ua.achievement_id === achievement.id)?.unlocked_at,
+                    };
+                }
+            }
 
             // Calculate category statistics
             const stats: Record<string, { total: number; completed: number }> = {};
@@ -65,6 +78,7 @@ export const useAchievements = (userId: string | null): UseAchievementsReturn =>
 
             console.log('[useAchievements] ✅ Achievements loaded successfully');
             console.log('[useAchievements] 📈 Category stats:', stats);
+            console.log('[useAchievements] 📊 Progress map:', progressMap);
 
             setAchievements(allAchievements);
             setUserProgress(progressMap);
