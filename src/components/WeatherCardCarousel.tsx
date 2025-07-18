@@ -69,9 +69,11 @@ export const WeatherCardCarousel: React.FC<WeatherCardCarouselProps> = ({
                     </Text>
                     <View style={styles.weatherDescription}>
                         <Text style={styles.weatherText}>
+                            It's{" "}
                             {getWeatherDisplayName(
                                 currentWeather?.weather?.[0]?.main || "Clear"
-                            )}
+                            )}{" "}
+                            in {cityName}
                         </Text>
                     </View>
                     <View style={styles.metricsContainer}>
