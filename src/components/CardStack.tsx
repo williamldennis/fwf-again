@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { View, Dimensions } from "react-native";
 import Carousel from "react-native-reanimated-carousel";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import UserCard from "./UserCard";
 import FriendCard from "./FriendCard";
 import AddFriendsCard from "./AddFriendsCard";
@@ -206,51 +207,55 @@ export const CardStack: React.FC<CardStackProps> = ({
     };
 
     return (
-        <View
-            style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-            }}
-        >
-            <Carousel
-                loop={true}
-                width={cardWidth}
-                height={screenHeight}
-                data={stackItems}
-                renderItem={renderCard}
-                onSnapToItem={setCurrentIndex}
-                windowSize={5}
-            />
-
-            {/* Stack indicator dots */}
+        <GestureHandlerRootView style={{ flex: 1 }}>
             <View
                 style={{
-                    position: "absolute",
-                    bottom: 40,
-                    left: 0,
-                    right: 0,
-                    flexDirection: "row",
+                    flex: 1,
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 8,
+                    overflow: "hidden",
                 }}
             >
-                {stackItems.map((_, index) => (
-                    <View
-                        key={index}
-                        style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor:
-                                index === currentIndex ? "#007AFF" : "#D1D5DB",
-                        }}
-                    />
-                ))}
+                <Carousel
+                    loop={true}
+                    width={cardWidth}
+                    height={screenHeight}
+                    data={stackItems}
+                    renderItem={renderCard}
+                    onSnapToItem={setCurrentIndex}
+                    windowSize={5}
+                />
+
+                {/* Stack indicator dots */}
+                <View
+                    style={{
+                        position: "absolute",
+                        bottom: 40,
+                        left: 0,
+                        right: 0,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                    }}
+                >
+                    {stackItems.map((_, index) => (
+                        <View
+                            key={index}
+                            style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: 4,
+                                backgroundColor:
+                                    index === currentIndex
+                                        ? "#007AFF"
+                                        : "#D1D5DB",
+                            }}
+                        />
+                    ))}
+                </View>
             </View>
-        </View>
+        </GestureHandlerRootView>
     );
 };
 

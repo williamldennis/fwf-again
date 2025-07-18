@@ -22,12 +22,15 @@ export const AddFriendsCard: React.FC<AddFriendsCardProps> = ({
                 paddingBottom: 20,
                 zIndex: 1,
                 height: cardHeight,
+                width: cardWidth,
+                maxWidth: cardWidth,
             }}
         >
             <TouchableOpacity
                 onPress={onShare}
                 style={{
-                    width: cardWidth - 32, // Add some padding for the card
+                    width: cardWidth - 40, // Reduce width to prevent overflow
+                    maxWidth: cardWidth - 40,
                     backgroundColor: "#fffbe6",
                     borderRadius: 16,
                     padding: 16,

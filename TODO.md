@@ -35,6 +35,7 @@
 - [x] fix weather planting achievements
 - [x] fix achievements for first time planting -- you get 400xp off the bat -- i think social planting is being counted when you plant on your own garden
       [ ] planting in friend sunny weather doesn't give sun achievement
+      [] improve log in loading filtering friends is slow
 
 ### Technical & Security
 

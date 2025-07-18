@@ -72,11 +72,14 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                 padding: 20,
                 zIndex: 1,
                 height: cardHeight,
+                width: cardWidth,
+                maxWidth: cardWidth,
             }}
         >
             <View
                 style={{
-                    width: cardWidth - 30, // Add some padding for the card
+                    width: cardWidth - 40, // Reduce width to prevent overflow
+                    maxWidth: cardWidth - 40,
                     borderRadius: 20,
                     shadowColor: "#000",
                     shadowOffset: {
