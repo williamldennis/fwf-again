@@ -1,33 +1,41 @@
 import { Plant, PlantedPlant, GrowthCalculation, GrowthStage } from '../types/garden';
 import { TimeCalculationService } from './timeCalculationService';
+import { getNormalizedWeatherKey } from '../utils/weatherUtils';
 
 export class GrowthService {
   /**
    * Calculate the weather bonus multiplier for a plant based on current weather
    */
   static getWeatherBonus(plant: Plant, weatherCondition: string): number {
-    // Map API weather conditions to plant weather bonus keys
+    // Check if this is a known weather condition
+    const knownConditions = ['Clear', 'Clouds', 'Rain', 'Drizzle', 'Mist', 'Fog', 'Haze', 'Snow', 'Thunderstorm'];
+    const isKnownCondition = knownConditions.some(condition => 
+      condition.toLowerCase() === weatherCondition.toLowerCase()
+    );
+    
+    if (!isKnownCondition) {
+      // Return 1.0 for unknown weather conditions
+      return 1.0;
+    }
+    
+    // Use the single source of truth for weather condition mapping
+    const normalizedKey = getNormalizedWeatherKey(weatherCondition);
+    
+    // Map normalized key to plant weather bonus
     const weatherMapping: Record<string, keyof typeof plant.weather_bonus> = {
-      'clear': 'sunny',
-      'clouds': 'cloudy', 
-      'rain': 'rainy',
-      'drizzle': 'rainy',
-      'mist': 'rainy',
-      'fog': 'rainy',
-      'haze': 'rainy',
-      'snow': 'rainy', // Snow plants don't exist, default to rainy
-      'thunderstorm': 'rainy' // Thunderstorm plants don't exist, default to rainy
+      'sunny': 'sunny',
+      'cloudy': 'cloudy', 
+      'rainy': 'rainy'
     };
     
-    const weatherKey = weatherCondition.toLowerCase();
-    const mappedKey = weatherMapping[weatherKey];
+    const mappedKey = weatherMapping[normalizedKey];
     
     if (mappedKey) {
       const bonus = plant.weather_bonus[mappedKey];
       return bonus;
     }
     
-    // Default to 1.0 if weather not found
+    // Default to 1.0 if weather not found or not mapped
     return 1.0;
   }
 

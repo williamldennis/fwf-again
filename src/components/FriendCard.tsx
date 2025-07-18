@@ -3,6 +3,11 @@ import { View, Text, Image } from "react-native";
 import LottieView from "lottie-react-native";
 import GardenArea from "./GardenArea";
 import FiveDayForecast from "./FiveDayForecast";
+import {
+    getWeatherLottieFile,
+    getWeatherSelfieKey,
+    getWeatherDisplayName,
+} from "../utils/weatherUtils";
 
 interface FriendCardProps {
     friend: any;
@@ -15,72 +20,18 @@ interface FriendCardProps {
     onFetchForecast: (friend: any) => void;
 }
 
-// Add Lottie animation mapping
+// Weather mapping functions now use the single source of truth
 const getWeatherLottie = (weatherCondition: string) => {
-    switch (weatherCondition?.toLowerCase()) {
-        case "clear":
-            return require("../../assets/lottie/sunny.json");
-        case "clouds":
-            return require("../../assets/lottie/cloudy.json");
-        case "rain":
-        case "drizzle":
-        case "mist":
-        case "fog":
-        case "haze":
-            return require("../../assets/lottie/rainy.json");
-        case "snow":
-            return require("../../assets/lottie/snowy.json");
-        case "thunderstorm":
-            return require("../../assets/lottie/thunderstorm.json");
-        default:
-            return require("../../assets/lottie/sunny.json");
-    }
+    const lottieFile = getWeatherLottieFile(weatherCondition);
+    return require(`../../assets/lottie/${lottieFile}`);
 };
 
-// Add this function to map weather to selfie key
 const mapWeatherToSelfieKey = (weather: string) => {
-    switch (weather?.toLowerCase()) {
-        case "clear":
-            return "sunny";
-        case "clouds":
-            return "cloudy";
-        case "rain":
-        case "drizzle":
-        case "mist":
-        case "fog":
-        case "haze":
-            return "rainy";
-        case "snow":
-            return "snowy";
-        case "thunderstorm":
-            return "thunderstorm";
-        default:
-            return "sunny";
-    }
+    return getWeatherSelfieKey(weather);
 };
 
 function getWeatherDescription(condition: string) {
-    switch (condition.toLowerCase()) {
-        case "clear":
-            return "clear";
-        case "clouds":
-            return "cloudy";
-        case "rain":
-            return "rainy";
-        case "snow":
-            return "snowy";
-        case "thunderstorm":
-            return "stormy";
-        case "drizzle":
-            return "drizzly";
-        case "mist":
-        case "fog":
-            return "foggy";
-        case "haze":
-            return "hazy";
-        default:
-            return condition.toLowerCase();
-    }
+    return getWeatherDisplayName(condition);
 }
 
 export const FriendCard: React.FC<FriendCardProps> = ({

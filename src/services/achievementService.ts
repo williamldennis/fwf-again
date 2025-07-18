@@ -1,5 +1,6 @@
 import { supabase } from "../utils/supabase";
 import { XPService } from "./xpService";
+import { areWeatherConditionsEquivalent } from "../utils/weatherUtils";
 
 // Types for achievement system
 export interface Achievement {
@@ -483,16 +484,21 @@ export class AchievementService {
 
       switch (achievement.requirements.type) {
         case 'count':
-          currentProgress = await this.getActionCount(userId, achievement.requirements.action, context);
+          // Merge achievement conditions with action context for proper filtering
+          const countMergedContext = {
+            ...context,
+            ...achievement.requirements.conditions
+          };
+          currentProgress = await this.getActionCount(userId, achievement.requirements.action, countMergedContext);
           break;
 
         case 'unique':
           // Merge achievement conditions with action context for proper filtering
-          const mergedContext = {
+          const uniqueMergedContext = {
             ...context,
             ...achievement.requirements.conditions
           };
-          currentProgress = await this.getUniqueActionCount(userId, achievement.requirements.action, mergedContext);
+          currentProgress = await this.getUniqueActionCount(userId, achievement.requirements.action, uniqueMergedContext);
           break;
 
         case 'streak':
@@ -549,6 +555,20 @@ export class AchievementService {
       // Apply context filters if provided
       if (context.weather) {
         query = query.contains('context_data', { weather: context.weather });
+      }
+      
+      // console.log(`[AchievementService] getActionCount context:`, context);
+      
+      // For weather achievements, check if the current context matches the required weather
+      // The achievement condition is { weather: 'cloudy' } and context has weather_condition: 'Clouds'
+      if (context.weather_condition && context.weather) {
+        // Use the single source of truth for weather condition comparison
+        const areEquivalent = areWeatherConditionsEquivalent(context.weather_condition, context.weather);
+        
+        // Only count if weather conditions match
+        if (!areEquivalent) {
+          return 0;
+        }
       }
 
       const { count, error } = await query;
@@ -622,10 +642,16 @@ export class AchievementService {
           if (context.unique_plants && (transaction.context_data.plantId || transaction.context_data.plant_id)) {
             uniqueValues.add(transaction.context_data.plantId || transaction.context_data.plant_id);
           } else if (context.friend_gardens && transaction.context_data.garden_owner_id) {
-            uniqueValues.add(transaction.context_data.garden_owner_id);
+            // Only count if it's actually a friend's garden (not the user's own garden)
+            if (transaction.context_data.garden_owner_id !== userId) {
+              uniqueValues.add(transaction.context_data.garden_owner_id);
+            }
           } else if (context.friend_garden && transaction.context_data.garden_owner_id) {
             // For single friend garden visit achievement
-            uniqueValues.add(transaction.context_data.garden_owner_id);
+            // Only count if it's actually a friend's garden (not the user's own garden)
+            if (transaction.context_data.garden_owner_id !== userId) {
+              uniqueValues.add(transaction.context_data.garden_owner_id);
+            }
           }
         }
       });
