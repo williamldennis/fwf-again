@@ -146,11 +146,11 @@ export const UserCard: React.FC<UserCardProps> = ({
                     pointerEvents="none"
                     style={{
                         position: "absolute",
-                        top: 0,
+                        top: -20,
                         left: 0,
                         right: 0,
                         alignItems: "center",
-                        zIndex: 3,
+                        zIndex: 0,
                     }}
                 >
                     <LottieView
@@ -160,7 +160,7 @@ export const UserCard: React.FC<UserCardProps> = ({
                         style={{
                             width: 1100,
                             height: 1100,
-                            opacity: 0.2,
+                            opacity: 0.6,
                         }}
                     />
                 </View>
@@ -239,8 +239,8 @@ export const UserCard: React.FC<UserCardProps> = ({
                                 borderRadius: 50,
                                 resizeMode: "cover",
                                 backgroundColor: "#eee",
-                                marginTop: 60, // space for Lottie
-                                marginBottom: 0,
+                                marginTop: 120, // space for Lottie
+                                marginBottom: 30,
                             }}
                         />
 
