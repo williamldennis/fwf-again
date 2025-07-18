@@ -36,6 +36,7 @@
 - [x] fix achievements for first time planting -- you get 400xp off the bat -- i think social planting is being counted when you plant on your own garden
       [ ] planting in friend sunny weather doesn't give sun achievement
       [] improve log in loading filtering friends is slow
+      []the app on my device seems to get hung up on "filtering friends" step and "making onecall api request" step after logging in
 
 ### Technical & Security
 

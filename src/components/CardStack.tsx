@@ -5,6 +5,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import UserCard from "./UserCard";
 import FriendCard from "./FriendCard";
 import AddFriendsCard from "./AddFriendsCard";
+import SelfieIndicator from "./SelfieIndicator";
+import CarouselFooter from "./CarouselFooter";
 import { Friend } from "../services/contactsService";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -66,6 +68,7 @@ export const CardStack: React.FC<CardStackProps> = ({
     const screenWidth = Dimensions.get("window").width;
     const screenHeight = Dimensions.get("window").height;
     const [currentIndex, setCurrentIndex] = useState(0);
+    const carouselRef = React.useRef<any>(null);
 
     // Sort friends by harvest readiness (soonest to be ready)
     const sortedFriends = useMemo(() => {
@@ -227,6 +230,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                 }}
             >
                 <Carousel
+                    ref={carouselRef}
                     loop={true}
                     width={cardWidth}
                     height={screenHeight}
@@ -236,34 +240,32 @@ export const CardStack: React.FC<CardStackProps> = ({
                     windowSize={5}
                 />
 
-                {/* Stack indicator dots */}
-                <View
-                    style={{
-                        position: "absolute",
-                        bottom: 40,
-                        left: 0,
-                        right: 0,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 8,
-                    }}
-                >
-                    {stackItems.map((_, index) => (
-                        <View
+                {/* Stack indicator selfies with blurred footer */}
+                <CarouselFooter>
+                    {stackItems.map((item, index) => (
+                        <SelfieIndicator
                             key={index}
-                            style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: 4,
-                                backgroundColor:
-                                    index === currentIndex
-                                        ? "#007AFF"
-                                        : "#D1D5DB",
+                            item={item}
+                            isActive={index === currentIndex}
+                            selfieUrls={selfieUrls}
+                            weather={weather}
+                            onPress={(pressedIndex) => {
+                                // Navigate to the pressed card
+                                if (
+                                    pressedIndex !== currentIndex &&
+                                    carouselRef.current
+                                ) {
+                                    // Use the carousel's scrollTo method for smooth navigation
+                                    carouselRef.current.scrollTo({
+                                        index: pressedIndex,
+                                        animated: true,
+                                    });
+                                }
                             }}
+                            index={index}
                         />
                     ))}
-                </View>
+                </CarouselFooter>
             </View>
         </GestureHandlerRootView>
     );
