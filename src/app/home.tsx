@@ -138,6 +138,8 @@ export default function Home() {
     const {
         weather,
         forecast,
+        hourly,
+        daily,
         cityName,
         backgroundColor,
         loading: weatherLoading,

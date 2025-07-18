@@ -28,11 +28,13 @@
 
 ### Polish & UX Improvements
 
+- [ ] adjust XP so you don't level up so quickly
 - [ ] **Add full forecast modal when tapping** - Improves weather feature discoverability
 - [ ] **Improve weather forecast styling** - Better first impression of core feature
 - [ ] **Add cosmetic upgrades to gardens** - Monetization opportunity
-- [ ] fix weather planting achievements
+- [x] fix weather planting achievements
 - [x] fix achievements for first time planting -- you get 400xp off the bat -- i think social planting is being counted when you plant on your own garden
+      [ ] planting in friend sunny weather doesn't give sun achievement
 
 ### Technical & Security
 
