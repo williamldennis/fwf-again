@@ -171,81 +171,60 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                             {/* Handle bar */}
                             <View style={styles.handleBar} />
 
-                            {/* Level Progress Section */}
-                            <View style={styles.levelProgressSection}>
-                                <Text style={styles.levelTitle}>
-                                    🌱 Level {xpData?.current_level || 1}
-                                </Text>
-                                <Text style={styles.xpDisplay}>
-                                    {xpData?.total_xp || 0} /{" "}
-                                    {(xpData?.total_xp || 0) +
-                                        (xpData?.xp_to_next_level || 0)}{" "}
-                                    XP
-                                </Text>
-
-                                {/* Progress Bar */}
-                                <View style={styles.progressBarContainer}>
-                                    <View style={styles.progressBar}>
-                                        <View
-                                            style={[
-                                                styles.progressFill,
-                                                {
-                                                    width: `${xpData?.xp_progress || 0}%`,
-                                                },
-                                            ]}
-                                        />
-                                    </View>
-                                    <Text style={styles.progressText}>
-                                        {xpData?.xp_progress || 0}%
-                                    </Text>
-                                </View>
-
-                                <Text style={styles.xpToNext}>
-                                    {xpData?.xp_to_next_level || 0} XP to Level{" "}
-                                    {(xpData?.current_level || 1) + 1}
-                                </Text>
-                            </View>
-
-                            {/* Next Level Benefits */}
-                            <View style={styles.benefitsSection}>
-                                <Text style={styles.benefitsTitle}>
-                                    🎁 Next Level Benefits
-                                </Text>
-                                <Text style={styles.benefitsText}>
-                                    Unlock: Premium plants access
-                                </Text>
-                            </View>
-
-                            {/* Recent XP Transactions */}
-                            <View style={styles.transactionsSection}>
-                                <Text style={styles.sectionTitle}>
-                                    📊 Recent XP Activity
-                                </Text>
-                                <View style={styles.transactionItem}>
-                                    <Text style={styles.transactionText}>
-                                        🌱 Daily Use +5 XP • 2 min ago
-                                    </Text>
-                                </View>
-                                <View style={styles.transactionItem}>
-                                    <Text style={styles.transactionText}>
-                                        🌱 Plant Seed +10 XP • 5 min ago
-                                    </Text>
-                                </View>
-                                <View style={styles.transactionItem}>
-                                    <Text style={styles.transactionText}>
-                                        🌱 Harvest Plant +20 XP • 10 min ago
-                                    </Text>
-                                </View>
-                            </View>
-
-                            {/* Scrollable Content */}
+                            {/* Single ScrollView for all content */}
                             <ScrollView
-                                style={styles.scrollableContent}
+                                style={styles.scrollView}
                                 showsVerticalScrollIndicator={false}
                                 contentContainerStyle={
                                     styles.scrollContentContainer
                                 }
                             >
+                                {/* Level Progress Section */}
+                                <View style={styles.levelProgressSection}>
+                                    <Text style={styles.levelTitle}>
+                                        🌱 Level {xpData?.current_level || 1}
+                                    </Text>
+                                    <Text style={styles.xpDisplay}>
+                                        {xpData?.total_xp || 0} /{" "}
+                                        {(xpData?.total_xp || 0) +
+                                            (xpData?.xp_to_next_level ||
+                                                0)}{" "}
+                                        XP
+                                    </Text>
+
+                                    {/* Progress Bar */}
+                                    <View style={styles.progressBarContainer}>
+                                        <View style={styles.progressBar}>
+                                            <View
+                                                style={[
+                                                    styles.progressFill,
+                                                    {
+                                                        width: `${xpData?.xp_progress || 0}%`,
+                                                    },
+                                                ]}
+                                            />
+                                        </View>
+                                        <Text style={styles.progressText}>
+                                            {xpData?.xp_progress || 0}%
+                                        </Text>
+                                    </View>
+
+                                    <Text style={styles.xpToNext}>
+                                        {xpData?.xp_to_next_level || 0} XP to
+                                        Level {(xpData?.current_level || 1) + 1}
+                                    </Text>
+                                </View>
+
+                                {/* Next Level Benefits */}
+                                <View style={styles.benefitsSection}>
+                                    <Text style={styles.benefitsTitle}>
+                                        🎁 Next Level Benefits
+                                    </Text>
+                                    <Text style={styles.benefitsText}>
+                                        Unlock: Premium plants access
+                                    </Text>
+                                </View>
+
                                 {/* Recent XP Transactions */}
                                 <View style={styles.transactionsSection}>
                                     <Text style={styles.sectionTitle}>
@@ -407,6 +386,12 @@ const styles = StyleSheet.create({
         marginTop: 12,
         marginBottom: 8,
     },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContentContainer: {
+        paddingBottom: 20,
+    },
     levelProgressSection: {
         paddingHorizontal: 20,
         paddingVertical: 16,
@@ -541,12 +526,6 @@ const styles = StyleSheet.create({
         height: "100%",
         backgroundColor: "#22c55e",
         borderRadius: 3,
-    },
-    scrollableContent: {
-        flex: 1,
-    },
-    scrollContentContainer: {
-        paddingBottom: 20,
     },
     skeletonContainer: {
         paddingHorizontal: 20,
