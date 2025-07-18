@@ -196,7 +196,7 @@ describe('GardenService', () => {
     });
 
     it('should throw error when slot is occupied', async () => {
-      const mockAvailablePlants = [{ id: '1', name: 'Sunflower', planting_cost: 5 }];
+      const mockAvailablePlants = [{ id: '1', name: 'Sunflower', planting_cost: 0 }];
       
       const mockSlotQuery = {
         select: jest.fn().mockReturnThis(),
@@ -350,7 +350,7 @@ describe('GardenService', () => {
       const mockPlants = [
         { name: 'Mushroom', planting_cost: 3, harvest_points: 8 },
         { name: 'Cactus', planting_cost: 4, harvest_points: 12 },
-        { name: 'Sunflower', planting_cost: 5, harvest_points: 10 },
+        { name: 'Sunflower', planting_cost: 0, harvest_points: 5 },
         { name: 'Water Lily', planting_cost: 7, harvest_points: 18 },
         { name: 'Fern', planting_cost: 8, harvest_points: 15 },
         { name: 'Pine Tree', planting_cost: 12, harvest_points: 25 }

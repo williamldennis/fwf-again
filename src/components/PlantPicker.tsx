@@ -163,9 +163,10 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
                                                                 styles.insufficientPointsText,
                                                         ]}
                                                     >
-                                                        {item.planting_cost ||
-                                                            0}{" "}
-                                                        pts
+                                                        {(item.planting_cost ||
+                                                            0) === 0
+                                                            ? "Free"
+                                                            : `${item.planting_cost || 0} pts`}
                                                     </Text>
                                                     <Text
                                                         style={

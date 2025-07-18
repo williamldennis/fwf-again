@@ -11,26 +11,27 @@
 ### Core Game Loop
 
 - [ ] **Add progress bar for each plant** - Clear feedback on user investment
-- [ ] **Add XP for actions** - Planting, harvesting, planting in friend plots (engagement loops)
-- [ ] **TikTok style scroll** - Immersive experience, each card 90% view height with "stick" behavior
+- [x] **Add XP for actions** - Planting, harvesting, planting in friend plots (engagement loops)
+- [x] **TikTok style scroll** - Immersive experience, each card 90% view height with "stick" behavior
 
 ### Monetization Foundation
 
-- [ ] **Make plants cost points** - Clear value exchange and strategic choices
-- [ ] **Add levels for users** - Additional capabilities (more planting slots, cosmetic items)
+- [x] **Make plants cost points** - Clear value exchange and strategic choices
+- [x] **Add levels for users** - Additional capabilities (more planting slots, cosmetic items)
 - [ ] **Add boosters that cost points** - Fertilizer, water, greenhouse, etc. (strategic depth)
 
 ## Medium Priority (Next 4-6 weeks)
 
 ### Social Features
 
-- [ ] **Add name or username to sign up** - Essential for social features and personalization
+- [x] **Add name or username to sign up** - Essential for social features and personalization
 
 ### Polish & UX Improvements
 
 - [ ] **Add full forecast modal when tapping** - Improves weather feature discoverability
 - [ ] **Improve weather forecast styling** - Better first impression of core feature
 - [ ] **Add cosmetic upgrades to gardens** - Monetization opportunity
+- [ ] fix weather planting achievements
 
 ### Technical & Security
 

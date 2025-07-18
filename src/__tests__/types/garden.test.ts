@@ -13,14 +13,14 @@ describe('Garden Types', () => {
           rainy: 1.0
         },
         image_path: 'test-plant',
-        harvest_points: 10,
-        planting_cost: 5,
+        harvest_points: 5,
+        planting_cost: 0, // Now free!
         created_at: '2024-01-01T00:00:00Z'
       };
 
       expect(plant).toHaveProperty('planting_cost');
       expect(typeof plant.planting_cost).toBe('number');
-      expect(plant.planting_cost).toBe(5);
+      expect(plant.planting_cost).toBe(0);
     });
 
     it('should validate complete plant structure', () => {
@@ -51,7 +51,7 @@ describe('Garden Types', () => {
 
       // Verify profit calculation works
       const profit = plant.harvest_points - plant.planting_cost;
-      expect(profit).toBe(5); // 8 - 3 = 5
+      expect(profit).toBe(5); // 5 - 0 = 5
     });
 
     it('should support all plant types with their costs', () => {
@@ -82,8 +82,8 @@ describe('Garden Types', () => {
           growth_time_hours: 4,
           weather_bonus: { sunny: 1.5, cloudy: 0.8, rainy: 0.6 },
           image_path: 'sunflower',
-          harvest_points: 10,
-          planting_cost: 5,
+          harvest_points: 5,
+          planting_cost: 0, // Now free!
           created_at: '2024-01-01T00:00:00Z'
         },
         {
@@ -122,7 +122,7 @@ describe('Garden Types', () => {
       plants.forEach(plant => {
         expect(plant).toHaveProperty('planting_cost');
         expect(typeof plant.planting_cost).toBe('number');
-        expect(plant.planting_cost).toBeGreaterThan(0);
+        expect(plant.planting_cost).toBeGreaterThanOrEqual(0);
       });
 
       // Verify profit calculations

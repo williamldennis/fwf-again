@@ -28,8 +28,8 @@ describe('PlantPicker Logic', () => {
       growth_time_hours: 4,
       weather_bonus: { sunny: 1.5, cloudy: 0.8, rainy: 0.6 },
       image_path: 'sunflower',
-      harvest_points: 10,
-      planting_cost: 5,
+      harvest_points: 5,
+      planting_cost: 0, // Now free!
       created_at: '2024-01-01T00:00:00Z'
     }
   ];
@@ -40,8 +40,8 @@ describe('PlantPicker Logic', () => {
         (a, b) => (a.planting_cost || 0) - (b.planting_cost || 0)
       );
 
-      expect(sortedPlants[0].name).toBe('Mushroom'); // 3 points
-      expect(sortedPlants[1].name).toBe('Sunflower'); // 5 points
+      expect(sortedPlants[0].name).toBe('Sunflower'); // 0 points (free)
+      expect(sortedPlants[1].name).toBe('Mushroom'); // 3 points
       expect(sortedPlants[2].name).toBe('Pine Tree'); // 12 points
     });
   });
@@ -57,10 +57,10 @@ describe('PlantPicker Logic', () => {
       const affordablePlants = mockPlants.filter(canAffordPlant);
       const unaffordablePlants = mockPlants.filter(plant => !canAffordPlant(plant));
 
-      expect(affordablePlants).toHaveLength(2); // Mushroom and Sunflower
+      expect(affordablePlants).toHaveLength(2); // Sunflower (free) and Mushroom
       expect(unaffordablePlants).toHaveLength(1); // Pine Tree
-      expect(affordablePlants.map(p => p.name)).toContain('Mushroom');
       expect(affordablePlants.map(p => p.name)).toContain('Sunflower');
+      expect(affordablePlants.map(p => p.name)).toContain('Mushroom');
       expect(unaffordablePlants.map(p => p.name)).toContain('Pine Tree');
     });
 
@@ -73,8 +73,9 @@ describe('PlantPicker Logic', () => {
 
       const affordablePlants = mockPlants.filter(canAffordPlant);
       
-      expect(affordablePlants).toHaveLength(1); // Only Mushroom
-      expect(affordablePlants[0].name).toBe('Mushroom');
+      expect(affordablePlants).toHaveLength(2); // Sunflower (free) and Mushroom (3 points)
+      expect(affordablePlants.map(p => p.name)).toContain('Sunflower');
+      expect(affordablePlants.map(p => p.name)).toContain('Mushroom');
     });
 
     it('should handle zero user points', () => {
@@ -86,7 +87,8 @@ describe('PlantPicker Logic', () => {
 
       const affordablePlants = mockPlants.filter(canAffordPlant);
       
-      expect(affordablePlants).toHaveLength(0); // No plants affordable
+      expect(affordablePlants).toHaveLength(1); // Only Sunflower (free)
+      expect(affordablePlants[0].name).toBe('Sunflower');
     });
   });
 
@@ -100,7 +102,7 @@ describe('PlantPicker Logic', () => {
       expect(profits).toEqual([
         { name: 'Mushroom', profit: 5 }, // 8 - 3 = 5
         { name: 'Pine Tree', profit: 13 }, // 25 - 12 = 13
-        { name: 'Sunflower', profit: 5 } // 10 - 5 = 5
+        { name: 'Sunflower', profit: 5 } // 5 - 0 = 5
       ]);
     });
 
@@ -153,12 +155,15 @@ describe('PlantPicker Logic', () => {
         return `${plant.planting_cost || 0} pts`;
       };
 
-      const costDisplays = mockPlants.map(formatCostDisplay);
+      const sortedPlants = [...mockPlants].sort(
+        (a, b) => (a.planting_cost || 0) - (b.planting_cost || 0)
+      );
+      const costDisplays = sortedPlants.map(formatCostDisplay);
 
       expect(costDisplays).toEqual([
-        '3 pts',
-        '12 pts',
-        '5 pts'
+        '0 pts', // Sunflower (free)
+        '3 pts', // Mushroom
+        '12 pts' // Pine Tree
       ]);
     });
 
@@ -168,12 +173,15 @@ describe('PlantPicker Logic', () => {
         return `+${profit} profit`;
       };
 
-      const profitDisplays = mockPlants.map(formatProfitDisplay);
+      const sortedPlants = [...mockPlants].sort(
+        (a, b) => (a.planting_cost || 0) - (b.planting_cost || 0)
+      );
+      const profitDisplays = sortedPlants.map(formatProfitDisplay);
 
       expect(profitDisplays).toEqual([
-        '+5 profit',
-        '+13 profit',
-        '+5 profit'
+        '+5 profit', // Sunflower (5 - 0 = 5)
+        '+5 profit', // Mushroom (8 - 3 = 5)
+        '+13 profit' // Pine Tree (25 - 12 = 13)
       ]);
     });
   });
