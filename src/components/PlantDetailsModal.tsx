@@ -420,7 +420,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                         `[Harvest] ✅ XP awarded successfully: ${xpResult.totalXP} total XP`
                     );
 
-                    // Show XP toast notification on parent screen
+                    // Show XP toast notification on parent screen (simple approach like planting)
                     if (onShowXPToast) {
                         let toastMessage: string;
                         let toastSubtitle: string;

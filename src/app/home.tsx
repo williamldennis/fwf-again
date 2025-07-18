@@ -1474,30 +1474,28 @@ export default function Home() {
                     amount: number,
                     achievements?: string[]
                 ) => {
-                    // Add a small delay to ensure modal is fully closed before showing toast
-                    setTimeout(() => {
-                        setXpToastMessage(message);
-                        setXpToastSubtitle(subtitle);
-                        setXpToastAmount(amount);
-                        setShowXPToast(true);
+                    // Modal now handles its own timing, so we can show toast immediately
+                    setXpToastMessage(message);
+                    setXpToastSubtitle(subtitle);
+                    setXpToastAmount(amount);
+                    setShowXPToast(true);
 
-                        // Show achievement toast if achievements were unlocked
-                        if (achievements && achievements.length > 0) {
-                            const achievementDetails =
-                                AchievementService.getAchievementsByIds(
-                                    achievements
-                                );
-                            setAchievementToastData({
-                                achievements: achievementDetails,
-                                totalXPAwarded: achievementDetails.reduce(
-                                    (total, achievement) =>
-                                        total + achievement.xpReward,
-                                    0
-                                ),
-                            });
-                            setShowAchievementToast(true);
-                        }
-                    }, 300); // Increased delay to ensure modal is fully closed
+                    // Show achievement toast if achievements were unlocked
+                    if (achievements && achievements.length > 0) {
+                        const achievementDetails =
+                            AchievementService.getAchievementsByIds(
+                                achievements
+                            );
+                        setAchievementToastData({
+                            achievements: achievementDetails,
+                            totalXPAwarded: achievementDetails.reduce(
+                                (total, achievement) =>
+                                    total + achievement.xpReward,
+                                0
+                            ),
+                        });
+                        setShowAchievementToast(true);
+                    }
                     await refreshXP();
                 }}
             />
