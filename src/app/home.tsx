@@ -1320,6 +1320,7 @@ export default function Home() {
             <AchievementDrawer
                 visible={showAchievementDrawer}
                 onClose={closeAchievementDrawer}
+                userId={currentUserId}
                 xpData={xpData}
             />
         </>

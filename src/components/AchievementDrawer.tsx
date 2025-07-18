@@ -15,6 +15,8 @@ import {
     State,
 } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
+import useAchievements from "../hooks/useAchievements";
+import AchievementCategory from "./AchievementCategory";
 
 const { height: screenHeight } = Dimensions.get("window");
 const DRAWER_HEIGHT = screenHeight * 0.9;
@@ -22,6 +24,7 @@ const DRAWER_HEIGHT = screenHeight * 0.9;
 interface AchievementDrawerProps {
     visible: boolean;
     onClose: () => void;
+    userId: string | null;
     xpData?: {
         total_xp: number;
         current_level: number;
@@ -33,10 +36,21 @@ interface AchievementDrawerProps {
 export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
     visible,
     onClose,
+    userId,
     xpData,
 }) => {
     const translateY = useRef(new Animated.Value(screenHeight)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+    // Fetch achievement data
+    const {
+        achievements,
+        userProgress,
+        categoryStats,
+        loading,
+        error,
+        refresh,
+    } = useAchievements(userId);
 
     useEffect(() => {
         if (visible) {
@@ -224,42 +238,121 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                                 </View>
                             </View>
 
-                            {/* Achievement Categories Placeholder */}
-                            <View style={styles.achievementsSection}>
-                                <Text style={styles.sectionTitle}>
-                                    🌞 Daily (2/3 completed)
-                                </Text>
-                                <View style={styles.achievementCard}>
-                                    <Text style={styles.achievementTitle}>
-                                        🌱 First Steps
+                            {/* Scrollable Content */}
+                            <ScrollView
+                                style={styles.scrollableContent}
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={
+                                    styles.scrollContentContainer
+                                }
+                            >
+                                {/* Recent XP Transactions */}
+                                <View style={styles.transactionsSection}>
+                                    <Text style={styles.sectionTitle}>
+                                        📊 Recent XP Activity
                                     </Text>
-                                    <Text style={styles.achievementDescription}>
-                                        Plant your first seed
-                                    </Text>
-                                    <Text style={styles.achievementReward}>
-                                        50 XP • ✅ Completed
-                                    </Text>
-                                </View>
-                                <View style={styles.achievementCard}>
-                                    <Text style={styles.achievementTitle}>
-                                        🌱 Getting the Hang of It
-                                    </Text>
-                                    <Text style={styles.achievementDescription}>
-                                        Plant 10 total seeds
-                                    </Text>
-                                    <Text style={styles.achievementReward}>
-                                        100 XP • 7/10 seeds planted
-                                    </Text>
-                                    <View style={styles.achievementProgressBar}>
-                                        <View
-                                            style={[
-                                                styles.achievementProgressFill,
-                                                { width: "70%" },
-                                            ]}
-                                        />
+                                    <View style={styles.transactionItem}>
+                                        <Text style={styles.transactionText}>
+                                            🌱 Daily Use +5 XP • 2 min ago
+                                        </Text>
+                                    </View>
+                                    <View style={styles.transactionItem}>
+                                        <Text style={styles.transactionText}>
+                                            🌱 Plant Seed +10 XP • 5 min ago
+                                        </Text>
+                                    </View>
+                                    <View style={styles.transactionItem}>
+                                        <Text style={styles.transactionText}>
+                                            🌱 Harvest Plant +20 XP • 10 min ago
+                                        </Text>
                                     </View>
                                 </View>
-                            </View>
+
+                                {/* Achievement Categories */}
+                                <View style={styles.achievementsSection}>
+                                    {loading ? (
+                                        // Skeleton Loading
+                                        <View style={styles.skeletonContainer}>
+                                            {[1, 2, 3].map((i) => (
+                                                <View
+                                                    key={i}
+                                                    style={
+                                                        styles.skeletonCategory
+                                                    }
+                                                >
+                                                    <View
+                                                        style={
+                                                            styles.skeletonTitle
+                                                        }
+                                                    />
+                                                    <View
+                                                        style={
+                                                            styles.skeletonCard
+                                                        }
+                                                    />
+                                                    <View
+                                                        style={
+                                                            styles.skeletonCard
+                                                        }
+                                                    />
+                                                </View>
+                                            ))}
+                                        </View>
+                                    ) : error ? (
+                                        <View style={styles.errorContainer}>
+                                            <Text style={styles.errorText}>
+                                                Failed to load achievements:{" "}
+                                                {error}
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        // Real Achievement Data
+                                        <>
+                                            {[
+                                                "daily",
+                                                "milestones",
+                                                "weather",
+                                                "social",
+                                                "collection",
+                                            ].map((category) => {
+                                                const categoryAchievements =
+                                                    achievements.filter(
+                                                        (achievement) =>
+                                                            achievement.category ===
+                                                            category
+                                                    );
+
+                                                if (
+                                                    categoryAchievements.length ===
+                                                    0
+                                                )
+                                                    return null;
+
+                                                return (
+                                                    <AchievementCategory
+                                                        key={category}
+                                                        category={category}
+                                                        achievements={
+                                                            categoryAchievements
+                                                        }
+                                                        userProgress={
+                                                            userProgress
+                                                        }
+                                                        categoryStats={
+                                                            categoryStats[
+                                                                category
+                                                            ] || {
+                                                                total: 0,
+                                                                completed: 0,
+                                                            }
+                                                        }
+                                                    />
+                                                );
+                                            })}
+                                        </>
+                                    )}
+                                </View>
+                            </ScrollView>
                         </Animated.View>
                     </PanGestureHandler>
                 </Animated.View>
@@ -448,6 +541,40 @@ const styles = StyleSheet.create({
         height: "100%",
         backgroundColor: "#22c55e",
         borderRadius: 3,
+    },
+    scrollableContent: {
+        flex: 1,
+    },
+    scrollContentContainer: {
+        paddingBottom: 20,
+    },
+    skeletonContainer: {
+        paddingHorizontal: 20,
+    },
+    skeletonCategory: {
+        marginBottom: 24,
+    },
+    skeletonTitle: {
+        height: 24,
+        backgroundColor: "#e5e7eb",
+        borderRadius: 4,
+        marginBottom: 16,
+        width: "60%",
+    },
+    skeletonCard: {
+        height: 80,
+        backgroundColor: "#f3f4f6",
+        borderRadius: 12,
+        marginBottom: 12,
+    },
+    errorContainer: {
+        padding: 20,
+        alignItems: "center",
+    },
+    errorText: {
+        fontSize: 14,
+        color: "#ef4444",
+        textAlign: "center",
     },
 });
 
