@@ -130,7 +130,7 @@ export const UserCard: React.FC<UserCardProps> = ({
                         resizeMode: "cover",
                         backgroundColor: "#eee",
                         marginTop: 60, // space for Lottie
-                        marginBottom: 20,
+                        marginBottom: 0,
                     }}
                 />
                 {/* Weather text */}
@@ -148,7 +148,7 @@ export const UserCard: React.FC<UserCardProps> = ({
                             color: "white",
                             textAlign: "center",
                             marginBottom: 20,
-                            marginTop: 40,
+                            marginTop: 30,
                             textDecorationLine: onWeatherPress
                                 ? "underline"
                                 : "none",
