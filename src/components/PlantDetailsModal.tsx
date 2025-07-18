@@ -23,8 +23,6 @@ import { DateTime } from "luxon";
 import { supabase } from "../utils/supabase";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
-import { XPService } from "../services/xpService";
-import { AchievementService } from "../services/achievementService";
 
 interface PlantDetailsModalProps {
     visible: boolean;
@@ -34,12 +32,12 @@ interface PlantDetailsModalProps {
     currentUserId?: string; // Current user's ID to check if they can harvest
     friendWeather?: string; // Friend's current weather for accurate growth calculation
     planterName: string; // Name of the person who planted the plant
-    onShowXPToast?: (
-        message: string,
-        subtitle: string,
-        amount: number,
-        achievements?: string[]
-    ) => void; // Callback to show XP toast on parent screen
+    onAwardHarvestXP?: (
+        plantId: string,
+        plantName: string,
+        friendWeather: string,
+        friendId: string
+    ) => void; // Callback to award harvest XP (like planting XP)
 }
 
 export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
@@ -50,7 +48,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     currentUserId,
     friendWeather = "clear", // Default to clear if not provided
     planterName,
-    onShowXPToast,
+    onAwardHarvestXP,
 }) => {
     // Bounce animation for harvest-ready plants
     const translateY = useSharedValue(0);
@@ -179,106 +177,6 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     // Check if current user can harvest (anyone can harvest now)
     const canHarvest = currentUserId && !plant.harvested_at;
 
-    // Award XP for harvesting a mature plant
-    const awardHarvestingXP = async (
-        plant: any,
-        currentUserId: string,
-        friendWeather: string
-    ) => {
-        try {
-            console.log("[Harvest XP] 🌾 Starting harvesting XP award process");
-
-            // Base XP for harvesting a mature plant
-            const baseXP = 20;
-            console.log(`[Harvest XP] 📊 Base XP: ${baseXP}`);
-
-            // Prepare context data for achievement checking
-            const contextData = {
-                plant: {
-                    id: plant.plant?.id || plant.plant_id,
-                    name: plant.plant?.name || plant.plant_name,
-                    type:
-                        plant.plant?.name?.toLowerCase().replace(/\s+/g, "_") ||
-                        "unknown",
-                    growth_time_hours:
-                        plant.plant?.growth_time_hours ||
-                        plant.growth_time_hours,
-                    harvest_points: plant.plant?.harvest_points || 10,
-                },
-                weather: {
-                    condition: friendWeather,
-                    bonus: GrowthService.getWeatherBonus(
-                        plant.plant || plant,
-                        friendWeather
-                    ),
-                },
-                social: {
-                    is_own_garden: plant.garden_owner_id === currentUserId,
-                    garden_owner_id: plant.garden_owner_id,
-                    planter_id: plant.planter_id,
-                    harvester_id: currentUserId,
-                },
-                action: {
-                    type: "harvest_plant",
-                    timestamp: new Date().toISOString(),
-                },
-            };
-
-            console.log("[Harvest XP] 📋 Context data prepared:", contextData);
-
-            // Award base XP
-            const xpResult = await XPService.awardXP(
-                currentUserId,
-                baseXP,
-                "harvest_plant",
-                `Harvested ${plant.plant?.name || plant.plant_name}`,
-                contextData
-            );
-
-            console.log("[Harvest XP] ✅ Base XP awarded:", xpResult);
-
-            // Check for achievements
-            const achievementResult =
-                await AchievementService.checkAndAwardAchievements(
-                    currentUserId,
-                    "harvest_plant",
-                    contextData
-                );
-
-            console.log(
-                "[Harvest XP] 🏆 Achievement check completed:",
-                achievementResult
-            );
-
-            // Return total XP earned (base + achievement bonuses)
-            const totalXP = baseXP + (achievementResult?.xpAwarded || 0);
-            console.log(
-                `[Harvest XP] 🎉 Total XP earned: ${totalXP} (${baseXP} base + ${achievementResult?.xpAwarded || 0} achievements)`
-            );
-
-            return {
-                success: true,
-                baseXP,
-                achievementXP: achievementResult?.xpAwarded || 0,
-                totalXP,
-                achievements: achievementResult?.unlocked || [],
-            };
-        } catch (error) {
-            console.error(
-                "[Harvest XP] ❌ Error awarding harvesting XP:",
-                error
-            );
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : "Unknown error",
-                baseXP: 0,
-                achievementXP: 0,
-                totalXP: 0,
-                achievements: [],
-            };
-        }
-    };
-
     // Handle harvest
     const handleHarvest = async () => {
         if (!canHarvest || !isMature) {
@@ -406,68 +304,13 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 );
             }
 
-            // Award XP for harvesting (non-blocking)
-            try {
-                console.log("[Harvest] 🌟 Starting XP award process");
-                const xpResult = await awardHarvestingXP(
-                    plant,
-                    currentUserId,
-                    friendWeather
-                );
+            // Award XP for harvesting (non-blocking) - simple approach like planting
+            if (onAwardHarvestXP) {
+                const plantId = plant.plant?.id || plant.plant_id;
+                const plantName = plant.plant?.name || plant.plant_name;
+                const friendId = plant.garden_owner_id;
 
-                if (xpResult.success) {
-                    console.log(
-                        `[Harvest] ✅ XP awarded successfully: ${xpResult.totalXP} total XP`
-                    );
-
-                    // Show XP toast notification on parent screen
-                    if (onShowXPToast) {
-                        let toastMessage: string;
-                        let toastSubtitle: string;
-
-                        if (xpResult.achievements.length > 0) {
-                            toastMessage = `Harvest Reward + ${xpResult.achievements.length} Achievement${xpResult.achievements.length > 1 ? "s" : ""}!`;
-                            toastSubtitle = `+${xpResult.baseXP} XP for harvesting + ${xpResult.achievementXP} XP for achievements`;
-                            console.log(
-                                `[Harvest] 🏆 Achievements unlocked: ${xpResult.achievements.join(", ")}`
-                            );
-                        } else {
-                            toastMessage = "Harvest Reward!";
-                            toastSubtitle = `+${xpResult.baseXP} XP for harvesting`;
-                        }
-
-                        onShowXPToast(
-                            toastMessage,
-                            toastSubtitle,
-                            xpResult.totalXP,
-                            xpResult.achievements
-                        );
-                        console.log(
-                            `[Harvest] 🎉 XP toast triggered: ${toastMessage} (+${xpResult.totalXP} XP)`
-                        );
-                    } else {
-                        // Fallback logging if no toast callback provided
-                        console.log(
-                            `[Harvest] 🎉 XP earned: ${xpResult.totalXP} (no toast callback)`
-                        );
-                        if (xpResult.achievements.length > 0) {
-                            console.log(
-                                `[Harvest] 🏆 Achievements unlocked: ${xpResult.achievements.join(", ")}`
-                            );
-                        }
-                    }
-                } else {
-                    console.error(
-                        "[Harvest] ❌ XP award failed:",
-                        xpResult.error
-                    );
-                }
-            } catch (xpError) {
-                console.error(
-                    "[Harvest] ❌ Error in XP award process:",
-                    xpError
-                );
-                // XP errors don't prevent harvest completion
+                onAwardHarvestXP(plantId, plantName, friendWeather, friendId);
             }
 
             // Call harvest callback to refresh data

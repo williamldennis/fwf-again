@@ -643,6 +643,209 @@ export default function Home() {
         }
     };
 
+    // Harvest XP award function (similar to awardPlantingXP)
+    const awardHarvestingXP = async (
+        plantId: string,
+        plantName: string,
+        friendWeather: string,
+        friendId: string
+    ) => {
+        if (!currentUserId) {
+            console.log("[XP] ❌ No currentUserId available for harvesting XP");
+            return;
+        }
+
+        console.log(
+            "[XP] 🌾 Starting harvesting XP award for user:",
+            currentUserId,
+            {
+                plantId,
+                plantName,
+                friendWeather,
+                friendId,
+                isOwnGarden: friendId === currentUserId,
+            }
+        );
+
+        try {
+            let totalXP = 0;
+            let xpBreakdown: string[] = [];
+            let errors: string[] = [];
+
+            // 1. Award base XP for harvesting (20 XP)
+            try {
+                const baseXP = 20;
+                const baseResult = await XPService.awardXP(
+                    currentUserId,
+                    baseXP,
+                    "harvest_plant",
+                    `Harvested ${plantName}`,
+                    {
+                        plant_id: plantId,
+                        plant_name: plantName,
+                        weather_condition: friendWeather,
+                    }
+                );
+
+                if (baseResult.success) {
+                    totalXP += baseXP;
+                    xpBreakdown.push(`+${baseXP} XP for harvesting`);
+                    console.log("[XP] ✅ Base harvesting XP awarded:", baseXP);
+                } else {
+                    const errorMsg = `Base XP failed: ${baseResult.error}`;
+                    errors.push(errorMsg);
+                    console.error(
+                        "[XP] ❌ Failed to award base harvesting XP:",
+                        baseResult.error
+                    );
+                }
+            } catch (error) {
+                const errorMsg = `Base XP exception: ${error instanceof Error ? error.message : "Unknown error"}`;
+                errors.push(errorMsg);
+                console.error(
+                    "[XP] ❌ Exception awarding base harvesting XP:",
+                    error
+                );
+            }
+
+            // 2. Check for achievements
+            let achievementResult: any = null;
+            try {
+                const contextData = {
+                    // Plant information
+                    plant_id: plantId,
+                    plant_name: plantName,
+                    plant_type: plantName.toLowerCase().replace(/\s+/g, "_"),
+
+                    // Weather information
+                    weather_condition: friendWeather,
+
+                    // Social information
+                    is_own_garden: friendId === currentUserId,
+                    garden_owner_id: friendId,
+                    harvester_id: currentUserId,
+
+                    // Action information
+                    action_type: "harvest_plant",
+                };
+
+                achievementResult =
+                    await AchievementService.checkAndAwardAchievements(
+                        currentUserId,
+                        "harvest_plant",
+                        contextData
+                    );
+
+                if (achievementResult.unlocked.length > 0) {
+                    totalXP += achievementResult.xpAwarded;
+                    xpBreakdown.push(
+                        `+${achievementResult.xpAwarded} XP achievements`
+                    );
+                    console.log(
+                        "[XP] 🏆 Achievement XP awarded:",
+                        achievementResult.xpAwarded,
+                        `(${achievementResult.unlocked.join(", ")})`
+                    );
+                } else {
+                    console.log("[XP] ℹ️ No new achievements unlocked");
+                }
+            } catch (error) {
+                const errorMsg = `Achievement check exception: ${error instanceof Error ? error.message : "Unknown error"}`;
+                errors.push(errorMsg);
+                console.error(
+                    "[XP] ❌ Exception checking achievements:",
+                    error
+                );
+            }
+
+            // 3. Refresh XP data and show toast
+            try {
+                if (totalXP > 0) {
+                    await refreshXP();
+
+                    // Enhanced toast notification with better messaging
+                    let toastMessage: string;
+                    let toastSubtitle: string | undefined;
+
+                    if (xpBreakdown.length === 1) {
+                        // Single XP source
+                        toastMessage = "Harvest Reward!";
+                        toastSubtitle = xpBreakdown[0];
+                    } else if (xpBreakdown.length === 2) {
+                        // Two XP sources (e.g., base + achievements)
+                        toastMessage = "Harvest Reward + Achievements!";
+                        toastSubtitle = xpBreakdown.join(" + ");
+                    } else {
+                        // Multiple XP sources
+                        toastMessage = "Harvest Reward + Achievements!";
+                        toastSubtitle = xpBreakdown.join(" + ");
+                    }
+
+                    // Set toast with enhanced information
+                    setXpToastMessage(toastMessage);
+                    setXpToastSubtitle(toastSubtitle);
+                    setXpToastAmount(totalXP);
+                    setShowXPToast(true);
+
+                    // Log detailed XP breakdown
+                    console.log("[XP] 🎉 Harvesting XP Breakdown:", {
+                        total: totalXP,
+                        breakdown: xpBreakdown,
+                        message: toastMessage,
+                        subtitle: toastSubtitle,
+                    });
+
+                    // Log achievement details if any were unlocked
+                    if (achievementResult?.unlocked.length > 0) {
+                        console.log(
+                            "[XP] 🏆 New achievements unlocked:",
+                            achievementResult.unlocked
+                        );
+
+                        // Show achievement toast
+                        const achievementDetails =
+                            AchievementService.getAchievementsByIds(
+                                achievementResult.unlocked
+                            );
+                        setAchievementToastData({
+                            achievements: achievementDetails,
+                            totalXPAwarded: achievementResult.xpAwarded,
+                        });
+                        setShowAchievementToast(true);
+
+                        // Trigger achievement drawer refresh (in case it's already open)
+                        setAchievementRefreshTrigger((prev) => prev + 1);
+                    }
+                } else {
+                    console.log("[XP] ℹ️ No XP awarded for harvesting");
+                }
+            } catch (error) {
+                const errorMsg = `Toast/refresh exception: ${error instanceof Error ? error.message : "Unknown error"}`;
+                errors.push(errorMsg);
+                console.error("[XP] ❌ Exception in toast/refresh:", error);
+            }
+
+            // 4. Log final summary with any errors
+            if (errors.length > 0) {
+                console.warn("[XP] ⚠️ Harvesting XP completed with errors:", {
+                    totalXP,
+                    errors,
+                    plantName,
+                    friendWeather,
+                });
+            } else {
+                console.log("[XP] ✅ Harvesting XP completed successfully:", {
+                    totalXP,
+                    plantName,
+                    friendWeather,
+                });
+            }
+        } catch (error) {
+            console.error("[XP] ❌ Error awarding harvesting XP:", error);
+            // Don't throw - XP failures shouldn't break harvesting
+        }
+    };
+
     // Local state for UI interactions
     const [showMenu, setShowMenu] = useState(false);
     const [refreshingContacts, setRefreshingContacts] = useState(false);
@@ -1468,38 +1671,7 @@ export default function Home() {
                 currentUserId={currentUserId || undefined}
                 friendWeather={selectedPlant?.friendWeather}
                 planterName={selectedPlanterName}
-                onShowXPToast={async (
-                    message: string,
-                    subtitle: string,
-                    amount: number,
-                    achievements?: string[]
-                ) => {
-                    // Add a small delay to ensure modal is fully closed before showing toast
-                    setTimeout(() => {
-                        setXpToastMessage(message);
-                        setXpToastSubtitle(subtitle);
-                        setXpToastAmount(amount);
-                        setShowXPToast(true);
-
-                        // Show achievement toast if achievements were unlocked
-                        if (achievements && achievements.length > 0) {
-                            const achievementDetails =
-                                AchievementService.getAchievementsByIds(
-                                    achievements
-                                );
-                            setAchievementToastData({
-                                achievements: achievementDetails,
-                                totalXPAwarded: achievementDetails.reduce(
-                                    (total, achievement) =>
-                                        total + achievement.xpReward,
-                                    0
-                                ),
-                            });
-                            setShowAchievementToast(true);
-                        }
-                    }, 300); // Increased delay to ensure modal is fully closed
-                    await refreshXP();
-                }}
+                onAwardHarvestXP={awardHarvestingXP}
             />
 
             {/* XP TOAST NOTIFICATION */}
