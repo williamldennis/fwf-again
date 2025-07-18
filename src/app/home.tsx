@@ -1103,11 +1103,11 @@ export default function Home() {
         if (plant.planter_id) {
             const { data: profile, error } = await supabase
                 .from("profiles")
-                .select("name")
+                .select("full_name")
                 .eq("id", plant.planter_id)
                 .single();
-            if (profile && profile.name) {
-                planterName = profile.name;
+            if (profile && profile.full_name) {
+                planterName = profile.full_name;
             }
         }
         setSelectedPlanterName(planterName);
