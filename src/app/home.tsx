@@ -1392,6 +1392,8 @@ export default function Home() {
                         onPlantDetailsPress={handlePlantDetailsPress}
                         onWeatherPress={openWeatherModal}
                         forecastData={userFiveDayData}
+                        hourlyForecast={hourly}
+                        dailyForecast={daily}
                         loading={weatherLoading}
                         error={weatherError}
                         cardWidth={cardWidth}

@@ -10,6 +10,7 @@ import {
 import LottieView from "lottie-react-native";
 import GardenArea from "./GardenArea";
 import FiveDayForecast from "./FiveDayForecast";
+import { WeatherCardCarousel } from "./WeatherCardCarousel";
 import {
     getWeatherLottieFile,
     getWeatherSelfieKey,
@@ -26,6 +27,8 @@ interface UserCardProps {
     onPlantDetailsPress: (plant: any, friendWeather: string) => void;
     onWeatherPress?: () => void;
     forecastData: any[];
+    hourlyForecast?: any[];
+    dailyForecast?: any[];
     loading: boolean;
     error: string | null;
     cardWidth: number;
@@ -71,6 +74,8 @@ export const UserCard: React.FC<UserCardProps> = ({
     onPlantDetailsPress,
     onWeatherPress,
     forecastData,
+    hourlyForecast = [],
+    dailyForecast = [],
     loading,
     error,
     cardWidth,
@@ -199,30 +204,18 @@ export const UserCard: React.FC<UserCardProps> = ({
                         )}
                     </Text>
                 </TouchableOpacity>
-                {forecastData && forecastData.length > 0 ? (
-                    <FiveDayForecast forecastData={forecastData} />
-                ) : loading ? (
-                    <Text
-                        style={{
-                            color: "#666",
-                            fontSize: 12,
-                            marginTop: 10,
-                            fontStyle: "italic",
-                        }}
-                    >
-                        Loading forecast...
-                    </Text>
-                ) : (
-                    <Text
-                        style={{
-                            color: "#999",
-                            fontSize: 12,
-                            marginTop: 10,
-                        }}
-                    >
-                        No forecast data available
-                    </Text>
-                )}
+
+                {/* Weather Card Carousel */}
+                {weather &&
+                    hourlyForecast.length > 0 &&
+                    dailyForecast.length > 0 && (
+                        <WeatherCardCarousel
+                            currentWeather={weather}
+                            hourlyForecast={hourlyForecast}
+                            dailyForecast={dailyForecast}
+                            cityName={weather.name || ""}
+                        />
+                    )}
 
                 <View
                     style={{
