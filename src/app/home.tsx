@@ -924,6 +924,26 @@ export default function Home() {
                 return;
             }
 
+            // Find the selected plant to get its cost
+            const selectedPlant = availablePlants.find((p) => p.id === plantId);
+            if (!selectedPlant) {
+                console.error("[Plant] Selected plant not found");
+                Alert.alert("Error", "Selected plant not found");
+                return;
+            }
+
+            // Check if user has enough points
+            const plantingCost = selectedPlant.planting_cost || 0;
+            const currentPoints = userProfile?.points || 0;
+
+            if (currentPoints < plantingCost) {
+                Alert.alert(
+                    "Insufficient Points",
+                    `You need ${plantingCost} points to plant ${selectedPlant.name}. You have ${currentPoints} points.`
+                );
+                return;
+            }
+
             // Check if slot is already occupied
             const { data: slotPlants, error: slotError } = await supabase
                 .from("planted_plants")
@@ -957,6 +977,36 @@ export default function Home() {
             });
 
             if (newPlant) {
+                // Deduct planting cost from user points
+                const newPoints = currentPoints - plantingCost;
+                console.log(
+                    `[Plant] Deducting ${plantingCost} points for planting ${selectedPlant.name}. New balance: ${newPoints}`
+                );
+
+                const { error: pointsError } = await supabase
+                    .from("profiles")
+                    .update({ points: newPoints })
+                    .eq("id", user.id);
+
+                if (pointsError) {
+                    console.error(
+                        "[Plant] Error updating points:",
+                        pointsError
+                    );
+                    // Don't fail the planting if points update fails
+                } else {
+                    console.log("[Plant] Points updated successfully");
+                    // Refresh user profile to update points display
+                    try {
+                        await updatePoints();
+                    } catch (error) {
+                        console.warn(
+                            "[Plant] Could not refresh profile:",
+                            error
+                        );
+                    }
+                }
+
                 // Update growth after planting to ensure new plants start correctly
                 await updateGrowth();
                 // Only update the specific garden that was planted in
@@ -1266,6 +1316,7 @@ export default function Home() {
                 weatherCondition={""}
                 plants={availablePlants}
                 loading={availablePlantsLoading}
+                userPoints={userProfile?.points || 0}
             />
 
             {/* PLANT DETAILS MODAL */}

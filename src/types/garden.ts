@@ -11,6 +11,7 @@ export interface Plant {
   };
   image_path: string;
   harvest_points: number;
+  planting_cost: number;
   created_at: string;
 }
 

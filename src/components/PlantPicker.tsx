@@ -30,6 +30,7 @@ const getPlantImageSource = (imagePath: string) => {
 interface PlantPickerFullProps extends PlantPickerProps {
     plants: Plant[];
     loading?: boolean;
+    userPoints?: number;
 }
 
 export const PlantPicker: React.FC<PlantPickerFullProps> = ({
@@ -39,6 +40,7 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
     weatherCondition,
     plants,
     loading = false,
+    userPoints = 0,
 }) => {
     // Haptic feedback when selecting a plant
     const handlePlantSelection = async (plantId: string) => {
@@ -48,6 +50,11 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
             console.log("[Haptics] Could not trigger haptic feedback:", error);
         }
         onSelectPlant(plantId);
+    };
+
+    // Check if user can afford a plant
+    const canAffordPlant = (plant: Plant) => {
+        return userPoints >= (plant.planting_cost || 0);
     };
     // Preload images when component mounts
     React.useEffect(() => {
@@ -100,16 +107,22 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
                             <FlatList
                                 data={plants.sort(
                                     (a, b) =>
-                                        (a.harvest_points || 10) -
-                                        (b.harvest_points || 10)
+                                        (a.planting_cost || 0) -
+                                        (b.planting_cost || 0)
                                 )}
                                 keyExtractor={(item) => item.id}
                                 renderItem={({ item }) => (
                                     <TouchableOpacity
-                                        style={styles.plantRow}
+                                        style={[
+                                            styles.plantRow,
+                                            !canAffordPlant(item) &&
+                                                styles.disabledPlantRow,
+                                        ]}
                                         onPress={() =>
+                                            canAffordPlant(item) &&
                                             handlePlantSelection(item.id)
                                         }
+                                        disabled={!canAffordPlant(item)}
                                     >
                                         <Image
                                             source={getPlantImageSource(
@@ -136,10 +149,37 @@ export const PlantPicker: React.FC<PlantPickerFullProps> = ({
                                                 <Text style={styles.plantName}>
                                                     {item.name}
                                                 </Text>
-                                                <Text style={styles.pointsText}>
-                                                    +{item.harvest_points || 10}{" "}
-                                                    pts
-                                                </Text>
+                                                <View
+                                                    style={{
+                                                        alignItems: "flex-end",
+                                                    }}
+                                                >
+                                                    <Text
+                                                        style={[
+                                                            styles.pointsText,
+                                                            !canAffordPlant(
+                                                                item
+                                                            ) &&
+                                                                styles.insufficientPointsText,
+                                                        ]}
+                                                    >
+                                                        {item.planting_cost ||
+                                                            0}{" "}
+                                                        pts
+                                                    </Text>
+                                                    <Text
+                                                        style={
+                                                            styles.profitText
+                                                        }
+                                                    >
+                                                        +
+                                                        {(item.harvest_points ||
+                                                            0) -
+                                                            (item.planting_cost ||
+                                                                0)}{" "}
+                                                        profit
+                                                    </Text>
+                                                </View>
                                             </View>
                                             <Text style={styles.plantDesc}>
                                                 {GrowthService.getWeatherPreferenceDescription(
@@ -203,6 +243,10 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         padding: 10,
     },
+    disabledPlantRow: {
+        opacity: 0.5,
+        backgroundColor: "#e0e0e0",
+    },
     plantImage: {
         width: 48,
         height: 48,
@@ -216,6 +260,14 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "bold",
         color: "#007AFF",
+    },
+    insufficientPointsText: {
+        color: "#FF3B30",
+    },
+    profitText: {
+        fontSize: 12,
+        color: "#34C759",
+        fontWeight: "500",
     },
     plantDesc: {
         fontSize: 13,
