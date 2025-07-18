@@ -118,8 +118,7 @@ export const WeatherCardCarousel: React.FC<WeatherCardCarouselProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        width: screenWidth - 40,
-        marginHorizontal: 20,
+        width: "100%",
         marginTop: 20,
         marginBottom: 20,
     },
