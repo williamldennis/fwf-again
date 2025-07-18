@@ -221,6 +221,101 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                                     </Text>
                                 </View>
 
+                                {/* XP Actions Section */}
+                                <View style={styles.xpActionsSection}>
+                                    <Text style={styles.xpActionsTitle}>
+                                        💰 Earn XP
+                                    </Text>
+                                    <Text style={styles.xpActionsSubtitle}>
+                                        Actions you can take anytime
+                                    </Text>
+
+                                    <View style={styles.xpActionItem}>
+                                        <View style={styles.xpActionIcon}>
+                                            <Text
+                                                style={styles.xpActionIconText}
+                                            >
+                                                🌱
+                                            </Text>
+                                        </View>
+                                        <View style={styles.xpActionContent}>
+                                            <Text style={styles.xpActionName}>
+                                                Plant Seed
+                                            </Text>
+                                        </View>
+                                        <View style={styles.xpReward}>
+                                            <Text style={styles.xpRewardText}>
+                                                +10 XP
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.xpActionItem}>
+                                        <View style={styles.xpActionIcon}>
+                                            <Text
+                                                style={styles.xpActionIconText}
+                                            >
+                                                🌾
+                                            </Text>
+                                        </View>
+                                        <View style={styles.xpActionContent}>
+                                            <Text style={styles.xpActionName}>
+                                                Harvest Plant
+                                            </Text>
+                                        </View>
+                                        <View style={styles.xpReward}>
+                                            <Text style={styles.xpRewardText}>
+                                                +20 XP
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.xpActionItem}>
+                                        <View style={styles.xpActionIcon}>
+                                            <Text
+                                                style={styles.xpActionIconText}
+                                            >
+                                                🤝
+                                            </Text>
+                                        </View>
+                                        <View style={styles.xpActionContent}>
+                                            <Text style={styles.xpActionName}>
+                                                Plant in Friend's Garden
+                                            </Text>
+                                        </View>
+                                        <View style={styles.xpReward}>
+                                            <Text style={styles.xpRewardText}>
+                                                +25 XP
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <View
+                                        style={[
+                                            styles.xpActionItem,
+                                            { borderBottomWidth: 0 },
+                                        ]}
+                                    >
+                                        <View style={styles.xpActionIcon}>
+                                            <Text
+                                                style={styles.xpActionIconText}
+                                            >
+                                                🌦️
+                                            </Text>
+                                        </View>
+                                        <View style={styles.xpActionContent}>
+                                            <Text style={styles.xpActionName}>
+                                                Daily Weather Check
+                                            </Text>
+                                        </View>
+                                        <View style={styles.xpReward}>
+                                            <Text style={styles.xpRewardText}>
+                                                +5 XP
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
+
                                 {/* Achievement Categories */}
                                 <View style={styles.achievementsSection}>
                                     {achievementsLoading ? (
@@ -488,6 +583,71 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: "#ef4444",
         textAlign: "center",
+    },
+    xpActionsSection: {
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        backgroundColor: "rgba(59, 130, 246, 0.05)",
+        marginHorizontal: 16,
+        marginBottom: 16,
+        borderRadius: 12,
+    },
+    xpActionsTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#1e40af",
+        textAlign: "center",
+        marginBottom: 4,
+    },
+    xpActionsSubtitle: {
+        fontSize: 14,
+        color: "#1e40af",
+        textAlign: "center",
+        opacity: 0.8,
+        marginBottom: 16,
+    },
+    xpActionItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: "rgba(59, 130, 246, 0.1)",
+    },
+    xpActionIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "rgba(59, 130, 246, 0.1)",
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 12,
+    },
+    xpActionIconText: {
+        fontSize: 20,
+    },
+    xpActionContent: {
+        flex: 1,
+    },
+    xpActionName: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#1e40af",
+        marginBottom: 2,
+    },
+    xpActionDescription: {
+        fontSize: 12,
+        color: "#6b7280",
+    },
+    xpReward: {
+        backgroundColor: "rgba(34, 197, 94, 0.1)",
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    xpRewardText: {
+        fontSize: 14,
+        fontWeight: "bold",
+        color: "#16a34a",
     },
 });
 
