@@ -569,33 +569,62 @@ export class AchievementService {
     context: Record<string, any>
   ): Promise<number> {
     try {
+      // For weather achievements, we need to query the actual stored weather conditions
+      // and filter them properly, not just count all actions
+      if (context.weather) {
+        console.log(`[AchievementService] 🌤️ Weather achievement check: required=${context.weather}, userId=${userId}`);
+        
+        // Query all plant_seed transactions with their context_data to check stored weather
+        const { data, error } = await supabase
+          .from('xp_transactions')
+          .select('context_data')
+          .eq('user_id', userId)
+          .eq('action_type', actionType);
+
+        if (error) {
+          console.error("[AchievementService] Error getting weather-filtered action count:", error);
+          return 0;
+        }
+
+        if (!data) return 0;
+
+        // Count transactions where stored weather condition matches the required weather
+        let weatherMatchCount = 0;
+        console.log(`[AchievementService] 🔍 Checking ${data.length} transactions for weather condition`);
+        
+        data.forEach((transaction, index) => {
+          console.log(`[AchievementService] 🔍 Transaction ${index + 1}:`, {
+            context_data: transaction.context_data,
+            has_weather_condition: transaction.context_data?.weather_condition ? 'YES' : 'NO'
+          });
+          
+          if (transaction.context_data && transaction.context_data.weather_condition) {
+            const storedWeather = transaction.context_data.weather_condition;
+            const requiredWeather = context.weather;
+            
+            const areEquivalent = areWeatherConditionsEquivalent(storedWeather, requiredWeather);
+            
+            if (areEquivalent) {
+              weatherMatchCount++;
+              console.log(`[AchievementService] ✅ Weather match: stored=${storedWeather}, required=${requiredWeather}`);
+            } else {
+              console.log(`[AchievementService] ❌ Weather mismatch: stored=${storedWeather}, required=${requiredWeather}`);
+            }
+          } else {
+            console.log(`[AchievementService] ⚠️ No weather_condition found in transaction ${index + 1}`);
+          }
+        });
+
+        console.log(`[AchievementService] 🌤️ Weather achievement result: ${weatherMatchCount} matches for ${context.weather}`);
+        return weatherMatchCount;
+      }
+
+      // For non-weather achievements, use the original simple count approach
       let query = supabase
         .from('xp_transactions')
         .select('id', { count: 'exact' })
         .eq('user_id', userId)
         .eq('action_type', actionType);
-
-      // Apply context filters if provided
-      if (context.weather) {
-        // For weather achievements, we need to check if the stored weather_condition matches the required weather
-        // The achievement condition is { weather: 'cloudy' } and we need to check if stored weather_condition matches
-        // We'll use the weather condition comparison instead of exact database matching
-        // The actual filtering will be done in the weather condition check below
-      }
-      
-      // console.log(`[AchievementService] getActionCount context:`, context);
-      
-      // For weather achievements, check if the current context matches the required weather
-      // The achievement condition is { weather: 'cloudy' } and context has weather_condition: 'Clouds'
-      if (context.weather_condition && context.weather) {
-        // Use the single source of truth for weather condition comparison
-        const areEquivalent = areWeatherConditionsEquivalent(context.weather_condition, context.weather);
-        
-        // Only count if weather conditions match
-        if (!areEquivalent) {
-          return 0;
-        }
-      }
 
       const { count, error } = await query;
 

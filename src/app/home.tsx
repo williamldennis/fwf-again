@@ -280,7 +280,11 @@ export default function Home() {
                     baseXP,
                     "plant_seed",
                     `Planted ${plantName}`,
-                    { plant_id: plantId, plant_name: plantName }
+                    {
+                        plant_id: plantId,
+                        plant_name: plantName,
+                        weather_condition: weatherCondition,
+                    }
                 );
 
                 if (baseResult.success) {
