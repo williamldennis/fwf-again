@@ -38,6 +38,7 @@ import DropdownMenu from "../components/DropdownMenu";
 import HeaderBar from "../components/HeaderBar";
 import SkeletonCard from "../components/SkeletonCard";
 import AchievementDrawer from "../components/AchievementDrawer";
+import PointsInfoModal from "../components/PointsInfoModal";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -47,6 +48,7 @@ import { Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { GardenService } from "../services/gardenService";
 import { AchievementService } from "../services/achievementService";
+import * as Haptics from "expo-haptics";
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -677,6 +679,9 @@ export default function Home() {
     const [achievementRefreshTrigger, setAchievementRefreshTrigger] =
         useState(0);
 
+    // Points info modal state
+    const [showPointsInfoModal, setShowPointsInfoModal] = useState(false);
+
     // User's 5-day forecast data
     const userFiveDayData = useMemo(() => {
         try {
@@ -1188,7 +1193,25 @@ export default function Home() {
     };
 
     const closeAchievementDrawer = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+            // Ignore haptic errors
+        });
         setShowAchievementDrawer(false);
+    };
+
+    // Points info modal handlers
+    const openPointsInfoModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowPointsInfoModal(true);
+    };
+
+    const closePointsInfoModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowPointsInfoModal(false);
     };
 
     // Fetch available plants when PlantPicker is opened and not already loaded
@@ -1273,6 +1296,7 @@ export default function Home() {
                         points={userProfile?.points || 0}
                         onMenuPress={() => setShowMenu(true)}
                         onXPPress={openAchievementDrawer}
+                        onPointsPress={openPointsInfoModal}
                         xpData={xpData}
                     />
                 </View>
@@ -1450,6 +1474,13 @@ export default function Home() {
                 userId={currentUserId}
                 xpData={xpData}
                 refreshTrigger={achievementRefreshTrigger}
+            />
+
+            {/* POINTS INFO MODAL */}
+            <PointsInfoModal
+                visible={showPointsInfoModal}
+                onClose={closePointsInfoModal}
+                currentPoints={userProfile?.points || 0}
             />
         </>
     );
