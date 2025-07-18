@@ -16,6 +16,9 @@ import {
 } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import useAchievements from "../hooks/useAchievements";
+import useXPHistory from "../hooks/useXPHistory";
+import useLevelBenefits from "../hooks/useLevelBenefits";
+import { formatRelativeTime, getActionEmoji } from "../utils/timeUtils";
 import AchievementCategory from "./AchievementCategory";
 
 const { height: screenHeight } = Dimensions.get("window");
@@ -47,10 +50,26 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
         achievements,
         userProgress,
         categoryStats,
-        loading,
-        error,
-        refresh,
+        loading: achievementsLoading,
+        error: achievementsError,
+        refresh: refreshAchievements,
     } = useAchievements(userId);
+
+    // Fetch XP history
+    const {
+        transactions,
+        loading: historyLoading,
+        error: historyError,
+        refresh: refreshHistory,
+    } = useXPHistory(userId, 10);
+
+    // Fetch level benefits
+    const {
+        nextLevelBenefits,
+        loading: benefitsLoading,
+        error: benefitsError,
+        refresh: refreshBenefits,
+    } = useLevelBenefits(xpData?.current_level || null);
 
     useEffect(() => {
         if (visible) {
@@ -220,9 +239,27 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                                     <Text style={styles.benefitsTitle}>
                                         🎁 Next Level Benefits
                                     </Text>
-                                    <Text style={styles.benefitsText}>
-                                        Unlock: Premium plants access
-                                    </Text>
+                                    {benefitsLoading ? (
+                                        <Text style={styles.benefitsText}>
+                                            Loading benefits...
+                                        </Text>
+                                    ) : benefitsError ? (
+                                        <Text style={styles.benefitsText}>
+                                            Failed to load benefits
+                                        </Text>
+                                    ) : nextLevelBenefits ? (
+                                        <Text style={styles.benefitsText}>
+                                            {nextLevelBenefits.unlocked_features
+                                                .length > 0
+                                                ? nextLevelBenefits
+                                                      .unlocked_features[0]
+                                                : "New features unlocked!"}
+                                        </Text>
+                                    ) : (
+                                        <Text style={styles.benefitsText}>
+                                            You've reached the maximum level!
+                                        </Text>
+                                    )}
                                 </View>
 
                                 {/* Recent XP Transactions */}
@@ -230,26 +267,58 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                                     <Text style={styles.sectionTitle}>
                                         📊 Recent XP Activity
                                     </Text>
-                                    <View style={styles.transactionItem}>
-                                        <Text style={styles.transactionText}>
-                                            🌱 Daily Use +5 XP • 2 min ago
-                                        </Text>
-                                    </View>
-                                    <View style={styles.transactionItem}>
-                                        <Text style={styles.transactionText}>
-                                            🌱 Plant Seed +10 XP • 5 min ago
-                                        </Text>
-                                    </View>
-                                    <View style={styles.transactionItem}>
-                                        <Text style={styles.transactionText}>
-                                            🌱 Harvest Plant +20 XP • 10 min ago
-                                        </Text>
-                                    </View>
+                                    {historyLoading ? (
+                                        <View style={styles.transactionItem}>
+                                            <Text
+                                                style={styles.transactionText}
+                                            >
+                                                Loading transactions...
+                                            </Text>
+                                        </View>
+                                    ) : historyError ? (
+                                        <View style={styles.transactionItem}>
+                                            <Text
+                                                style={styles.transactionText}
+                                            >
+                                                Failed to load transactions
+                                            </Text>
+                                        </View>
+                                    ) : transactions.length === 0 ? (
+                                        <View style={styles.transactionItem}>
+                                            <Text
+                                                style={styles.transactionText}
+                                            >
+                                                No recent activity
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        transactions.map((transaction) => (
+                                            <View
+                                                key={transaction.id}
+                                                style={styles.transactionItem}
+                                            >
+                                                <Text
+                                                    style={
+                                                        styles.transactionText
+                                                    }
+                                                >
+                                                    {getActionEmoji(
+                                                        transaction.action_type
+                                                    )}{" "}
+                                                    {transaction.description} +
+                                                    {transaction.amount} XP •{" "}
+                                                    {formatRelativeTime(
+                                                        transaction.created_at
+                                                    )}
+                                                </Text>
+                                            </View>
+                                        ))
+                                    )}
                                 </View>
 
                                 {/* Achievement Categories */}
                                 <View style={styles.achievementsSection}>
-                                    {loading ? (
+                                    {achievementsLoading ? (
                                         // Skeleton Loading
                                         <View style={styles.skeletonContainer}>
                                             {[1, 2, 3].map((i) => (
@@ -277,11 +346,11 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                                                 </View>
                                             ))}
                                         </View>
-                                    ) : error ? (
+                                    ) : achievementsError ? (
                                         <View style={styles.errorContainer}>
                                             <Text style={styles.errorText}>
                                                 Failed to load achievements:{" "}
-                                                {error}
+                                                {achievementsError}
                                             </Text>
                                         </View>
                                     ) : (
