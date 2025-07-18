@@ -6,23 +6,34 @@ import { DateTime } from 'luxon';
  * @returns Formatted relative time string
  */
 export const formatRelativeTime = (timestamp: string): string => {
-  const now = DateTime.now();
-  const time = DateTime.fromISO(timestamp);
-  
-  if (!time.isValid) {
+  try {
+    const now = DateTime.now();
+    
+    // Parse the timestamp, assuming it's in UTC if no timezone is specified
+    let time = DateTime.fromISO(timestamp);
+    
+    // If the timestamp doesn't have timezone info, assume it's UTC
+    if (!time.isValid && timestamp.includes('T')) {
+      time = DateTime.fromISO(timestamp + 'Z');
+    }
+    
+    if (!time.isValid) {
+      return 'Unknown time';
+    }
+
+    const diff = now.diff(time, ['minutes', 'hours', 'days']);
+
+    if (diff.minutes < 1) {
+      return 'Just now';
+    } else if (diff.minutes < 60) {
+      return `${Math.round(diff.minutes)} min ago`;
+    } else if (diff.hours < 24) {
+      return `${Math.round(diff.hours)} hour${Math.round(diff.hours) === 1 ? '' : 's'} ago`;
+    } else {
+      return `${Math.round(diff.days)} day${Math.round(diff.days) === 1 ? '' : 's'} ago`;
+    }
+  } catch (error) {
     return 'Unknown time';
-  }
-
-  const diff = now.diff(time, ['minutes', 'hours', 'days']);
-
-  if (diff.minutes < 1) {
-    return 'Just now';
-  } else if (diff.minutes < 60) {
-    return `${Math.round(diff.minutes)} min ago`;
-  } else if (diff.hours < 24) {
-    return `${Math.round(diff.hours)} hour${Math.round(diff.hours) === 1 ? '' : 's'} ago`;
-  } else {
-    return `${Math.round(diff.days)} day${Math.round(diff.days) === 1 ? '' : 's'} ago`;
   }
 };
 

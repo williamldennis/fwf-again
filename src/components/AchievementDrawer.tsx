@@ -16,9 +16,7 @@ import {
 } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import useAchievements from "../hooks/useAchievements";
-import useXPHistory from "../hooks/useXPHistory";
 import useLevelBenefits from "../hooks/useLevelBenefits";
-import { formatRelativeTime, getActionEmoji } from "../utils/timeUtils";
 import AchievementCategory from "./AchievementCategory";
 
 const { height: screenHeight } = Dimensions.get("window");
@@ -56,14 +54,6 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
         error: achievementsError,
         refresh: refreshAchievements,
     } = useAchievements(userId);
-
-    // Fetch XP history
-    const {
-        transactions,
-        loading: historyLoading,
-        error: historyError,
-        refresh: refreshHistory,
-    } = useXPHistory(userId, 10);
 
     // Fetch level benefits
     const {
@@ -122,16 +112,9 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                 refreshTrigger
             );
             refreshAchievements();
-            refreshHistory();
             refreshBenefits();
         }
-    }, [
-        refreshTrigger,
-        visible,
-        refreshAchievements,
-        refreshHistory,
-        refreshBenefits,
-    ]);
+    }, [refreshTrigger, visible, refreshAchievements, refreshBenefits]);
 
     const handleBackdropPress = () => {
         // Trigger haptic feedback on close
@@ -280,60 +263,6 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                                         <Text style={styles.benefitsText}>
                                             You've reached the maximum level!
                                         </Text>
-                                    )}
-                                </View>
-
-                                {/* Recent XP Transactions */}
-                                <View style={styles.transactionsSection}>
-                                    <Text style={styles.sectionTitle}>
-                                        📊 Recent XP Activity
-                                    </Text>
-                                    {historyLoading ? (
-                                        <View style={styles.transactionItem}>
-                                            <Text
-                                                style={styles.transactionText}
-                                            >
-                                                Loading transactions...
-                                            </Text>
-                                        </View>
-                                    ) : historyError ? (
-                                        <View style={styles.transactionItem}>
-                                            <Text
-                                                style={styles.transactionText}
-                                            >
-                                                Failed to load transactions
-                                            </Text>
-                                        </View>
-                                    ) : transactions.length === 0 ? (
-                                        <View style={styles.transactionItem}>
-                                            <Text
-                                                style={styles.transactionText}
-                                            >
-                                                No recent activity
-                                            </Text>
-                                        </View>
-                                    ) : (
-                                        transactions.map((transaction) => (
-                                            <View
-                                                key={transaction.id}
-                                                style={styles.transactionItem}
-                                            >
-                                                <Text
-                                                    style={
-                                                        styles.transactionText
-                                                    }
-                                                >
-                                                    {getActionEmoji(
-                                                        transaction.action_type
-                                                    )}{" "}
-                                                    {transaction.description} +
-                                                    {transaction.amount} XP •{" "}
-                                                    {formatRelativeTime(
-                                                        transaction.created_at
-                                                    )}
-                                                </Text>
-                                            </View>
-                                        ))
                                     )}
                                 </View>
 
@@ -553,28 +482,7 @@ const styles = StyleSheet.create({
         color: "#b8860b",
         opacity: 0.9,
     },
-    transactionsSection: {
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        marginHorizontal: 16,
-        marginBottom: 16,
-        backgroundColor: "rgba(59, 130, 246, 0.05)",
-        borderRadius: 12,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: "bold",
-        color: "#1e40af",
-        marginBottom: 8,
-    },
-    transactionItem: {
-        paddingVertical: 4,
-    },
-    transactionText: {
-        fontSize: 14,
-        color: "#1e40af",
-        opacity: 0.9,
-    },
+
     achievementsSection: {
         paddingHorizontal: 20,
         paddingVertical: 12,
