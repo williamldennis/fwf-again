@@ -124,25 +124,13 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
             );
             translateY.setValue(newTranslateY);
         } else if (state === State.END) {
-            const shouldClose = translationY > 100;
-
-            if (shouldClose) {
-                // Trigger haptic feedback on close
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
-                    () => {
-                        // Ignore haptic errors
-                    }
-                );
-                onClose();
-            } else {
-                // Snap back to open position
-                Animated.spring(translateY, {
-                    toValue: screenHeight - DRAWER_HEIGHT,
-                    useNativeDriver: true,
-                    tension: 100,
-                    friction: 8,
-                }).start();
-            }
+            // Snap back to open position - no drag-to-close
+            Animated.spring(translateY, {
+                toValue: screenHeight - DRAWER_HEIGHT,
+                useNativeDriver: true,
+                tension: 100,
+                friction: 8,
+            }).start();
         }
     };
 
@@ -181,6 +169,15 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                 >
                     <PanGestureHandler onGestureEvent={handleGestureEvent}>
                         <Animated.View style={styles.drawerContent}>
+                            {/* Close button */}
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={handleBackdropPress}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.closeButtonText}>✕</Text>
+                            </TouchableOpacity>
+
                             {/* Handle bar */}
                             <View style={styles.handleBar} />
 
@@ -320,7 +317,10 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                                 <View style={styles.achievementsSection}>
                                     {achievementsLoading ? (
                                         // Skeleton Loading
-                                        <View style={styles.skeletonContainer}>
+                                        <View
+                                            style={styles.skeletonContainer}
+                                            testID="skeleton-container"
+                                        >
                                             {[1, 2, 3].map((i) => (
                                                 <View
                                                     key={i}
@@ -420,6 +420,7 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
         backgroundColor: "#000",
+        zIndex: 0,
     },
     backdropTouchable: {
         flex: 1,
@@ -431,6 +432,7 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
         justifyContent: "flex-end",
+        zIndex: 2,
     },
     drawerContent: {
         height: DRAWER_HEIGHT,
@@ -445,6 +447,24 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 10,
         elevation: 10,
+        position: "relative",
+    },
+    closeButton: {
+        position: "absolute",
+        top: 16,
+        right: 16,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: "rgba(0, 0, 0, 0.1)",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 10,
+    },
+    closeButtonText: {
+        fontSize: 18,
+        fontWeight: "bold",
+        color: "#666",
     },
     handleBar: {
         width: 40,
