@@ -105,40 +105,84 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                 >
                     {friend.contact_name || "Unknown"}
                 </Text>
-                {/* Points as subheader */}
+                {/* Points and Level as subheader */}
                 <View
                     style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        backgroundColor: "rgba(0, 122, 255, 0.1)",
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderRadius: 20,
-                        minWidth: 60,
-                        justifyContent: "center",
+                        gap: 12,
                         marginBottom: 20,
                     }}
                 >
-                    <Text
+                    {/* Points */}
+                    <View
                         style={{
-                            fontSize: 16,
-                            fontWeight: "bold",
-                            color: "#007AFF",
-                            marginRight: 2,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            backgroundColor: "rgba(0, 122, 255, 0.1)",
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 20,
+                            minWidth: 60,
+                            justifyContent: "center",
                         }}
                     >
-                        {friend.points || 0}
-                    </Text>
-                    <Text
+                        <Text
+                            style={{
+                                fontSize: 16,
+                                fontWeight: "bold",
+                                color: "#007AFF",
+                                marginRight: 2,
+                            }}
+                        >
+                            {friend.points || 0}
+                        </Text>
+                        <Text
+                            style={{
+                                fontSize: 12,
+                                fontWeight: "500",
+                                color: "#007AFF",
+                                opacity: 0.8,
+                            }}
+                        >
+                            pts
+                        </Text>
+                    </View>
+
+                    {/* Level */}
+                    <View
                         style={{
-                            fontSize: 12,
-                            fontWeight: "500",
-                            color: "#007AFF",
-                            opacity: 0.8,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            backgroundColor: "rgba(255, 193, 7, 0.1)",
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 20,
+                            minWidth: 60,
+                            justifyContent: "center",
                         }}
                     >
-                        pts
-                    </Text>
+                        <Text
+                            style={{
+                                fontSize: 16,
+                                fontWeight: "bold",
+                                color: "#FFC107",
+                                marginRight: 2,
+                            }}
+                        >
+                            {friend.current_level || 1}
+                        </Text>
+                        <Text
+                            style={{
+                                fontSize: 12,
+                                fontWeight: "500",
+                                color: "#FFC107",
+                                opacity: 0.8,
+                            }}
+                        >
+                            lvl
+                        </Text>
+                    </View>
                 </View>
 
                 <Image
@@ -190,7 +234,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                     </Text>
                 </Text>
                 {forecastData && forecastData.length > 0 ? (
-                    <FiveDayForecast forecastData={forecastData} />
+                    <FiveDayForecast forecastData={forecastData.slice(0, 4)} />
                 ) : (
                     <Text
                         style={{
