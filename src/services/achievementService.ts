@@ -482,6 +482,14 @@ export class AchievementService {
 
       let currentProgress = 0;
 
+      // Add detailed logging for routing decisions
+      console.log(`[AchievementService] 🔀 Routing achievement ${achievement.id}:`, {
+        type: achievement.requirements.type,
+        category: achievement.category,
+        conditions: achievement.requirements.conditions,
+        context: context
+      });
+
       switch (achievement.requirements.type) {
         case 'count':
           // Merge achievement conditions with action context for proper filtering
@@ -493,12 +501,27 @@ export class AchievementService {
           break;
 
         case 'unique':
-          // Merge achievement conditions with action context for proper filtering
+          // Route to appropriate unique counting method based on achievement category and conditions
           const uniqueMergedContext = {
             ...context,
             ...achievement.requirements.conditions
           };
-          currentProgress = await this.getUniqueActionCount(userId, achievement.requirements.action, uniqueMergedContext);
+          
+          // Check if this is a social achievement that should count unique friend gardens
+          if (achievement.category === 'social' || uniqueMergedContext.friend_garden || uniqueMergedContext.friend_gardens) {
+            console.log(`[AchievementService] 👥 Routing social achievement ${achievement.id} to getUniqueFriendGardenCount`);
+            currentProgress = await this.getUniqueFriendGardenCount(userId, achievement.requirements.action, uniqueMergedContext);
+          }
+          // Check if this is a collection achievement that should count unique plants
+          else if (achievement.category === 'collection' || uniqueMergedContext.unique_plants) {
+            console.log(`[AchievementService] 🌱 Routing collection achievement ${achievement.id} to getUniquePlantCount`);
+            currentProgress = await this.getUniquePlantCount(userId, achievement.requirements.action);
+          }
+          // Default to general unique action counting
+          else {
+            console.log(`[AchievementService] 🔢 Routing general unique achievement ${achievement.id} to getUniqueActionCount`);
+            currentProgress = await this.getUniqueActionCount(userId, achievement.requirements.action, uniqueMergedContext);
+          }
           break;
 
         case 'streak':
@@ -554,7 +577,10 @@ export class AchievementService {
 
       // Apply context filters if provided
       if (context.weather) {
-        query = query.contains('context_data', { weather: context.weather });
+        // For weather achievements, we need to check if the stored weather_condition matches the required weather
+        // The achievement condition is { weather: 'cloudy' } and we need to check if stored weather_condition matches
+        // We'll use the weather condition comparison instead of exact database matching
+        // The actual filtering will be done in the weather condition check below
       }
       
       // console.log(`[AchievementService] getActionCount context:`, context);
@@ -578,10 +604,151 @@ export class AchievementService {
         return 0;
       }
 
-      return count || 0;
+      let result = count || 0;
+
+      // For social achievements, also check if the current action qualifies
+      if (context.friend_garden && context.garden_owner_id) {
+        // Only count if it's actually a friend's garden (not the user's own garden)
+        if (context.garden_owner_id !== userId) {
+          result += 1;
+          console.log(`[AchievementService] ✅ Adding current action to count (friend garden): garden_owner_id=${context.garden_owner_id}`);
+        } else {
+          console.log(`[AchievementService] ❌ Not adding current action to count (own garden): garden_owner_id=${context.garden_owner_id}, userId=${userId}`);
+        }
+      } else if (context.friend_gardens && context.garden_owner_id) {
+        // Only count if it's actually a friend's garden (not the user's own garden)
+        if (context.garden_owner_id !== userId) {
+          result += 1;
+          console.log(`[AchievementService] ✅ Adding current action to count (friend gardens): garden_owner_id=${context.garden_owner_id}`);
+        } else {
+          console.log(`[AchievementService] ❌ Not adding current action to count (own garden): garden_owner_id=${context.garden_owner_id}, userId=${userId}`);
+        }
+      }
+
+      return result;
 
     } catch (error) {
       console.error("[AchievementService] Exception in getActionCount:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get unique count of plants planted (for collection achievements)
+   * @param userId - The user's UUID
+   * @param actionType - The action type
+   * @returns Promise<number>
+   */
+  private static async getUniquePlantCount(
+    userId: string,
+    actionType: string
+  ): Promise<number> {
+    try {
+      console.log(`[AchievementService] 🌱 Getting unique plant count for ${actionType}, userId: ${userId}`);
+
+      const { data, error } = await supabase
+        .from('xp_transactions')
+        .select('context_data')
+        .eq('user_id', userId)
+        .eq('action_type', actionType);
+
+      if (error) {
+        console.error("[AchievementService] Error getting unique plant count:", error);
+        return 0;
+      }
+
+      if (!data) return 0;
+
+      // Extract unique plant IDs
+      const uniquePlants = new Set();
+      data.forEach(transaction => {
+        if (transaction.context_data) {
+          const plantId = transaction.context_data.plantId || transaction.context_data.plant_id;
+          if (plantId) {
+            uniquePlants.add(plantId);
+          }
+        }
+      });
+
+      console.log(`[AchievementService] 🌱 Found ${uniquePlants.size} unique plants:`, Array.from(uniquePlants));
+      return uniquePlants.size;
+
+    } catch (error) {
+      console.error("[AchievementService] Exception in getUniquePlantCount:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get unique count of friend gardens visited (for social achievements)
+   * @param userId - The user's UUID
+   * @param actionType - The action type
+   * @param context - Additional context
+   * @returns Promise<number>
+   */
+  private static async getUniqueFriendGardenCount(
+    userId: string,
+    actionType: string,
+    context: Record<string, any>
+  ): Promise<number> {
+    try {
+      console.log(`[AchievementService] 👥 Getting unique friend garden count for ${actionType}, userId: ${userId}`);
+
+      // Query for both plant_seed and social_planting actions
+      const { data, error } = await supabase
+        .from('xp_transactions')
+        .select('context_data')
+        .eq('user_id', userId)
+        .in('action_type', ['plant_seed', 'social_planting']);
+
+      if (error) {
+        console.error("[AchievementService] Error getting unique friend garden count:", error);
+        return 0;
+      }
+
+      console.log(`[AchievementService] 👥 Found ${data?.length || 0} total transactions before filtering`);
+
+      if (!data) return 0;
+
+      // Extract unique friend garden owner IDs (excluding own garden)
+      const uniqueFriendGardens = new Set();
+      let filteredCount = 0;
+      
+      data.forEach(transaction => {
+        if (transaction.context_data && transaction.context_data.garden_owner_id) {
+          const gardenOwnerId = transaction.context_data.garden_owner_id;
+          // Only count if it's actually a friend's garden (not the user's own garden)
+          if (gardenOwnerId !== userId) {
+            uniqueFriendGardens.add(gardenOwnerId);
+            filteredCount++;
+          } else {
+            console.log(`[AchievementService] 🔍 Filtered out own garden transaction: garden_owner_id=${gardenOwnerId}, userId=${userId}`);
+          }
+        }
+      });
+
+      // Check if the current action qualifies for social achievements
+      let currentActionQualifies = false;
+      if (context.garden_owner_id && context.garden_owner_id !== userId) {
+        uniqueFriendGardens.add(context.garden_owner_id);
+        currentActionQualifies = true;
+        console.log(`[AchievementService] ✅ Current action qualifies for social achievement: garden_owner_id=${context.garden_owner_id}`);
+      } else if (context.garden_owner_id) {
+        console.log(`[AchievementService] ❌ Current action filtered out (own garden): garden_owner_id=${context.garden_owner_id}, userId=${userId}`);
+      }
+
+      console.log(`[AchievementService] 👥 Social achievement breakdown:`, {
+        totalTransactions: data.length,
+        filteredTransactions: filteredCount,
+        currentActionQualifies,
+        uniqueFriendGardens: Array.from(uniqueFriendGardens),
+        totalUniqueFriendGardens: uniqueFriendGardens.size
+      });
+
+      return uniqueFriendGardens.size;
+
+    } catch (error) {
+      console.error("[AchievementService] Exception in getUniqueFriendGardenCount:", error);
       return 0;
     }
   }
@@ -599,66 +766,42 @@ export class AchievementService {
     context: Record<string, any>
   ): Promise<number> {
     try {
-      // Debug logging for social achievements
+      // For collection achievements (unique plants), use the dedicated method
+      if (context.unique_plants) {
+        return await this.getUniquePlantCount(userId, actionType);
+      }
+      
+      // For social achievements (friend gardens), use the dedicated method
       if (context.friend_garden || context.friend_gardens) {
-        console.log(`[AchievementService] getUniqueActionCount for social achievement:`, {
-          actionType,
-          context: { friend_garden: context.friend_garden, friend_gardens: context.friend_gardens }
-        });
+        return await this.getUniqueFriendGardenCount(userId, actionType, context);
       }
 
-      // For social achievements, also include social_planting actions
-      let query = supabase
+      // For other unique counting needs, use the original logic
+      console.log(`[AchievementService] 🔍 Getting unique action count for ${actionType}, userId: ${userId}`);
+
+      const { data, error } = await supabase
         .from('xp_transactions')
-        .select('context_data, action_type')
-        .eq('user_id', userId);
-
-      if (context.friend_garden || context.friend_gardens) {
-        // For social achievements, check both plant_seed and social_planting actions
-        query = query.in('action_type', ['plant_seed', 'social_planting']);
-        console.log(`[AchievementService] Querying for social achievements: plant_seed OR social_planting`);
-      } else {
-        query = query.eq('action_type', actionType);
-        console.log(`[AchievementService] Querying for action type: ${actionType}`);
-      }
-
-      const { data, error } = await query;
+        .select('context_data')
+        .eq('user_id', userId)
+        .eq('action_type', actionType);
 
       if (error) {
         console.error("[AchievementService] Error getting unique action count:", error);
         return 0;
       }
 
-              if (context.friend_garden || context.friend_gardens) {
-          console.log(`[AchievementService] Found ${data?.length || 0} social transactions`);
-        }
-
       if (!data) return 0;
 
-      // Extract unique values based on context
+      // Extract unique values based on context (for other types of unique counting)
       const uniqueValues = new Set();
       data.forEach(transaction => {
         if (transaction.context_data) {
-          if (context.unique_plants && (transaction.context_data.plantId || transaction.context_data.plant_id)) {
-            uniqueValues.add(transaction.context_data.plantId || transaction.context_data.plant_id);
-          } else if (context.friend_gardens && transaction.context_data.garden_owner_id) {
-            // Only count if it's actually a friend's garden (not the user's own garden)
-            if (transaction.context_data.garden_owner_id !== userId) {
-              uniqueValues.add(transaction.context_data.garden_owner_id);
-            }
-          } else if (context.friend_garden && transaction.context_data.garden_owner_id) {
-            // For single friend garden visit achievement
-            // Only count if it's actually a friend's garden (not the user's own garden)
-            if (transaction.context_data.garden_owner_id !== userId) {
-              uniqueValues.add(transaction.context_data.garden_owner_id);
-            }
-          }
+          // Add logic here for other types of unique counting if needed
+          // For now, this is a fallback for any other unique counting requirements
         }
       });
 
-      if (context.friend_garden || context.friend_gardens) {
-        console.log(`[AchievementService] Total unique social values: ${uniqueValues.size}`);
-      }
+      console.log(`[AchievementService] 🔍 Found ${uniqueValues.size} unique values`);
       return uniqueValues.size;
 
     } catch (error) {

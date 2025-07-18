@@ -27,7 +27,22 @@ interface UserCardProps {
 // Weather mapping functions now use the single source of truth
 const getWeatherLottie = (weatherCondition: string) => {
     const lottieFile = getWeatherLottieFile(weatherCondition);
-    return require(`../../assets/lottie/${lottieFile}`);
+
+    // Static mapping for React Native bundler
+    switch (lottieFile) {
+        case "sunny.json":
+            return require("../../assets/lottie/sunny.json");
+        case "cloudy.json":
+            return require("../../assets/lottie/cloudy.json");
+        case "rainy.json":
+            return require("../../assets/lottie/rainy.json");
+        case "snowy.json":
+            return require("../../assets/lottie/snowy.json");
+        case "thunderstorm.json":
+            return require("../../assets/lottie/thunderstorm.json");
+        default:
+            return require("../../assets/lottie/sunny.json");
+    }
 };
 
 const mapWeatherToSelfieKey = (weather: string) => {

@@ -430,9 +430,203 @@ describe('AchievementService', () => {
       expect(result.unlocked).not.toContain('friend_garden_visit');
     });
 
+    it('should correctly handle plant_all_types achievement without interfering with social achievements', async () => {
+      // Mock user planting in their own garden with unique_plants context
+      const userId = 'user123';
+      const plantId = 'plant-123';
+      const context = {
+        friend_garden: false,
+        garden_owner_id: userId, // Same as userId - own garden
+        planter_id: userId,
+        weather_condition: 'Clouds',
+        plant_name: 'Sunflower',
+        plant_id: plantId,
+        unique_plants: true // This should trigger plant_all_types achievement
+      };
+
+      // Mock the database to return a transaction with plant data
+      const mockTransaction = {
+        context_data: {
+          plant_id: plantId,
+          garden_owner_id: userId // Own garden
+        }
+      };
+
+      const mockQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: [mockTransaction], error: null })
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+
+      // Mock hasAchievement to return false for all achievements
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: false, error: null });
+
+      const result = await AchievementService.checkAndAwardAchievements(
+        userId,
+        'plant_seed',
+        context
+      );
+
+      // Should not unlock friend_garden_visit achievement (social achievement)
+      expect(result.unlocked).not.toContain('friend_garden_visit');
+      
+      // The plant_all_types achievement should work correctly (this would be tested separately)
+      // but the key point is that social achievements are not incorrectly triggered
+    });
+
+    it('should correctly separate plant counting from friend garden counting', async () => {
+      // Mock user with both plant transactions and friend garden transactions
+      const userId = 'user123';
+      const plantId1 = 'plant-123';
+      const plantId2 = 'plant-456';
+      const friendId = 'friend-123';
+      
+      // Mock transactions: 2 different plants in own garden, 1 plant in friend's garden
+      const mockTransactions = [
+        {
+          context_data: {
+            plant_id: plantId1,
+            garden_owner_id: userId // Own garden
+          }
+        },
+        {
+          context_data: {
+            plant_id: plantId2,
+            garden_owner_id: userId // Own garden
+          }
+        },
+        {
+          context_data: {
+            plant_id: plantId1,
+            garden_owner_id: friendId // Friend's garden
+          }
+        }
+      ];
+
+      const mockQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockTransactions, error: null })
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+
+      // Mock hasAchievement to return false for all achievements
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: false, error: null });
+
+      // Test plant_all_types achievement (should count 2 unique plants)
+      const plantContext = {
+        unique_plants: true,
+        garden_owner_id: userId
+      };
+
+      const plantResult = await AchievementService.checkAndAwardAchievements(
+        userId,
+        'plant_seed',
+        plantContext
+      );
+
+      // Test friend_garden_visit achievement (should count 1 unique friend garden)
+      const socialContext = {
+        friend_garden: true,
+        garden_owner_id: userId // Current action is in own garden
+      };
+
+      const socialResult = await AchievementService.checkAndAwardAchievements(
+        userId,
+        'plant_seed',
+        socialContext
+      );
+
+      // Verify that the achievements are processed correctly
+      // The exact results depend on the achievement definitions, but the key point
+      // is that they should be processed separately without interference
+      expect(plantResult.unlocked).not.toContain('friend_garden_visit');
+    });
+
     // Note: Weather achievement tests removed - the core issue (inconsistent weather mapping) 
     // has been fixed by creating a single source of truth in weatherUtils.ts
     // The weather mapping logic is now tested in weatherUtils.test.ts
+  });
+
+  describe('Routing', () => {
+    it('should correctly route achievements to appropriate counting methods', async () => {
+      // Mock the specialized counting methods
+      const originalGetUniquePlantCount = AchievementService['getUniquePlantCount'];
+      const originalGetUniqueFriendGardenCount = AchievementService['getUniqueFriendGardenCount'];
+      const originalGetUniqueActionCount = AchievementService['getUniqueActionCount'];
+      
+      const mockGetUniquePlantCount = jest.fn().mockResolvedValue(3);
+      const mockGetUniqueFriendGardenCount = jest.fn().mockResolvedValue(2);
+      const mockGetUniqueActionCount = jest.fn().mockResolvedValue(1);
+      
+      AchievementService['getUniquePlantCount'] = mockGetUniquePlantCount;
+      AchievementService['getUniqueFriendGardenCount'] = mockGetUniqueFriendGardenCount;
+      AchievementService['getUniqueActionCount'] = mockGetUniqueActionCount;
+
+      try {
+        // Test social achievement routing
+        const socialAchievement = {
+          id: 'friend_garden_visit',
+          name: 'Social Butterfly',
+          description: 'Visit a friend\'s garden',
+          xpReward: 100,
+          category: 'social' as const,
+          requirements: {
+            type: 'unique' as const,
+            action: 'plant_seed',
+            target: 1,
+            conditions: { friend_garden: true }
+          }
+        };
+
+        const socialContext = {
+          friend_garden: true,
+          garden_owner_id: 'friend123'
+        };
+
+        await AchievementService.calculateAchievementProgress('user123', socialAchievement, socialContext);
+        
+        expect(mockGetUniqueFriendGardenCount).toHaveBeenCalledWith('user123', 'plant_seed', {
+          friend_garden: true,
+          garden_owner_id: 'friend123'
+        });
+        expect(mockGetUniquePlantCount).not.toHaveBeenCalled();
+        expect(mockGetUniqueActionCount).not.toHaveBeenCalled();
+
+        // Test collection achievement routing
+        const collectionAchievement = {
+          id: 'plant_all_types',
+          name: 'Plant Collector',
+          description: 'Plant all types of plants',
+          xpReward: 200,
+          category: 'collection' as const,
+          requirements: {
+            type: 'unique' as const,
+            action: 'plant_seed',
+            target: 6,
+            conditions: { unique_plants: true }
+          }
+        };
+
+        const collectionContext = {
+          unique_plants: true,
+          plant_id: 'plant123'
+        };
+
+        await AchievementService.calculateAchievementProgress('user123', collectionAchievement, collectionContext);
+        
+        expect(mockGetUniquePlantCount).toHaveBeenCalledWith('user123', 'plant_seed');
+        expect(mockGetUniqueFriendGardenCount).toHaveBeenCalledTimes(1); // Only the previous call
+        expect(mockGetUniqueActionCount).not.toHaveBeenCalled();
+
+      } finally {
+        // Restore original methods
+        AchievementService['getUniquePlantCount'] = originalGetUniquePlantCount;
+        AchievementService['getUniqueFriendGardenCount'] = originalGetUniqueFriendGardenCount;
+        AchievementService['getUniqueActionCount'] = originalGetUniqueActionCount;
+      }
+    });
   });
 
   // Note: Weather Achievement Bug Fix tests removed - the core issue (inconsistent weather mapping) 

@@ -115,4 +115,36 @@ describe('Weather Utils', () => {
       expect(areWeatherConditionsEquivalent('Rain', 'sunny')).toBe(false);
     });
   });
+
+  describe('Weather Achievement Bug Fix Verification', () => {
+    it('should correctly match Clouds weather condition to cloudy achievement', () => {
+      // This test verifies the exact scenario from the logs:
+      // User plants in "Clouds" weather, achievement condition is "cloudy"
+      // Context has weather_condition: "Clouds", achievement has conditions: { weather: "cloudy" }
+      
+      const contextWeatherCondition = 'Clouds';
+      const achievementWeatherCondition = 'cloudy';
+      
+      // This should return true, allowing the achievement to be unlocked
+      expect(areWeatherConditionsEquivalent(contextWeatherCondition, achievementWeatherCondition)).toBe(true);
+    });
+
+    it('should not match Clouds weather condition to sunny achievement', () => {
+      // This test verifies that planting in cloudy weather doesn't trigger sunny achievement
+      const contextWeatherCondition = 'Clouds';
+      const achievementWeatherCondition = 'sunny';
+      
+      // This should return false, preventing the wrong achievement from being unlocked
+      expect(areWeatherConditionsEquivalent(contextWeatherCondition, achievementWeatherCondition)).toBe(false);
+    });
+
+    it('should not match Clouds weather condition to rainy achievement', () => {
+      // This test verifies that planting in cloudy weather doesn't trigger rainy achievement
+      const contextWeatherCondition = 'Clouds';
+      const achievementWeatherCondition = 'rainy';
+      
+      // This should return false, preventing the wrong achievement from being unlocked
+      expect(areWeatherConditionsEquivalent(contextWeatherCondition, achievementWeatherCondition)).toBe(false);
+    });
+  });
 }); 
