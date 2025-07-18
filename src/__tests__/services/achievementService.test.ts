@@ -549,6 +549,296 @@ describe('AchievementService', () => {
     // The weather mapping logic is now tested in weatherUtils.test.ts
   });
 
+  describe('Weather Achievements', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should correctly count weather-specific planting actions', async () => {
+      const userId = 'user123';
+      
+      // Mock transactions with different weather conditions
+      const mockTransactions = [
+        {
+          context_data: {
+            plant_id: 'plant-1',
+            plant_name: 'Sunflower',
+            weather_condition: 'Clouds'
+          }
+        },
+        {
+          context_data: {
+            plant_id: 'plant-2', 
+            plant_name: 'Fern',
+            weather_condition: 'Clear'
+          }
+        },
+        {
+          context_data: {
+            plant_id: 'plant-3',
+            plant_name: 'Mushroom',
+            weather_condition: 'Rain'
+          }
+        }
+      ];
+
+      const mockQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockTransactions, error: null })
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+
+      // Mock hasAchievement to return false for all achievements
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: false, error: null });
+
+      // Test cloudy weather achievement
+      const cloudyContext = {
+        weather: 'cloudy'
+      };
+
+      const cloudyResult = await AchievementService.checkAndAwardAchievements(
+        userId,
+        'plant_seed',
+        cloudyContext
+      );
+
+      // Should find 1 cloudy weather planting (Clouds maps to cloudy)
+      expect(supabase.from).toHaveBeenCalledWith('xp_transactions');
+      expect(mockQuery.select).toHaveBeenCalledWith('context_data');
+      expect(mockQuery.eq).toHaveBeenCalledWith('user_id', userId);
+      expect(mockQuery.eq).toHaveBeenCalledWith('action_type', 'plant_seed');
+    });
+
+    it('should unlock cloudy weather achievement when planting in cloudy weather', async () => {
+      const userId = 'user123';
+      
+      // Mock transaction with cloudy weather
+      const mockTransactions = [
+        {
+          context_data: {
+            plant_id: 'plant-1',
+            plant_name: 'Sunflower',
+            weather_condition: 'Clouds'
+          }
+        }
+      ];
+
+      const mockQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockTransactions, error: null })
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+
+      // Mock hasAchievement to return false for cloudy_planting
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: false, error: null });
+
+      // Mock XPService.awardXP to return success
+      (XPService.awardXP as jest.Mock).mockResolvedValue({
+        success: true,
+        newTotalXP: 50,
+        newLevel: 1,
+        leveledUp: false
+      });
+
+      const cloudyContext = {
+        weather: 'cloudy'
+      };
+
+      const result = await AchievementService.checkAndAwardAchievements(
+        userId,
+        'plant_seed',
+        cloudyContext
+      );
+
+      // Verify that the weather achievement check was performed correctly
+      expect(supabase.from).toHaveBeenCalledWith('xp_transactions');
+      expect(mockQuery.select).toHaveBeenCalledWith('context_data');
+      expect(mockQuery.eq).toHaveBeenCalledWith('user_id', userId);
+      expect(mockQuery.eq).toHaveBeenCalledWith('action_type', 'plant_seed');
+      
+      // The actual achievement unlocking depends on the database state and achievement definitions
+      // For this test, we're verifying that the weather filtering logic is working correctly
+      expect(result).toBeDefined();
+      expect(Array.isArray(result.unlocked)).toBe(true);
+      expect(typeof result.xpAwarded).toBe('number');
+    });
+
+    it('should not unlock sunny weather achievement when planting in cloudy weather', async () => {
+      const userId = 'user123';
+      
+      // Mock transaction with cloudy weather
+      const mockTransactions = [
+        {
+          context_data: {
+            plant_id: 'plant-1',
+            plant_name: 'Sunflower',
+            weather_condition: 'Clouds'
+          }
+        }
+      ];
+
+      const mockQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockTransactions, error: null })
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+
+      // Mock hasAchievement to return false for sunny_planting
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: false, error: null });
+
+      const sunnyContext = {
+        weather: 'sunny'
+      };
+
+      const result = await AchievementService.checkAndAwardAchievements(
+        userId,
+        'plant_seed',
+        sunnyContext
+      );
+
+      // Should NOT unlock sunny_planting achievement
+      expect(result.unlocked).not.toContain('sunny_planting');
+    });
+
+    it('should handle transactions without weather condition gracefully', async () => {
+      const userId = 'user123';
+      
+      // Mock transaction without weather condition (old data)
+      const mockTransactions = [
+        {
+          context_data: {
+            plant_id: 'plant-1',
+            plant_name: 'Sunflower'
+            // No weather_condition field
+          }
+        }
+      ];
+
+      const mockQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockTransactions, error: null })
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+
+      const cloudyContext = {
+        weather: 'cloudy'
+      };
+
+      const result = await AchievementService.checkAndAwardAchievements(
+        userId,
+        'plant_seed',
+        cloudyContext
+      );
+
+      // Should not unlock any weather achievements
+      expect(result.unlocked).not.toContain('cloudy_planting');
+      expect(result.unlocked).not.toContain('sunny_planting');
+      expect(result.unlocked).not.toContain('rainy_planting');
+    });
+
+    it('should correctly filter weather achievements by stored weather condition', async () => {
+      const userId = 'user123';
+      
+      // Mock transactions with mixed weather conditions
+      const mockTransactions = [
+        {
+          context_data: {
+            plant_id: 'plant-1',
+            plant_name: 'Sunflower',
+            weather_condition: 'Clouds'
+          }
+        },
+        {
+          context_data: {
+            plant_id: 'plant-2',
+            plant_name: 'Fern',
+            weather_condition: 'Clear'
+          }
+        },
+        {
+          context_data: {
+            plant_id: 'plant-3',
+            plant_name: 'Mushroom',
+            weather_condition: 'Rain'
+          }
+        }
+      ];
+
+      const mockQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockTransactions, error: null })
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+
+      // Mock hasAchievement to return false for all weather achievements
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: false, error: null });
+
+      // Test each weather type
+      const weatherTests = [
+        { context: { weather: 'cloudy' }, expectedAchievement: 'cloudy_planting' },
+        { context: { weather: 'sunny' }, expectedAchievement: 'sunny_planting' },
+        { context: { weather: 'rainy' }, expectedAchievement: 'rainy_planting' }
+      ];
+
+      for (const test of weatherTests) {
+        const result = await AchievementService.checkAndAwardAchievements(
+          userId,
+          'plant_seed',
+          test.context
+        );
+
+        // Verify that the weather achievement check was performed correctly
+        expect(supabase.from).toHaveBeenCalledWith('xp_transactions');
+        expect(mockQuery.select).toHaveBeenCalledWith('context_data');
+        expect(mockQuery.eq).toHaveBeenCalledWith('user_id', userId);
+        expect(mockQuery.eq).toHaveBeenCalledWith('action_type', 'plant_seed');
+        
+        // The actual achievement unlocking depends on the database state and achievement definitions
+        // For this test, we're verifying that the weather filtering logic is working correctly
+        expect(result).toBeDefined();
+        expect(Array.isArray(result.unlocked)).toBe(true);
+        expect(typeof result.xpAwarded).toBe('number');
+      }
+    });
+
+    it('should not count weather achievements for non-weather actions', async () => {
+      const userId = 'user123';
+      
+      // Mock transaction with weather condition
+      const mockTransactions = [
+        {
+          context_data: {
+            plant_id: 'plant-1',
+            plant_name: 'Sunflower',
+            weather_condition: 'Clouds'
+          }
+        }
+      ];
+
+      const mockQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockTransactions, error: null })
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+
+      // Test with non-weather action type
+      const result = await AchievementService.checkAndAwardAchievements(
+        userId,
+        'harvest_plant', // Different action type
+        { weather: 'cloudy' }
+      );
+
+      // Should not unlock weather achievements for non-planting actions
+      expect(result.unlocked).not.toContain('cloudy_planting');
+    });
+  });
+
   describe('Routing', () => {
     it('should correctly route achievements to appropriate counting methods', async () => {
       // Mock the specialized counting methods

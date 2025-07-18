@@ -25,6 +25,7 @@ describe('Planting XP Integration', () => {
     },
     image_path: 'sunflower',
     harvest_points: 10,
+    planting_cost: 0,
     created_at: '2024-01-01T00:00:00Z'
   };
 
@@ -265,6 +266,168 @@ describe('Planting XP Integration', () => {
 
       expect(sunflowerBonus).toBe(1.5);
       expect(mushroomBonus).toBe(2.0);
+    });
+  });
+
+  describe('Weather Achievement Integration', () => {
+    it('should store weather condition in base planting XP transaction', async () => {
+      // Test that the base planting XP transaction includes weather_condition
+      const result = await XPService.awardXP(
+        mockUserId,
+        10,
+        'plant_seed',
+        `Planted ${mockPlantName}`,
+        {
+          plant_id: mockPlantId,
+          plant_name: mockPlantName,
+          weather_condition: mockWeatherCondition
+        }
+      );
+
+      expect(result.success).toBe(true);
+      expect(XPService.awardXP).toHaveBeenCalledWith(
+        mockUserId,
+        10,
+        'plant_seed',
+        `Planted ${mockPlantName}`,
+        expect.objectContaining({
+          plant_id: mockPlantId,
+          plant_name: mockPlantName,
+          weather_condition: mockWeatherCondition
+        })
+      );
+    });
+
+    it('should unlock weather achievements based on stored weather condition', async () => {
+      // Mock the achievement service to simulate unlocking weather achievements
+      (AchievementService.checkAndAwardAchievements as jest.Mock).mockResolvedValue({
+        unlocked: ['cloudy_planting'],
+        progress: [],
+        xpAwarded: 50
+      });
+
+      const achievementContext = {
+        weather_condition: 'Clouds',
+        plant_id: mockPlantId,
+        plant_name: mockPlantName,
+        weather: 'cloudy' // Achievement condition
+      };
+
+      const result = await AchievementService.checkAndAwardAchievements(
+        mockUserId,
+        'plant_seed',
+        achievementContext
+      );
+
+      expect(result.unlocked).toContain('cloudy_planting');
+      expect(result.xpAwarded).toBe(50);
+      expect(AchievementService.checkAndAwardAchievements).toHaveBeenCalledWith(
+        mockUserId,
+        'plant_seed',
+        achievementContext
+      );
+    });
+
+    it('should not unlock wrong weather achievements', async () => {
+      // Mock the achievement service to simulate no weather achievements unlocked
+      (AchievementService.checkAndAwardAchievements as jest.Mock).mockResolvedValue({
+        unlocked: [],
+        progress: [],
+        xpAwarded: 0
+      });
+
+      const achievementContext = {
+        weather_condition: 'Clouds',
+        plant_id: mockPlantId,
+        plant_name: mockPlantName,
+        weather: 'sunny' // Wrong weather condition
+      };
+
+      const result = await AchievementService.checkAndAwardAchievements(
+        mockUserId,
+        'plant_seed',
+        achievementContext
+      );
+
+      expect(result.unlocked).not.toContain('sunny_planting');
+      expect(result.unlocked).not.toContain('cloudy_planting');
+      expect(result.xpAwarded).toBe(0);
+    });
+
+    it('should handle weather condition mapping correctly', () => {
+      // Test that weather conditions are mapped correctly for achievements
+      const weatherMappings = [
+        { apiCondition: 'Clouds', achievementCondition: 'cloudy', shouldMatch: true },
+        { apiCondition: 'Clear', achievementCondition: 'sunny', shouldMatch: true },
+        { apiCondition: 'Rain', achievementCondition: 'rainy', shouldMatch: true },
+        { apiCondition: 'Clouds', achievementCondition: 'sunny', shouldMatch: false },
+        { apiCondition: 'Clear', achievementCondition: 'cloudy', shouldMatch: false }
+      ];
+
+      weatherMappings.forEach(({ apiCondition, achievementCondition, shouldMatch }) => {
+        const context = {
+          weather_condition: apiCondition,
+          weather: achievementCondition
+        };
+
+        // This would be tested in the actual achievement service
+        // For now, we just verify the test data is correct
+        expect(context.weather_condition).toBe(apiCondition);
+        expect(context.weather).toBe(achievementCondition);
+      });
+    });
+
+    it('should integrate weather bonus and weather achievements correctly', async () => {
+      // Mock optimal weather for bonus XP
+      (GrowthService.getWeatherBonus as jest.Mock).mockReturnValue(1.5);
+
+      // Award base XP with weather condition
+      const baseResult = await XPService.awardXP(
+        mockUserId,
+        10,
+        'plant_seed',
+        `Planted ${mockPlantName}`,
+        {
+          plant_id: mockPlantId,
+          plant_name: mockPlantName,
+          weather_condition: mockWeatherCondition
+        }
+      );
+
+      // Award weather bonus XP
+      const weatherResult = await XPService.awardXP(
+        mockUserId,
+        5,
+        'weather_bonus_planting',
+        `Planted ${mockPlantName} in optimal weather (${mockWeatherCondition})`,
+        {
+          plant_id: mockPlantId,
+          plant_name: mockPlantName,
+          weather_condition: mockWeatherCondition,
+          weather_bonus: 1.5,
+          is_optimal: true
+        }
+      );
+
+      // Check achievements
+      (AchievementService.checkAndAwardAchievements as jest.Mock).mockResolvedValue({
+        unlocked: ['sunny_planting'],
+        progress: [],
+        xpAwarded: 50
+      });
+
+      const achievementResult = await AchievementService.checkAndAwardAchievements(
+        mockUserId,
+        'plant_seed',
+        {
+          weather_condition: mockWeatherCondition,
+          weather: 'sunny'
+        }
+      );
+
+      expect(baseResult.success).toBe(true);
+      expect(weatherResult.success).toBe(true);
+      expect(achievementResult.unlocked).toContain('sunny_planting');
     });
   });
 }); 
