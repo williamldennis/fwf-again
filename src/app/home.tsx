@@ -1606,16 +1606,8 @@ export default function Home() {
                 {/* Show skeleton loading or actual content */}
                 {finalShowSkeleton ? (
                     <View style={{ flex: 1 }}>
-                        {/* User card skeleton */}
+                        {/* Single skeleton card */}
                         <SkeletonCard width={cardWidth} height={screenHeight} />
-                        {/* Friend card skeletons */}
-                        {[1, 2, 3].map((i) => (
-                            <SkeletonCard
-                                key={i}
-                                width={cardWidth}
-                                height={screenHeight}
-                            />
-                        ))}
                     </View>
                 ) : (
                     <CardStack
