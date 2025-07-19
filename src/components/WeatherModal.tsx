@@ -103,68 +103,6 @@ const WeatherModal: React.FC<WeatherModalProps> = ({
                     style={styles.content}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Current Weather */}
-                    {currentWeather && (
-                        <View style={styles.currentSection}>
-                            <View style={styles.currentMain}>
-                                <View style={styles.currentLeft}>
-                                    <Text style={styles.currentTemp}>
-                                        {Math.round(currentWeather.main.temp)}°
-                                    </Text>
-                                    <Text style={styles.currentFeelsLike}>
-                                        Feels like{" "}
-                                        {Math.round(
-                                            currentWeather.main.feels_like
-                                        )}
-                                        °
-                                    </Text>
-                                    <Text style={styles.currentDescription}>
-                                        {getWeatherDescription(
-                                            currentWeather.weather
-                                        )}
-                                    </Text>
-                                </View>
-                                <View style={styles.currentRight}>
-                                    <Image
-                                        source={{
-                                            uri: getWeatherIcon(
-                                                currentWeather.weather
-                                            ),
-                                        }}
-                                        style={styles.currentIcon}
-                                        resizeMode="contain"
-                                    />
-                                </View>
-                            </View>
-
-                            <View style={styles.currentDetails}>
-                                <View style={styles.detailItem}>
-                                    <Text style={styles.detailLabel}>
-                                        Humidity
-                                    </Text>
-                                    <Text style={styles.detailValue}>
-                                        {currentWeather.main.humidity}%
-                                    </Text>
-                                </View>
-                                <View style={styles.detailItem}>
-                                    <Text style={styles.detailLabel}>Wind</Text>
-                                    <Text style={styles.detailValue}>
-                                        {Math.round(currentWeather.wind.speed)}{" "}
-                                        mph
-                                    </Text>
-                                </View>
-                                <View style={styles.detailItem}>
-                                    <Text style={styles.detailLabel}>
-                                        Pressure
-                                    </Text>
-                                    <Text style={styles.detailValue}>
-                                        {currentWeather.main.pressure} hPa
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                    )}
-
                     {/* Weather Graphs */}
                     {hourlyForecast.length > 0 && (
                         <View style={styles.section}>
@@ -379,6 +317,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 3,
+        marginTop: 20,
     },
     sectionTitle: {
         fontSize: 18,

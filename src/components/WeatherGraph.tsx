@@ -56,7 +56,6 @@ const WeatherGraph: React.FC<WeatherGraphProps> = ({
 
     // Temperature chart configuration
     const tempChartConfig = {
-        backgroundColor: "red",
         backgroundGradientFrom: "#ffffff",
         backgroundGradientTo: "#ffffff",
         decimalPlaces: 0,
