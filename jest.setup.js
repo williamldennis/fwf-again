@@ -35,7 +35,9 @@ jest.mock('./src/utils/supabase', () => ({
     auth: {
       getUser: jest.fn(),
       getSession: jest.fn(),
-      signOut: jest.fn()
+      signOut: jest.fn(),
+      onAuthStateChange: jest.fn(),
+      refreshSession: jest.fn()
     },
     from: jest.fn(() => ({
       select: jest.fn().mockReturnThis(),

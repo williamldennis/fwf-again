@@ -2139,6 +2139,30 @@ PODS:
     - React-logger (= 0.79.4)
     - React-perflogger (= 0.79.4)
     - React-utils (= 0.79.4)
+  - RNCAsyncStorage (2.2.0):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - RNGestureHandler (2.24.0):
     - DoubleConversion
     - glog
@@ -2462,6 +2486,7 @@ DEPENDENCIES:
   - ReactAppDependencyProvider (from `build/generated/ios`)
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
+  - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
@@ -2686,6 +2711,8 @@ EXTERNAL SOURCES:
     :path: build/generated/ios
   ReactCommon:
     :path: "../node_modules/react-native/ReactCommon"
+  RNCAsyncStorage:
+    :path: "../node_modules/@react-native-async-storage/async-storage"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
   RNReanimated:
@@ -2802,6 +2829,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 04be2a00933bf0930cafcc4da1e0760143573d82
   ReactCodegen: 1bcfcb6519fadfb3e0072e27b8ff868b7dfbac64
   ReactCommon: 2bc79208d91eda74edeff759d82c93460b07612f
+  RNCAsyncStorage: 2cf7d05f5b1bc38680b6c83971e535a6ae9c5bc7
   RNGestureHandler: ccf4105b125002bd88e39d2a1f2b7e6001bcdf34
   RNReanimated: 8b24b49fc13fce9a6e1729ccff645a63d2b7a6d1
   RNScreens: c2e3cc506212228c607b4785b315205e28acbf0f
