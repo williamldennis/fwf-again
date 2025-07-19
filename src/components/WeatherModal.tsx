@@ -10,6 +10,7 @@ import {
     StyleSheet,
 } from "react-native";
 import { HourlyForecast, DailyForecast } from "../services/weatherService";
+import WeatherGraph from "./WeatherGraph";
 
 interface WeatherModalProps {
     visible: boolean;
@@ -102,113 +103,13 @@ const WeatherModal: React.FC<WeatherModalProps> = ({
                     style={styles.content}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Current Weather */}
-                    {currentWeather && (
-                        <View style={styles.currentSection}>
-                            <View style={styles.currentMain}>
-                                <View style={styles.currentLeft}>
-                                    <Text style={styles.currentTemp}>
-                                        {Math.round(currentWeather.main.temp)}°
-                                    </Text>
-                                    <Text style={styles.currentFeelsLike}>
-                                        Feels like{" "}
-                                        {Math.round(
-                                            currentWeather.main.feels_like
-                                        )}
-                                        °
-                                    </Text>
-                                    <Text style={styles.currentDescription}>
-                                        {getWeatherDescription(
-                                            currentWeather.weather
-                                        )}
-                                    </Text>
-                                </View>
-                                <View style={styles.currentRight}>
-                                    <Image
-                                        source={{
-                                            uri: getWeatherIcon(
-                                                currentWeather.weather
-                                            ),
-                                        }}
-                                        style={styles.currentIcon}
-                                        resizeMode="contain"
-                                    />
-                                </View>
-                            </View>
-
-                            <View style={styles.currentDetails}>
-                                <View style={styles.detailItem}>
-                                    <Text style={styles.detailLabel}>
-                                        Humidity
-                                    </Text>
-                                    <Text style={styles.detailValue}>
-                                        {currentWeather.main.humidity}%
-                                    </Text>
-                                </View>
-                                <View style={styles.detailItem}>
-                                    <Text style={styles.detailLabel}>Wind</Text>
-                                    <Text style={styles.detailValue}>
-                                        {Math.round(currentWeather.wind.speed)}{" "}
-                                        mph
-                                    </Text>
-                                </View>
-                                <View style={styles.detailItem}>
-                                    <Text style={styles.detailLabel}>
-                                        Pressure
-                                    </Text>
-                                    <Text style={styles.detailValue}>
-                                        {currentWeather.main.pressure} hPa
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                    )}
-
-                    {/* Hourly Forecast */}
+                    {/* Weather Graphs */}
                     {hourlyForecast.length > 0 && (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>
-                                Today's Hourly Forecast
+                                Today's Forecast
                             </Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                style={styles.hourlyContainer}
-                            >
-                                {hourlyForecast
-                                    .slice(0, 24)
-                                    .map((hour, index) => (
-                                        <View
-                                            key={hour.dt}
-                                            style={styles.hourlyItem}
-                                        >
-                                            <Text style={styles.hourlyTime}>
-                                                {index === 0
-                                                    ? "Now"
-                                                    : formatTime(hour.dt)}
-                                            </Text>
-                                            <Image
-                                                source={{
-                                                    uri: getWeatherIcon(
-                                                        hour.weather
-                                                    ),
-                                                }}
-                                                style={styles.hourlyIcon}
-                                                resizeMode="contain"
-                                            />
-                                            <Text style={styles.hourlyTemp}>
-                                                {Math.round(hour.temp)}°
-                                            </Text>
-                                            {hour.pop > 0.1 && (
-                                                <Text style={styles.hourlyPop}>
-                                                    {formatPrecipitation(
-                                                        hour.pop
-                                                    )}
-                                                </Text>
-                                            )}
-                                        </View>
-                                    ))}
-                            </ScrollView>
+                            <WeatherGraph hourlyForecast={hourlyForecast} />
                         </View>
                     )}
 
@@ -416,6 +317,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 3,
+        marginTop: 20,
     },
     sectionTitle: {
         fontSize: 18,

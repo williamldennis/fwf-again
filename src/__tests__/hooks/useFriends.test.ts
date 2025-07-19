@@ -73,49 +73,51 @@ describe('useFriends', () => {
     (WeatherService.getCityFromCoords as jest.Mock).mockResolvedValue('Test City');
     (WeatherService.fetchWeatherData as jest.Mock).mockResolvedValue(mockFreshWeather);
 
-    // Mock findFriendsFromContacts to simulate the new weather fetching behavior
+    // Mock findFriendsFromContacts to simulate the new staggered weather fetching behavior
     (ContactsService.findFriendsFromContacts as jest.Mock).mockImplementation(async (contacts, userId) => {
-      // Simulate the weather fetching that happens in the real method
-      const friendsWithFreshWeather = await Promise.all(
-        mockFriends.map(async (friend) => {
-          const contactName = friend.contact_name;
-          let cityName = "Unknown";
-          let freshWeather = null;
+      // Simulate the staggered weather fetching that happens in the real method
+      const friendsWithFreshWeather = [];
+      
+      for (const friend of mockFriends) {
+        const contactName = friend.contact_name;
+        let cityName = "Unknown";
+        let freshWeather = null;
 
-          if (friend.latitude && friend.longitude) {
-            // Get city name
-            try {
-              cityName = await WeatherService.getCityFromCoords(
-                friend.latitude,
-                friend.longitude
-              );
-            } catch (cityError) {
-              console.warn(`[Friends] ⚠️ Could not get city name for ${contactName}:`, cityError);
-            }
-
-            // Get fresh weather data using friend's stored location
-            try {
-              freshWeather = await WeatherService.fetchWeatherData(
-                friend.latitude,
-                friend.longitude
-              );
-            } catch (weatherError) {
-              console.warn(`[Friends] ⚠️ Could not fetch fresh weather for ${contactName}, using stored data:`, weatherError);
-            }
+        if (friend.latitude && friend.longitude) {
+          // Get city name
+          try {
+            cityName = await WeatherService.getCityFromCoords(
+              friend.latitude,
+              friend.longitude
+            );
+          } catch (cityError) {
+            console.warn(`[Friends] ⚠️ Could not get city name for ${contactName}:`, cityError);
           }
 
-          return {
-            ...friend,
-            contact_name: contactName || "Unknown",
-            city_name: cityName,
-            // Use fresh weather data if available, otherwise fall back to stored data
-            weather_temp: freshWeather?.current?.main?.temp ?? friend.weather_temp,
-            weather_condition: freshWeather?.current?.weather?.[0]?.main ?? friend.weather_condition,
-            weather_icon: freshWeather?.current?.weather?.[0]?.icon ?? friend.weather_icon,
-            weather_updated_at: freshWeather ? new Date().toISOString() : friend.weather_updated_at,
-          };
-        })
-      );
+          // Get fresh weather data using friend's stored location
+          try {
+            freshWeather = await WeatherService.fetchWeatherData(
+              friend.latitude,
+              friend.longitude
+            );
+            // Simulate the 200ms delay
+            await new Promise(resolve => setTimeout(resolve, 10)); // Faster for tests
+          } catch (weatherError) {
+            console.warn(`[Friends] ⚠️ Could not fetch fresh weather for ${contactName}, using stored data:`, weatherError);
+          }
+        }
+
+        friendsWithFreshWeather.push({
+          ...friend,
+          contact_name: contactName || "Unknown",
+          city_name: cityName,
+          // Use fresh weather data if available, otherwise fall back to stored data
+          weather_temp: freshWeather?.current?.main?.temp ?? friend.weather_temp,
+          weather_condition: freshWeather?.current?.weather?.[0]?.main ?? friend.weather_condition,
+          weather_icon: freshWeather?.current?.weather?.[0]?.icon ?? friend.weather_icon,
+          weather_updated_at: freshWeather ? new Date().toISOString() : friend.weather_updated_at,
+        });
+      }
 
       return friendsWithFreshWeather;
     });

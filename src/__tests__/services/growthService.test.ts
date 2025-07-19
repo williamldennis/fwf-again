@@ -20,6 +20,7 @@ describe('GrowthService', () => {
     },
     image_path: '/plants/sunflower',
     harvest_points: 10,
+    planting_cost: 5,
     created_at: '2024-01-01T00:00:00Z'
   };
 
@@ -109,7 +110,8 @@ describe('GrowthService', () => {
 
     it('should calculate correct stage for sprout (20% progress)', () => {
       const { TimeCalculationService } = require('../../services/timeCalculationService');
-      TimeCalculationService.getTimeElapsedHours.mockReturnValue(0.0166); // ~1 minute
+      // 20% of 24 hours = 4.8 hours
+      TimeCalculationService.getTimeElapsedHours.mockReturnValue(4.8);
 
       const result = GrowthService.calculateGrowthStage(mockPlantedPlant, mockPlant, 'clear');
       
@@ -120,7 +122,8 @@ describe('GrowthService', () => {
 
     it('should calculate correct stage for adolescent (40% progress)', () => {
       const { TimeCalculationService } = require('../../services/timeCalculationService');
-      TimeCalculationService.getTimeElapsedHours.mockReturnValue(0.0332); // ~2 minutes
+      // 40% of 24 hours = 9.6 hours
+      TimeCalculationService.getTimeElapsedHours.mockReturnValue(9.6);
 
       const result = GrowthService.calculateGrowthStage(mockPlantedPlant, mockPlant, 'clear');
       
@@ -131,7 +134,8 @@ describe('GrowthService', () => {
 
     it('should calculate correct stage for mature plant (100% progress)', () => {
       const { TimeCalculationService } = require('../../services/timeCalculationService');
-      TimeCalculationService.getTimeElapsedHours.mockReturnValue(0.1); // More than 0.083 hours
+      // 100% of 24 hours = 24 hours
+      TimeCalculationService.getTimeElapsedHours.mockReturnValue(24);
 
       const result = GrowthService.calculateGrowthStage(mockPlantedPlant, mockPlant, 'clear');
       
@@ -142,18 +146,19 @@ describe('GrowthService', () => {
 
     it('should apply weather bonus correctly', () => {
       const { TimeCalculationService } = require('../../services/timeCalculationService');
-      TimeCalculationService.getTimeElapsedHours.mockReturnValue(0.05);
+      // Use 12 hours (50% of growth time)
+      TimeCalculationService.getTimeElapsedHours.mockReturnValue(12);
 
       const sunnyResult = GrowthService.calculateGrowthStage(mockPlantedPlant, mockPlant, 'clear');
       const cloudyResult = GrowthService.calculateGrowthStage(mockPlantedPlant, mockPlant, 'clouds');
       
-      // Sunny weather should result in faster growth
+      // Sunny weather should result in faster growth (higher progress)
       expect(sunnyResult.progress).toBeGreaterThan(cloudyResult.progress);
     });
 
     it('should cap progress at 100%', () => {
       const { TimeCalculationService } = require('../../services/timeCalculationService');
-      TimeCalculationService.getTimeElapsedHours.mockReturnValue(1); // Very long time
+      TimeCalculationService.getTimeElapsedHours.mockReturnValue(100); // Very long time
 
       const result = GrowthService.calculateGrowthStage(mockPlantedPlant, mockPlant, 'clear');
       
@@ -165,7 +170,7 @@ describe('GrowthService', () => {
   describe('isPlantMature', () => {
     it('should return true for mature plant', () => {
       const { TimeCalculationService } = require('../../services/timeCalculationService');
-      TimeCalculationService.getTimeElapsedHours.mockReturnValue(0.1);
+      TimeCalculationService.getTimeElapsedHours.mockReturnValue(24); // Full growth time
 
       const isMature = GrowthService.isPlantMature(mockPlantedPlant, mockPlant, 'clear');
       expect(isMature).toBe(true);
@@ -173,7 +178,7 @@ describe('GrowthService', () => {
 
     it('should return false for immature plant', () => {
       const { TimeCalculationService } = require('../../services/timeCalculationService');
-      TimeCalculationService.getTimeElapsedHours.mockReturnValue(0.01);
+      TimeCalculationService.getTimeElapsedHours.mockReturnValue(12); // Half growth time
 
       const isMature = GrowthService.isPlantMature(mockPlantedPlant, mockPlant, 'clear');
       expect(isMature).toBe(false);

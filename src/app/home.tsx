@@ -121,8 +121,12 @@ function aggregateToFiveDay(forecastList: any[]): any[] {
 export default function Home() {
     // Use our custom hooks
     const { user, currentUserId } = useAuth();
-    const { profile: userProfile, updatePoints } =
-        useUserProfile(currentUserId);
+    const {
+        profile: userProfile,
+        weatherLoading: profileWeatherLoading,
+        profileLoading,
+        updatePoints,
+    } = useUserProfile(currentUserId);
     const { friends, refreshFriends } = useFriends(currentUserId);
     const {
         plantedPlants,
@@ -1474,8 +1478,9 @@ export default function Home() {
     }, [showPlantPicker, availablePlants.length, fetchPlants]);
 
     // Show skeleton loading for initial app setup
-    // This provides a better user experience than a blank loading screen
-    const showSkeletonLoading = weatherLoading || (!userProfile && !weather);
+    // Prioritize weather loading - show user card as soon as we have coordinates
+    const hasCoordinates = userProfile?.latitude && userProfile?.longitude;
+    const showSkeletonLoading = weatherLoading || (!hasCoordinates && !weather);
 
     // TEMPORARY: Force skeleton loading for testing (remove this later)
     const forceSkeletonForTesting = false; // Set to false to disable
