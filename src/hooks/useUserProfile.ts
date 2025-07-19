@@ -11,6 +11,9 @@ export interface UserProfile {
 
 export interface UseUserProfileResult {
   profile: UserProfile | null;
+  // Separate loading states for better UX
+  weatherLoading: boolean;
+  profileLoading: boolean;
   updatePoints: () => Promise<number>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -21,61 +24,57 @@ export interface UseUserProfileResult {
 export function useUserProfile(userId: string | null): UseUserProfileResult {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch user profile and location
-  const fetchUserProfile = useCallback(async (userId: string) => {
-    console.log("[Profile] 👤 Fetching user profile...");
+  // Fast location fetch for weather (highest priority)
+  const fetchLocationForWeather = useCallback(async (userId: string) => {
+    console.log("[Profile] 🚀 Fast location fetch for weather...");
+    setWeatherLoading(true);
     
     try {
-      // Get current device location and update profile
-      console.log("[Profile] 📍 Getting device location...");
-      let updatedLatitude: number | null = null;
-      let updatedLongitude: number | null = null;
+      // Always get fresh current location
+      console.log("[Profile] 📍 Getting fresh current location for weather...");
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === "granted") {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 10000,
+        });
 
-      try {
-        // Check if we have location permission
-        console.log("[Profile] 🔐 Checking location permissions...");
-        const { status } = await Location.getForegroundPermissionsAsync();
-        if (status === "granted") {
-          console.log("[Profile] 📱 Getting current position...");
-          // Get current location
-          const location = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-            timeInterval: 10000,
-          });
+        const latitude = location.coords.latitude;
+        const longitude = location.coords.longitude;
 
-          updatedLatitude = location.coords.latitude;
-          updatedLongitude = location.coords.longitude;
+        console.log(`[Profile] ✅ Got fresh current location: ${latitude}, ${longitude}`);
 
-          console.log(
-            `[Profile] ✅ Got current location: ${updatedLatitude}, ${updatedLongitude}`
-          );
+        // Update profile with new coordinates
+        await supabase
+          .from("profiles")
+          .update({ latitude, longitude })
+          .eq("id", userId);
 
-          // Update the profile with new coordinates
-          console.log("[Profile] 💾 Updating profile with new location...");
-          const { error: updateError } = await supabase
-            .from("profiles")
-            .update({
-              latitude: updatedLatitude,
-              longitude: updatedLongitude,
-            })
-            .eq("id", userId);
-
-          if (updateError) {
-            console.warn("[Profile] ⚠️ Could not update location:", updateError);
-          } else {
-            console.log("[Profile] ✅ Successfully updated user location");
-          }
-        } else {
-          console.log("[Profile] ⚠️ Location permission not granted, using stored coordinates");
-        }
-      } catch (locationError) {
-        console.warn("[Profile] ❌ Could not get current location:", locationError);
+        setWeatherLoading(false);
+        return { latitude, longitude };
+      } else {
+        console.log("[Profile] ⚠️ Location permission not granted");
+        setWeatherLoading(false);
+        return { latitude: null, longitude: null };
       }
+    } catch (err) {
+      console.warn("[Profile] ❌ Location fetch error:", err);
+      setWeatherLoading(false);
+      return { latitude: null, longitude: null };
+    }
+  }, []);
 
-      // Get profile (use updated coordinates if available, otherwise use stored)
-      console.log("[Profile] 👤 Fetching user profile...");
+  // Full profile fetch (background, lower priority)
+  const fetchFullProfile = useCallback(async (userId: string) => {
+    console.log("[Profile] 👤 Fetching full profile (background)...");
+    setProfileLoading(true);
+    
+    try {
+      // Get complete profile data
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("latitude,longitude,selfie_urls,points")
@@ -87,32 +86,22 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
         throw new Error(`Profile error: ${profileError.message}`);
       }
 
-      console.log(`[Profile] ✅ Profile loaded: points=${profileData?.points || 0}`);
+      console.log(`[Profile] ✅ Full profile loaded: points=${profileData?.points || 0}`);
 
-      // Use updated coordinates if we got them, otherwise use stored coordinates
-      const latitude = updatedLatitude ?? profileData?.latitude;
-      const longitude = updatedLongitude ?? profileData?.longitude;
-
-      if (!latitude || !longitude) {
-        console.log("[Profile] ❌ No location coordinates found");
-        throw new Error("Location not found.");
-      }
-
-      console.log(`[Profile] 📍 Using coordinates: ${latitude}, ${longitude}`);
-
-      // Set the profile data
+      // Set the complete profile data
       const userProfile: UserProfile = {
         selfieUrls: profileData.selfie_urls || null,
         points: profileData.points || 0,
-        latitude,
-        longitude,
+        latitude: profileData.latitude,
+        longitude: profileData.longitude,
       };
 
       setProfile(userProfile);
-      return { latitude, longitude };
+      setProfileLoading(false);
     } catch (err) {
-      console.error("[Profile] ❌ Profile fetch error:", err);
-      throw err;
+      console.error("[Profile] ❌ Full profile fetch error:", err);
+      setProfileLoading(false);
+      // Don't throw - this is background loading
     }
   }, []);
 
@@ -194,7 +183,11 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
     setError(null);
 
     try {
-      await fetchUserProfile(userId);
+      // Refresh both location and full profile
+      await Promise.all([
+        fetchLocationForWeather(userId),
+        fetchFullProfile(userId)
+      ]);
       console.log("[Profile] ✅ Profile refresh completed!");
     } catch (err) {
       console.error("[Profile] ❌ Profile refresh error:", err);
@@ -203,22 +196,40 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
     } finally {
       setLoading(false);
     }
-  }, [userId, fetchUserProfile]);
+  }, [userId, fetchLocationForWeather, fetchFullProfile]);
 
-  // Initial profile fetch
+  // Initial profile fetch with prioritized loading
   useEffect(() => {
     if (!userId) {
       setProfile(null);
       setLoading(false);
+      setWeatherLoading(false);
+      setProfileLoading(false);
       setError(null);
       return;
     }
 
-    console.log("[Profile] 🚀 Initial profile fetch...");
+    console.log("[Profile] 🚀 Initial profile fetch with priority loading...");
     setLoading(true);
     setError(null);
 
-    fetchUserProfile(userId)
+    // Start with fast location fetch for weather
+    fetchLocationForWeather(userId)
+      .then(({ latitude, longitude }) => {
+        // Set minimal profile for weather loading
+        if (latitude && longitude) {
+          setProfile(prev => ({
+            selfieUrls: null,
+            points: 0,
+            latitude,
+            longitude,
+            ...prev
+          }));
+        }
+        
+        // Then fetch full profile in background
+        return fetchFullProfile(userId);
+      })
       .then(() => {
         console.log("[Profile] ✅ Initial profile fetch completed");
       })
@@ -230,10 +241,12 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
       .finally(() => {
         setLoading(false);
       });
-  }, [userId, fetchUserProfile]);
+  }, [userId, fetchLocationForWeather, fetchFullProfile]);
 
   return {
     profile,
+    weatherLoading,
+    profileLoading,
     updatePoints,
     updateProfile,
     refreshProfile,

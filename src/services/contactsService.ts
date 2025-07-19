@@ -252,52 +252,58 @@ export class ContactsService {
         console.log(`Filtered friends (excluding self): ${filteredFriends.length}`);
 
         // Add contact names, city names, and fresh weather data to the friends data
-        // console.log("Getting city names and fresh weather for friends...");
-        const friendsWithNamesCitiesAndWeather = await Promise.all(
-            filteredFriends.map(async (friend) => {
-                const contactName = phoneToNameMap.get(friend.phone_number);
-                let cityName = "Unknown";
-                let freshWeather = null;
+        // Use staggered approach instead of Promise.all to prevent API overload
+        console.log("[Friends] 🌤️ Starting staggered weather updates for friends...");
+        const friendsWithNamesCitiesAndWeather: Friend[] = [];
+        
+        for (const friend of filteredFriends) {
+            const contactName = phoneToNameMap.get(friend.phone_number);
+            let cityName = "Unknown";
+            let freshWeather = null;
 
-                if (friend.latitude && friend.longitude) {
-                    // Get city name
-                    try {
-                        cityName = await WeatherService.getCityFromCoords(
-                            friend.latitude,
-                            friend.longitude
-                        );
-                    } catch (cityError) {
-                        console.warn(`[Friends] ⚠️ Could not get city name for ${contactName}:`, cityError);
-                    }
-
-                    // Get fresh weather data using friend's stored location
-                    try {
-                        console.log(`[Friends] 🌤️ Fetching fresh weather for ${contactName} at ${friend.latitude}, ${friend.longitude}`);
-                        freshWeather = await WeatherService.fetchWeatherData(
-                            friend.latitude,
-                            friend.longitude
-                        );
-                        console.log(`[Friends] ✅ Fresh weather fetched for ${contactName}: ${freshWeather.current.weather[0].main} ${freshWeather.current.main.temp}°F`);
-                    } catch (weatherError) {
-                        console.warn(`[Friends] ⚠️ Could not fetch fresh weather for ${contactName}, using stored data:`, weatherError);
-                    }
-                } else {
-                    console.log(`[Friends] ⚠️ No location data for ${contactName}, using stored weather data`);
+            if (friend.latitude && friend.longitude) {
+                // Get city name
+                try {
+                    cityName = await WeatherService.getCityFromCoords(
+                        friend.latitude,
+                        friend.longitude
+                    );
+                } catch (cityError) {
+                    console.warn(`[Friends] ⚠️ Could not get city name for ${contactName}:`, cityError);
                 }
 
-                return {
-                    ...friend,
-                    contact_name: contactName || "Unknown",
-                    city_name: cityName,
-                    // Use fresh weather data if available, otherwise fall back to stored data
-                    weather_temp: freshWeather?.current?.main?.temp ?? friend.weather_temp,
-                    weather_condition: freshWeather?.current?.weather?.[0]?.main ?? friend.weather_condition,
-                    weather_icon: freshWeather?.current?.weather?.[0]?.icon ?? friend.weather_icon,
-                    weather_updated_at: freshWeather ? new Date().toISOString() : friend.weather_updated_at,
-                };
-            })
-        );
+                // Get fresh weather data using friend's stored location
+                try {
+                    console.log(`[Friends] 🌤️ Fetching fresh weather for ${contactName} at ${friend.latitude}, ${friend.longitude}`);
+                    freshWeather = await WeatherService.fetchWeatherData(
+                        friend.latitude,
+                        friend.longitude
+                    );
+                    console.log(`[Friends] ✅ Fresh weather fetched for ${contactName}: ${freshWeather.current.weather[0].main} ${freshWeather.current.main.temp}°F`);
+                    
+                    // Small delay to avoid overwhelming the API and show progress
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                } catch (weatherError) {
+                    console.warn(`[Friends] ⚠️ Could not fetch fresh weather for ${contactName}, using stored data:`, weatherError);
+                }
+            } else {
+                console.log(`[Friends] ⚠️ No location data for ${contactName}, using stored weather data`);
+            }
 
+            friendsWithNamesCitiesAndWeather.push({
+                ...friend,
+                contact_name: contactName || "Unknown",
+                city_name: cityName,
+                // Use fresh weather data if available, otherwise fall back to stored data
+                weather_temp: freshWeather?.current?.main?.temp ?? friend.weather_temp,
+                weather_condition: freshWeather?.current?.weather?.[0]?.main ?? friend.weather_condition,
+                weather_icon: freshWeather?.current?.weather?.[0]?.icon ?? friend.weather_icon,
+                weather_updated_at: freshWeather ? new Date().toISOString() : friend.weather_updated_at,
+            });
+        }
+
+        console.log(`[Friends] ✅ Completed staggered weather updates for ${friendsWithNamesCitiesAndWeather.length} friends`);
         return friendsWithNamesCitiesAndWeather;
     }
 
