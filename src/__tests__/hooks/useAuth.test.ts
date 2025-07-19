@@ -8,6 +8,11 @@ jest.mock('../../utils/supabase');
 describe('useAuth', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Mock onAuthStateChange
+    (supabase.auth.onAuthStateChange as jest.Mock).mockReturnValue({
+      data: { subscription: { unsubscribe: jest.fn() } }
+    });
   });
 
   it('should return user and userId when authenticated', async () => {
@@ -56,5 +61,16 @@ describe('useAuth', () => {
     expect(result.current.isAuthenticated).toBe(false);
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBe('Auth error');
+  });
+
+  it('should set up auth state change listener', () => {
+    (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+      data: { user: null },
+      error: null,
+    });
+
+    renderHook(() => useAuth());
+
+    expect(supabase.auth.onAuthStateChange).toHaveBeenCalled();
   });
 }); 
