@@ -29,7 +29,7 @@
 ### Polish & UX Improvements
 
 - [ ] adjust XP so you don't level up so quickly
-- [X] **Add full forecast modal when tapping** - Improves weather feature discoverability
+- [x] **Add full forecast modal when tapping** - Improves weather feature discoverability
 - [ ] **Improve weather forecast styling** - Better first impression of core feature
 - [ ] **Add cosmetic upgrades to gardens** - Monetization opportunity
 - [x] fix weather planting achievements
@@ -41,6 +41,7 @@
       [] add animation on garden area for plants growing faster / slower due to weather
       [] add more plants you can plant based on level (or make existing plants use levels)
       [] make the weather graph only today not rolling 24hr window
+      [] add animation to empty pots to get people to plant
 
 ### Technical & Security
 
