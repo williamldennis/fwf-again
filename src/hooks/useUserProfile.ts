@@ -48,11 +48,8 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
 
         console.log(`[Profile] ✅ Got fresh current location: ${latitude}, ${longitude}`);
 
-        // Update profile with new coordinates
-        await supabase
-          .from("profiles")
-          .update({ latitude, longitude })
-          .eq("id", userId);
+        // Don't update database here - let weather service handle it
+        // This prevents the race condition with fetchFullProfile
 
         setWeatherLoading(false);
         return { latitude, longitude };
@@ -88,15 +85,18 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
 
       console.log(`[Profile] ✅ Full profile loaded: points=${profileData?.points || 0}`);
 
-      // Set the complete profile data
-      const userProfile: UserProfile = {
-        selfieUrls: profileData.selfie_urls || null,
-        points: profileData.points || 0,
-        latitude: profileData.latitude,
-        longitude: profileData.longitude,
-      };
-
-      setProfile(userProfile);
+      // Set the complete profile data, but preserve fresh location if available
+      setProfile(prev => {
+        const userProfile: UserProfile = {
+          selfieUrls: profileData.selfie_urls || null,
+          points: profileData.points || 0,
+          // Preserve fresh location if we have it, otherwise use database location
+          latitude: prev?.latitude || profileData.latitude,
+          longitude: prev?.longitude || profileData.longitude,
+        };
+        return userProfile;
+      });
+      
       setProfileLoading(false);
     } catch (err) {
       console.error("[Profile] ❌ Full profile fetch error:", err);
@@ -183,11 +183,12 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
     setError(null);
 
     try {
-      // Refresh both location and full profile
-      await Promise.all([
-        fetchLocationForWeather(userId),
-        fetchFullProfile(userId)
-      ]);
+      // First get fresh location
+      await fetchLocationForWeather(userId);
+      
+      // Then fetch full profile (will preserve fresh location)
+      await fetchFullProfile(userId);
+      
       console.log("[Profile] ✅ Profile refresh completed!");
     } catch (err) {
       console.error("[Profile] ❌ Profile refresh error:", err);
@@ -231,6 +232,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
         return fetchFullProfile(userId);
       })
       .then(() => {
+        // Ensure fresh location is preserved after full profile fetch
         console.log("[Profile] ✅ Initial profile fetch completed");
       })
       .catch((err) => {

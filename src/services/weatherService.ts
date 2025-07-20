@@ -324,25 +324,37 @@ export class WeatherService {
     }
 
     /**
-     * Update user's weather in the database
+     * Update user's weather and location in the database
      */
-    static async updateUserWeatherInDatabase(userId: string, weatherData: any): Promise<void> {
+    static async updateUserWeatherInDatabase(
+        userId: string, 
+        weatherData: any, 
+        location?: { latitude: number; longitude: number }
+    ): Promise<void> {
         try {
-            const { supabase } = await import("../utils/supabase");
+            const { supabase } = require("../utils/supabase");
+            
+            const updateData: any = {
+                weather_temp: weatherData.current.main.temp,
+                weather_condition: weatherData.current.weather[0].main,
+                weather_icon: weatherData.current.weather[0].icon,
+                weather_updated_at: new Date().toISOString(),
+            };
+            
+            // Add location coordinates if provided
+            if (location) {
+                updateData.latitude = location.latitude;
+                updateData.longitude = location.longitude;
+            }
             
             await supabase
                 .from("profiles")
-                .update({
-                    weather_temp: weatherData.current.main.temp,
-                    weather_condition: weatherData.current.weather[0].main,
-                    weather_icon: weatherData.current.weather[0].icon,
-                    weather_updated_at: new Date().toISOString(),
-                })
+                .update(updateData)
                 .eq("id", userId);
                 
-            // console.log("[Weather] ✅ Weather updated in database");
+            console.log("[Weather] ✅ Weather and location updated in database");
         } catch (error) {
-            console.error("[Weather] ❌ Error updating weather in database:", error);
+            console.error("[Weather] ❌ Error updating weather and location in database:", error);
             throw error;
         }
     }

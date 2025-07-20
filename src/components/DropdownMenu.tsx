@@ -7,6 +7,7 @@ interface DropdownMenuProps {
     onClose: () => void;
     onRefreshContacts: () => void;
     onRefreshGrowth: () => void;
+    onRefreshLocation?: () => void;
     onLogout: () => void;
     refreshingContacts: boolean;
 }
@@ -16,6 +17,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
     onClose,
     onRefreshContacts,
     onRefreshGrowth,
+    onRefreshLocation,
     onLogout,
     refreshingContacts,
 }) => {
@@ -108,6 +110,24 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
                                 Refresh Plant Growth
                             </Text>
                         </TouchableOpacity>
+                        {onRefreshLocation && (
+                            <TouchableOpacity
+                                onPress={() => {
+                                    onClose();
+                                    onRefreshLocation();
+                                }}
+                                style={{
+                                    paddingVertical: 12,
+                                    paddingHorizontal: 16,
+                                    borderBottomWidth: 1,
+                                    borderBottomColor: "#f0f0f0",
+                                }}
+                            >
+                                <Text style={{ fontSize: 16, color: "#333" }}>
+                                    Refresh Location
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                             onPress={() => {
                                 onClose();

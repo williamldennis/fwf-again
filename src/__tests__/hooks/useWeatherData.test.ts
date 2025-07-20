@@ -198,12 +198,11 @@ describe('useWeatherData', () => {
       // Should not call any APIs
       expect(WeatherService.fetchWeatherData).not.toHaveBeenCalled();
       expect(WeatherService.getCityFromCoords).not.toHaveBeenCalled();
-    }, 10000);
+    });
 
-    it('should refresh weather data when location is set', async () => {
-      const { result } = renderHook(() => useWeatherData(34.0522, -118.2437)); // LA coordinates
+    it('should refresh weather with current location', async () => {
+      const { result } = renderHook(() => useWeatherData(37.7749, -122.4194));
 
-      // Wait for initial fetch
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
@@ -212,7 +211,7 @@ describe('useWeatherData', () => {
       (WeatherService.fetchWeatherData as jest.Mock).mockClear();
       (WeatherService.getCityFromCoords as jest.Mock).mockClear();
 
-      // Refresh
+      // Refresh weather
       await act(async () => {
         await result.current.refreshWeather();
       });
@@ -222,9 +221,111 @@ describe('useWeatherData', () => {
       });
 
       // Should call APIs again
-      expect(WeatherService.fetchWeatherData).toHaveBeenCalledWith(34.0522, -118.2437);
-      expect(WeatherService.getCityFromCoords).toHaveBeenCalledWith(34.0522, -118.2437);
+      expect(WeatherService.fetchWeatherData).toHaveBeenCalledWith(37.7749, -122.4194);
+      expect(WeatherService.getCityFromCoords).toHaveBeenCalledWith(37.7749, -122.4194);
     }, 10000);
+  });
+
+  describe('database updates with location', () => {
+    beforeEach(() => {
+      // Mock WeatherService.updateUserWeatherInDatabase
+      (WeatherService.updateUserWeatherInDatabase as jest.Mock) = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it('should update database with weather and location when userId provided', async () => {
+      const userId = 'test-user-id';
+      const { result } = renderHook(() => useWeatherData(37.7749, -122.4194, userId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(WeatherService.updateUserWeatherInDatabase).toHaveBeenCalledWith(
+        userId,
+        mockWeatherData,
+        { latitude: 37.7749, longitude: -122.4194 }
+      );
+    });
+
+    it('should update database without location when userId not provided', async () => {
+      const { result } = renderHook(() => useWeatherData(37.7749, -122.4194));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(WeatherService.updateUserWeatherInDatabase).not.toHaveBeenCalled();
+    });
+
+    it('should handle database update errors gracefully', async () => {
+      const userId = 'test-user-id';
+      (WeatherService.updateUserWeatherInDatabase as jest.Mock).mockRejectedValue(
+        new Error('Database update failed')
+      );
+
+      const { result } = renderHook(() => useWeatherData(37.7749, -122.4194, userId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Should still have weather data even if database update fails
+      expect(result.current.weather).toEqual(mockWeatherData.current);
+      expect(result.current.error).toBe(null);
+    });
+
+    it('should update database with new location when coordinates change', async () => {
+      const userId = 'test-user-id';
+      const { result, rerender } = renderHook(
+        ({ lat, lon }) => useWeatherData(lat, lon, userId),
+        { initialProps: { lat: 37.7749, lon: -122.4194 } }
+      );
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Reset mock call counts
+      (WeatherService.updateUserWeatherInDatabase as jest.Mock).mockClear();
+
+      // Change coordinates
+      rerender({ lat: 40.7128, lon: -74.0060 });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Should update database with new location
+      expect(WeatherService.updateUserWeatherInDatabase).toHaveBeenCalledWith(
+        userId,
+        mockWeatherData,
+        { latitude: 40.7128, longitude: -74.0060 }
+      );
+    });
+
+    it('should clear cache for new coordinates to ensure fresh weather', async () => {
+      const { result, rerender } = renderHook(
+        ({ lat, lon }) => useWeatherData(lat, lon),
+        { initialProps: { lat: 37.7749, lon: -122.4194 } }
+      );
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Reset mock call counts
+      (WeatherService.fetchWeatherData as jest.Mock).mockClear();
+
+      // Change coordinates
+      rerender({ lat: 40.7128, lon: -74.0060 });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Should fetch fresh weather for new coordinates
+      expect(WeatherService.fetchWeatherData).toHaveBeenCalledWith(40.7128, -74.0060);
+    });
   });
 
   describe('clearError', () => {
