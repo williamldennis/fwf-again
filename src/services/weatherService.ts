@@ -332,7 +332,7 @@ export class WeatherService {
         location?: { latitude: number; longitude: number }
     ): Promise<void> {
         try {
-            const { supabase } = await import("../utils/supabase");
+            const { supabase } = require("../utils/supabase");
             
             const updateData: any = {
                 weather_temp: weatherData.current.main.temp,

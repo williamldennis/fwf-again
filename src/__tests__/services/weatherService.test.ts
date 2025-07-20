@@ -204,4 +204,119 @@ describe("WeatherService", () => {
             expect(city).toBe("Unknown");
         });
     });
+
+    describe("updateUserWeatherInDatabase", () => {
+        beforeEach(() => {
+            // Mock supabase
+            const mockSupabase = {
+                from: jest.fn().mockReturnValue({
+                    update: jest.fn().mockReturnValue({
+                        eq: jest.fn().mockResolvedValue({ error: null }),
+                    }),
+                }),
+            };
+            
+            // Mock the supabase import
+            jest.doMock("../../utils/supabase", () => ({
+                supabase: mockSupabase,
+            }));
+        });
+
+        afterEach(() => {
+            jest.resetModules();
+            jest.clearAllMocks();
+        });
+
+        it("should update weather data without location when location not provided", async () => {
+            const { WeatherService } = require("../../services/weatherService");
+            const { supabase: mockSupabase } = require("../../utils/supabase");
+            
+            const userId = "test-user-id";
+            const weatherData = {
+                current: {
+                    main: { temp: 75 },
+                    weather: [{ main: "Clear", icon: "01d" }],
+                },
+            };
+
+            await WeatherService.updateUserWeatherInDatabase(userId, weatherData);
+
+            expect(mockSupabase.from).toHaveBeenCalledWith("profiles");
+            expect(mockSupabase.from().update).toHaveBeenCalledWith({
+                weather_temp: 75,
+                weather_condition: "Clear",
+                weather_icon: "01d",
+                weather_updated_at: expect.any(String),
+            });
+            expect(mockSupabase.from().update().eq).toHaveBeenCalledWith("id", userId);
+        });
+
+        it("should update weather data with location when location provided", async () => {
+            const { WeatherService } = require("../../services/weatherService");
+            const { supabase: mockSupabase } = require("../../utils/supabase");
+            
+            const userId = "test-user-id";
+            const weatherData = {
+                current: {
+                    main: { temp: 75 },
+                    weather: [{ main: "Clear", icon: "01d" }],
+                },
+            };
+            const location = { latitude: 37.7749, longitude: -122.4194 };
+
+            await WeatherService.updateUserWeatherInDatabase(userId, weatherData, location);
+
+            expect(mockSupabase.from).toHaveBeenCalledWith("profiles");
+            expect(mockSupabase.from().update).toHaveBeenCalledWith({
+                weather_temp: 75,
+                weather_condition: "Clear",
+                weather_icon: "01d",
+                weather_updated_at: expect.any(String),
+                latitude: 37.7749,
+                longitude: -122.4194,
+            });
+            expect(mockSupabase.from().update().eq).toHaveBeenCalledWith("id", userId);
+        });
+
+        it("should handle database update errors", async () => {
+            const { WeatherService } = require("../../services/weatherService");
+            const { supabase: mockSupabase } = require("../../utils/supabase");
+            
+            // Mock database error by throwing an error
+            mockSupabase.from.mockReturnValue({
+                update: jest.fn().mockReturnValue({
+                    eq: jest.fn().mockRejectedValue(new Error("Database error")),
+                }),
+            });
+
+            const userId = "test-user-id";
+            const weatherData = {
+                current: {
+                    main: { temp: 75 },
+                    weather: [{ main: "Clear", icon: "01d" }],
+                },
+            };
+
+            await expect(
+                WeatherService.updateUserWeatherInDatabase(userId, weatherData)
+            ).rejects.toThrow("Database error");
+        });
+
+        it("should handle missing weather data gracefully", async () => {
+            const { WeatherService } = require("../../services/weatherService");
+            const { supabase: mockSupabase } = require("../../utils/supabase");
+            
+            const userId = "test-user-id";
+            const weatherData = {
+                current: {
+                    main: { temp: 75 },
+                    weather: [], // Empty weather array
+                },
+            };
+
+            await expect(
+                WeatherService.updateUserWeatherInDatabase(userId, weatherData)
+            ).rejects.toThrow();
+        });
+    });
 }); 

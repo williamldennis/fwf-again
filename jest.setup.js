@@ -1,6 +1,17 @@
 import 'react-native-gesture-handler/jestSetup';
 
 // Mock expo modules
+jest.mock('expo-av', () => ({
+  Video: 'Video',
+  ResizeMode: {
+    CONTAIN: 'contain',
+    COVER: 'cover',
+    STRETCH: 'stretch'
+  },
+  Audio: {
+    Sound: jest.fn()
+  }
+}));
 jest.mock('expo-location');
 jest.mock('expo-contacts', () => ({
   getContactsAsync: jest.fn(),
