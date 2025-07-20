@@ -4,7 +4,7 @@ export default ({ config }) => ({
     ...config,
     name: "fwf",
     slug: "fwf",
-    version: "1.0.4",
+    version: "1.0.5",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "fwf",
@@ -17,6 +17,8 @@ export default ({ config }) => ({
         infoPlist: {
             NSContactsUsageDescription: "This app needs access to your contacts to help you connect with friends.",
             NSLocationWhenInUseUsageDescription: "This app needs your location to show you the weather.",
+            NSLocationAlwaysAndWhenInUseUsageDescription: "This app needs your location to show you the weather even when the app is in the background.",
+            NSLocationAlwaysUsageDescription: "This app needs your location to show your friends your weather even when the app is in the background.",
             NSCameraUsageDescription: "This app needs your camera to take selfies.",
             ITSAppUsesNonExemptEncryption: false
         },
@@ -31,7 +33,8 @@ export default ({ config }) => ({
         package: "com.willydennis.fairweatherfriends",
         permissions: [
             ...(config.android?.permissions || []),
-            "ACCESS_FINE_LOCATION"
+            "ACCESS_FINE_LOCATION",
+            "ACCESS_BACKGROUND_LOCATION"
         ],
     },
     web: {
