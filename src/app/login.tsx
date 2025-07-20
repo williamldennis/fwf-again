@@ -146,6 +146,17 @@ export default function Login() {
             } else if (!profile.location_approved) {
                 router.replace("/location-permission");
             } else {
+                // Check if location permission is actually granted on device
+                const { status } =
+                    await Location.getForegroundPermissionsAsync();
+                if (status !== "granted") {
+                    console.log(
+                        "[Login] ⚠️ Location permission not granted, redirecting to location permission"
+                    );
+                    router.replace("/location-permission");
+                    return;
+                }
+
                 const requiredSelfies = [
                     "sunny",
                     "cloudy",

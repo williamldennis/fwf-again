@@ -29,7 +29,7 @@
 ### Polish & UX Improvements
 
 - [ ] adjust XP so you don't level up so quickly
-- [ ] **Add full forecast modal when tapping** - Improves weather feature discoverability
+- [X] **Add full forecast modal when tapping** - Improves weather feature discoverability
 - [ ] **Improve weather forecast styling** - Better first impression of core feature
 - [ ] **Add cosmetic upgrades to gardens** - Monetization opportunity
 - [x] fix weather planting achievements
@@ -37,6 +37,10 @@
       [ ] planting in friend sunny weather doesn't give sun achievement
       [] improve log in loading filtering friends is slow
       []the app on my device seems to get hung up on "filtering friends" step and "making onecall api request" step after logging in
+      [] add weather icon / feedback to grwoth speed section in plant details modal
+      [] add animation on garden area for plants growing faster / slower due to weather
+      [] add more plants you can plant based on level (or make existing plants use levels)
+      [] make the weather graph only today not rolling 24hr window
 
 ### Technical & Security
 

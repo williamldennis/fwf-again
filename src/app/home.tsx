@@ -126,6 +126,7 @@ export default function Home() {
         weatherLoading: profileWeatherLoading,
         profileLoading,
         updatePoints,
+        refreshProfile,
     } = useUserProfile(currentUserId);
     const { friends, refreshFriends } = useFriends(currentUserId);
     const {
@@ -158,6 +159,23 @@ export default function Home() {
         userProfile?.longitude,
         currentUserId
     );
+
+    // Debug logging for location updates
+    useEffect(() => {
+        console.log("[Home] 📍 Location debug:", {
+            userProfileLat: userProfile?.latitude,
+            userProfileLon: userProfile?.longitude,
+            currentUserId: !!currentUserId,
+            weatherLoading,
+            weather: !!weather,
+        });
+    }, [
+        userProfile?.latitude,
+        userProfile?.longitude,
+        currentUserId,
+        weatherLoading,
+        weather,
+    ]);
 
     // XP data hook
     const {
@@ -1037,11 +1055,23 @@ export default function Home() {
     // Handle app state changes (foreground/background)
     useEffect(() => {
         const handleAppStateChange = (nextAppState: string) => {
+            console.log(`[App] 🔄 App state changed to: ${nextAppState}`);
             if (nextAppState === "active") {
                 console.log(
-                    "[App] 📱 App came to foreground, updating growth..."
+                    "[App] 📱 App came to foreground, updating growth and location..."
                 );
                 updateGrowth();
+
+                // Refresh location and weather when app comes to foreground
+                if (currentUserId) {
+                    console.log("[App] 📍 Refreshing location and weather...");
+                    refreshProfile().catch((error) => {
+                        console.warn(
+                            "[App] ⚠️ Could not refresh profile:",
+                            error
+                        );
+                    });
+                }
 
                 // Check for daily XP when app comes to foreground
                 if (currentUserId) {
@@ -1058,7 +1088,7 @@ export default function Home() {
         return () => {
             subscription?.remove();
         };
-    }, [updateGrowth, currentUserId]);
+    }, [updateGrowth, currentUserId, refreshProfile]);
 
     // Award daily XP when currentUserId becomes available (if not already done)
     useEffect(() => {
@@ -1415,6 +1445,23 @@ export default function Home() {
         Alert.alert("Growth Updated", "Plant growth has been refreshed!");
     };
 
+    const handleRefreshLocation = async () => {
+        console.log("[Home] 🔄 Manual location refresh triggered");
+        try {
+            await refreshProfile();
+            Alert.alert(
+                "Location Refreshed",
+                "Location and weather have been refreshed!"
+            );
+        } catch (error) {
+            console.error("[Home] ❌ Manual location refresh failed:", error);
+            Alert.alert(
+                "Refresh Failed",
+                "Could not refresh location. Please try again."
+            );
+        }
+    };
+
     const handleClosePlantPicker = () => {
         setShowPlantPicker(false);
     };
@@ -1644,6 +1691,7 @@ export default function Home() {
                 onClose={() => setShowMenu(false)}
                 onRefreshContacts={handleRefreshContacts}
                 onRefreshGrowth={handleRefreshGrowth}
+                onRefreshLocation={handleRefreshLocation}
                 onLogout={handleLogout}
                 refreshingContacts={refreshingContacts}
             />

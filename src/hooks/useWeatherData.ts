@@ -128,14 +128,14 @@ export function useWeatherData(
             setLastUpdated(new Date());
             currentLocation.current = { latitude: lat, longitude: lon };
             
-            // Update user's weather in database if userId is provided
+            // Update user's weather and location in database if userId is provided
             if (userId) {
                 try {
-                    console.log("[Weather] 💾 Updating user's weather in database...");
-                    await WeatherService.updateUserWeatherInDatabase(userId, weatherData);
-                    console.log("[Weather] ✅ Weather updated in database");
+                    console.log("[Weather] 💾 Updating user's weather and location in database...");
+                    await WeatherService.updateUserWeatherInDatabase(userId, weatherData, { latitude: lat, longitude: lon });
+                    console.log("[Weather] ✅ Weather and location updated in database");
                 } catch (err) {
-                    console.warn("[Weather] ⚠️ Could not update weather in database:", err);
+                    console.warn("[Weather] ⚠️ Could not update weather and location in database:", err);
                 }
             }
             console.log(`[Weather] ✅ Weather data fetched successfully for ${cityNameResult}`);
@@ -194,6 +194,14 @@ export function useWeatherData(
     useEffect(() => {
         if (typeof latitude === "number" && typeof longitude === "number") {
             console.log(`[Weather] 📍 Coordinates changed to: ${latitude}, ${longitude}`);
+            
+            // Clear cache for new coordinates to ensure fresh weather
+            const cacheKey = getCacheKey(latitude, longitude);
+            if (weatherCache.has(cacheKey)) {
+                console.log("[Weather] 🗑️ Clearing cache for new coordinates");
+                weatherCache.delete(cacheKey);
+            }
+            
             fetchWeatherData(latitude, longitude);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
