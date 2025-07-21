@@ -50,6 +50,8 @@ import FiveDayForecast from "../components/FiveDayForecast";
 import { GardenService } from "../services/gardenService";
 import { AchievementService } from "../services/achievementService";
 import * as Haptics from "expo-haptics";
+import { logMessage, addBreadcrumb, testSentry } from "../utils/sentry";
+import * as Sentry from "@sentry/react-native";
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -160,6 +162,18 @@ export default function Home() {
         currentUserId
     );
 
+    // Test Sentry on app load (only once)
+    useEffect(() => {
+        if (currentUserId) {
+            testSentry();
+            logMessage("App loaded successfully", "info", {
+                currentUserId,
+                appVersion: "1.0.5",
+                environment: __DEV__ ? "development" : "production",
+            });
+        }
+    }, [currentUserId]);
+
     // Debug logging for location updates
     useEffect(() => {
         console.log("[Home] 📍 Location debug:", {
@@ -176,6 +190,20 @@ export default function Home() {
         weatherLoading,
         weather,
     ]);
+
+    // Friends debug logging
+    useEffect(() => {
+        logMessage("Friends state updated in home", "info", {
+            currentUserId,
+            friendsCount: friends.length,
+            friendIds: friends.map((f) => f.id),
+            friendNames: friends.map((f) => f.contact_name),
+        });
+        addBreadcrumb("Friends state updated", "friends", {
+            currentUserId,
+            friendsCount: friends.length,
+        });
+    }, [friends, currentUserId]);
 
     // XP data hook
     const {
@@ -1583,6 +1611,12 @@ export default function Home() {
         );
     }
 
+    // Add test button for Sentry verification
+    const testSentryError = () => {
+        Sentry.captureException(new Error("Test error from home screen"));
+        console.log("Test error sent to Sentry!");
+    };
+
     return (
         <>
             <View style={{ flex: 1, backgroundColor }}>
@@ -1694,6 +1728,7 @@ export default function Home() {
                 onRefreshLocation={handleRefreshLocation}
                 onLogout={handleLogout}
                 refreshingContacts={refreshingContacts}
+                onTestSentry={testSentryError}
             />
 
             {/* PLANT PICKER MODAL */}

@@ -53,3 +53,7 @@ ios/Podfile 2.lock
 *.xcworkspace
 # Node
 fair-weather-friends-bed9516400b6.json
+
+.env.local
+
+.env.local
