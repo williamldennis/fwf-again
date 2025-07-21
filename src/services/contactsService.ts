@@ -153,9 +153,16 @@ export class ContactsService {
             const BATCH_SIZE = 200;
             for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
                 const batch = contacts.slice(i, i + BATCH_SIZE);
+                
+                // Add user_id to each contact record for RLS policy
+                const batchWithUserId = batch.map(contact => ({
+                    ...contact,
+                    user_id: userId
+                }));
+                
                 const { error } = await supabase
                     .from("user_contacts")
-                    .insert(batch);
+                    .insert(batchWithUserId);
                 if (error) {
                     console.error("Batch insert error:", error);
                     return { 

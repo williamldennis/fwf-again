@@ -51,6 +51,7 @@ import { GardenService } from "../services/gardenService";
 import { AchievementService } from "../services/achievementService";
 import * as Haptics from "expo-haptics";
 import { logMessage, addBreadcrumb, testSentry } from "../utils/sentry";
+import * as Sentry from "@sentry/react-native";
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -1610,6 +1611,12 @@ export default function Home() {
         );
     }
 
+    // Add test button for Sentry verification
+    const testSentryError = () => {
+        Sentry.captureException(new Error("Test error from home screen"));
+        console.log("Test error sent to Sentry!");
+    };
+
     return (
         <>
             <View style={{ flex: 1, backgroundColor }}>
@@ -1721,6 +1728,7 @@ export default function Home() {
                 onRefreshLocation={handleRefreshLocation}
                 onLogout={handleLogout}
                 refreshingContacts={refreshingContacts}
+                onTestSentry={testSentryError}
             />
 
             {/* PLANT PICKER MODAL */}
