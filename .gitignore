@@ -58,3 +58,6 @@ fair-weather-friends-bed9516400b6.json
 .env.local
 
 .env.local
+# Sentry - prevent token exposure
+android/sentry.properties
+ios/sentry.properties
