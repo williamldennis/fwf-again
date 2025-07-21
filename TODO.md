@@ -42,6 +42,7 @@
       [] add more plants you can plant based on level (or make existing plants use levels)
       [] make the weather graph only today not rolling 24hr window
       [] add animation to empty pots to get people to plant
+      [] show feedback for who stole your plants
 
 ### Technical & Security
 
