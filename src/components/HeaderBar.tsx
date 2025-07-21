@@ -6,6 +6,7 @@ interface HeaderBarProps {
     onMenuPress: () => void;
     onXPPress?: () => void;
     onPointsPress?: () => void;
+    onActivityLogPress?: () => void;
     xpData?: {
         total_xp: number;
         current_level: number;
@@ -19,6 +20,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     onMenuPress,
     onXPPress,
     onPointsPress,
+    onActivityLogPress,
     xpData,
 }) => {
     return (
@@ -55,6 +57,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 >
                     <Text style={styles.pointsText}>{points}</Text>
                     <Text style={styles.pointsLabel}>pts</Text>
+                </TouchableOpacity>
+
+                {/* Activity Log Button */}
+                <TouchableOpacity
+                    style={styles.activityLogButton}
+                    onPress={onActivityLogPress}
+                    activeOpacity={0.7}
+                >
+                    <Text style={styles.activityLogIcon}>🔔</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -146,6 +157,19 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         color: "#006400",
         opacity: 1,
+    },
+    activityLogButton: {
+        padding: 8,
+        borderRadius: 8,
+        backgroundColor: "rgba(255, 193, 7, 0.1)",
+        minWidth: 40,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    activityLogIcon: {
+        fontSize: 20,
+        color: "#FFC107",
+        fontWeight: "600",
     },
 });
 

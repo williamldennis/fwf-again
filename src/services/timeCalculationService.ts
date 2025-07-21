@@ -72,11 +72,13 @@ export class TimeCalculationService {
   static getFormattedTimeSincePlanted(plantedAt: string): string {
     const hoursElapsed = this.getTimeElapsedHours(plantedAt);
     
-    if (hoursElapsed >= 24) {
+    if (hoursElapsed < 1) {
+      return "just planted";
+    } else if (hoursElapsed >= 24) {
       const days = Math.floor(hoursElapsed / 24);
       return `${days} day${days > 1 ? 's' : ''}`;
+    } else {
+      return `${Math.floor(hoursElapsed)} hour${Math.floor(hoursElapsed) > 1 ? 's' : ''}`;
     }
-    
-    return `${Math.floor(hoursElapsed)} hours`;
   }
 } 
