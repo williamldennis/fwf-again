@@ -63,6 +63,8 @@ export default ({ config }) => ({
         url: "https://sentry.io/",
         project: "fwf",
         organization: "fair-weather-friends",
+        setCommits: true,
+        uploadSourceMaps: true,
       },
     ],
   ],
