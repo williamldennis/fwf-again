@@ -53,8 +53,8 @@ export class GrowthService {
     const adjustedHours = hoursElapsed * weatherBonus;
     
     // TESTING: Accelerate growth to 5 minutes (0.083 hours) for faster testing
-    // const totalGrowthHours = 0.083; // 5 minutes instead of plant.growth_time_hours
-    const totalGrowthHours = plant.growth_time_hours; // ORIGINAL: Use actual plant growth time
+     const totalGrowthHours = 0.083; // 5 minutes instead of plant.growth_time_hours
+    // const totalGrowthHours = plant.growth_time_hours; // ORIGINAL: Use actual plant growth time
     
     // Calculate progress percentage (0-100)
     const progress = Math.min(100, (adjustedHours / totalGrowthHours) * 100);

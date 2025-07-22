@@ -40,6 +40,7 @@ import SkeletonCard from "../components/SkeletonCard";
 import AchievementDrawer from "../components/AchievementDrawer";
 import PointsInfoModal from "../components/PointsInfoModal";
 import WeatherModal from "../components/WeatherModal";
+import ActivityLogModal from "../components/ActivityLogModal";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -49,6 +50,7 @@ import { Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { GardenService } from "../services/gardenService";
 import { AchievementService } from "../services/achievementService";
+import { ActivityService } from "../services/activityService";
 import * as Haptics from "expo-haptics";
 import { logMessage, addBreadcrumb, testSentry } from "../utils/sentry";
 import * as Sentry from "@sentry/react-native";
@@ -938,6 +940,9 @@ export default function Home() {
     // Points info modal state
     const [showPointsInfoModal, setShowPointsInfoModal] = useState(false);
 
+    // Activity log modal state
+    const [showActivityLogModal, setShowActivityLogModal] = useState(false);
+
     // User's 5-day forecast data
     const userFiveDayData = useMemo(() => {
         try {
@@ -1389,6 +1394,45 @@ export default function Home() {
                     );
                 }
 
+                // Log activity for planting (non-blocking)
+                try {
+                    console.log("[Plant] 🌱 Logging planting activity:", {
+                        gardenOwnerId: friendId,
+                        actorId: user.id,
+                        plantId,
+                        plantName: newPlant.plant?.name || "Unknown Plant",
+                    });
+
+                    // Get the actor's name from the database
+                    const { data: actorProfile } = await supabase
+                        .from("profiles")
+                        .select("full_name")
+                        .eq("id", user.id)
+                        .single();
+                    const actorName = actorProfile?.full_name || "Unknown";
+
+                    const activityResult = await ActivityService.logActivity(
+                        friendId, // garden owner
+                        user.id, // actor (planter)
+                        "planted",
+                        plantId,
+                        newPlant.plant?.name || "Unknown Plant",
+                        actorName,
+                        newPlant.id // planted_plant_id
+                    );
+
+                    console.log(
+                        "[Plant] ✅ Activity logging result:",
+                        activityResult
+                    );
+                } catch (error) {
+                    console.error(
+                        "[Activity] Error logging planting activity:",
+                        error
+                    );
+                    // Don't fail planting if activity logging fails
+                }
+
                 // Award XP for planting (non-blocking)
                 awardPlantingXP(
                     plantId,
@@ -1545,6 +1589,21 @@ export default function Home() {
         setShowWeatherModal(false);
     };
 
+    // Activity log modal handlers
+    const openActivityLogModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowActivityLogModal(true);
+    };
+
+    const closeActivityLogModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowActivityLogModal(false);
+    };
+
     // Fetch available plants when PlantPicker is opened and not already loaded
     useEffect(() => {
         if (showPlantPicker && availablePlants.length === 0) {
@@ -1635,6 +1694,7 @@ export default function Home() {
                         onMenuPress={() => setShowMenu(true)}
                         onXPPress={openAchievementDrawer}
                         onPointsPress={openPointsInfoModal}
+                        onActivityLogPress={openActivityLogModal}
                         xpData={xpData}
                     />
                 </View>
@@ -1795,6 +1855,13 @@ export default function Home() {
                 hourlyForecast={hourly}
                 dailyForecast={daily}
                 cityName={cityName}
+            />
+
+            {/* ACTIVITY LOG MODAL */}
+            <ActivityLogModal
+                visible={showActivityLogModal}
+                onClose={closeActivityLogModal}
+                currentUserId={currentUserId || ""}
             />
         </>
     );

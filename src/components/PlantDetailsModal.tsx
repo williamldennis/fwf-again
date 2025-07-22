@@ -23,6 +23,7 @@ import { DateTime } from "luxon";
 import { supabase } from "../utils/supabase";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
+import { ActivityService } from "../services/activityService";
 
 interface PlantDetailsModalProps {
     visible: boolean;
@@ -304,6 +305,33 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 );
             }
 
+            // Log activity for harvesting (non-blocking)
+            try {
+                // Get the harvester's name from the database
+                const { data: harvesterProfile } = await supabase
+                    .from("profiles")
+                    .select("full_name")
+                    .eq("id", currentUserId)
+                    .single();
+                const harvesterName = harvesterProfile?.full_name || "Unknown";
+
+                await ActivityService.logActivity(
+                    plant.garden_owner_id, // garden owner
+                    currentUserId!, // actor (harvester)
+                    "harvested",
+                    plant.plant?.id || plant.plant_id,
+                    plant.plant?.name || plant.plant_name,
+                    harvesterName,
+                    plant.id // planted_plant_id
+                );
+            } catch (error) {
+                console.error(
+                    "[Activity] Error logging harvesting activity:",
+                    error
+                );
+                // Don't fail harvesting if activity logging fails
+            }
+
             // Award XP for harvesting (non-blocking) - simple approach like planting
             if (onAwardHarvestXP) {
                 const plantId = plant.plant?.id || plant.plant_id;
@@ -460,8 +488,9 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                             <Text style={styles.plantTitle}>{plantName}</Text>
                             {/* 2. Planted X hours ago by {planterName} */}
                             <Text style={styles.plantedInfo}>
-                                Planted {formattedTimeSincePlanted} ago by{" "}
-                                {planterName}
+                                {formattedTimeSincePlanted === "just planted"
+                                    ? `Just planted by ${planterName}`
+                                    : `Planted ${formattedTimeSincePlanted} ago by ${planterName}`}
                             </Text>
                             <View style={styles.imageContainer}>
                                 <Animated.View style={animatedImageStyle}>
