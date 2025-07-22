@@ -7,18 +7,18 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "SENTRY_PROPERTIES": "./ios/sentry.properties"
+        "SENTRY_PROPERTIES": "./sentry.properties"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "SENTRY_PROPERTIES": "./ios/sentry.properties"
+        "SENTRY_PROPERTIES": "./sentry.properties"
       }
     },
     "production": {
       "env": {
-        "SENTRY_PROPERTIES": "./ios/sentry.properties"
+        "SENTRY_PROPERTIES": "./sentry.properties"
       }
     }
   },
