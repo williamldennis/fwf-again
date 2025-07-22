@@ -1772,7 +1772,7 @@ export default function Home() {
                         onShare={async () => {
                             await Share.share({
                                 message:
-                                    "I want to be your Fair Weather Friend\nhttp://willdennis.com",
+                                    "Download Fair Weather Friend (it's a beta version)\nhttps://testflight.apple.com/join/5cE5YR9W",
                             });
                         }}
                     />
