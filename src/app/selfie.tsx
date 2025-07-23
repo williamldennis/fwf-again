@@ -77,7 +77,12 @@ export default function Selfie() {
                     setCurrentIndex((prev) => prev + 1);
                     setCapturedPhoto(null);
                 } else {
-                    saveSelfies();
+                    // For the last selfie, ensure we include the just-captured photo
+                    const updatedSelfies = {
+                        ...selfies,
+                        [currentWeather.key]: `data:image/jpeg;base64,${photo.base64}`,
+                    };
+                    saveSelfiesWithData(updatedSelfies);
                 }
             }, 1000); // 1 second delay to show the captured photo
         }
@@ -93,6 +98,10 @@ export default function Selfie() {
     };
 
     const saveSelfies = async () => {
+        await saveSelfiesWithData(selfies);
+    };
+
+    const saveSelfiesWithData = async (selfieData: Record<string, string>) => {
         setLoading(true);
         try {
             const {
@@ -101,7 +110,7 @@ export default function Selfie() {
             if (!user) throw new Error("No user found");
             const { error } = await supabase
                 .from("profiles")
-                .update({ selfie_urls: selfies })
+                .update({ selfie_urls: selfieData })
                 .eq("id", user.id);
             if (error) throw error;
             router.replace("/home");

@@ -7,6 +7,7 @@ import FriendCard from "./FriendCard";
 import AddFriendsCard from "./AddFriendsCard";
 import SelfieIndicator from "./SelfieIndicator";
 import CarouselFooter from "./CarouselFooter";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { Friend } from "../services/contactsService";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -170,18 +171,20 @@ export const CardStack: React.FC<CardStackProps> = ({
                         justifyContent: "center",
                     }}
                 >
-                    <FriendCard
-                        friend={item.data}
-                        plantedPlants={plantedPlants}
-                        onPlantPress={onPlantPress}
-                        onPlantDetailsPress={onPlantDetailsPress}
-                        forecastData={friendForecastData?.forecast || []}
-                        cardWidth={cardWidth}
-                        cardHeight={screenHeight}
-                        onFetchForecast={onFetchForecast}
-                        hourlyForecast={friendForecastData?.hourly || []}
-                        dailyForecast={friendForecastData?.daily || []}
-                    />
+                    <ErrorBoundary>
+                        <FriendCard
+                            friend={item.data}
+                            plantedPlants={plantedPlants}
+                            onPlantPress={onPlantPress}
+                            onPlantDetailsPress={onPlantDetailsPress}
+                            forecastData={friendForecastData?.forecast || []}
+                            cardWidth={cardWidth}
+                            cardHeight={screenHeight}
+                            onFetchForecast={onFetchForecast}
+                            hourlyForecast={friendForecastData?.hourly || []}
+                            dailyForecast={friendForecastData?.daily || []}
+                        />
+                    </ErrorBoundary>
                 </View>
             );
         }

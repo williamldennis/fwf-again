@@ -9,7 +9,11 @@
 3. **Weather Forecast Styling** - Improve first impression of core feature
 4. **Login Performance** - Fix slow friend filtering on login
 
-**Short-term (Next 3-4 weeks):** 5. **Level Progression Meaning** - Make leveling up unlock plants, more pots, etc. 6. **Plant Details Enhancement** - Add weather icon/feedback to growth speed section 7. **Garden Animations** - Add visual feedback for weather effects on growth 8. **Selfie Flow Optimization** - Remove 'retake' option and prevent re-taking on login
+**Short-term (Next 3-4 weeks):**
+5. **Level Progression Meaning** - Make leveling up unlock plants, more pots, etc.
+6. **Plant Details Enhancement** - Add weather icon/feedback to growth speed section
+7. **Garden Animations** - Add visual feedback for weather effects on growth
+8. **Selfie Flow Optimization** - Remove 'retake' option and prevent re-taking on login
 
 ---
 
