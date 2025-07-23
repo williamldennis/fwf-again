@@ -7,12 +7,13 @@ export const initSentry = () => {
     Constants.expoConfig?.extra?.sentryDsn ||
     process.env.EXPO_PUBLIC_SENTRY_DSN;
 
+  console.log("Initializing Sentry...");
+
   if (!sentryDsn || sentryDsn === "YOUR_SENTRY_DSN_HERE") {
     console.warn("Sentry DSN not configured. Skipping Sentry initialization.", { sentryDsn });
     return;
   }
 
-  console.log("Initializing Sentry with DSN:", sentryDsn ? "***configured***" : "missing");
 
   Sentry.init({
     dsn: sentryDsn,
@@ -36,8 +37,10 @@ export const initSentry = () => {
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1,
     integrations: [
-      Sentry.mobileReplayIntegration(),
-      Sentry.feedbackIntegration(),
+      // Commented out due to NativeEventEmitter error in Expo
+      // These integrations try to access push notification modules
+      // Sentry.mobileReplayIntegration(),
+      // Sentry.feedbackIntegration(),
     ],
 
     // Configure which errors to capture

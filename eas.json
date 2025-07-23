@@ -13,7 +13,8 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "SENTRY_PROPERTIES": "./sentry.properties"
+        "SENTRY_PROPERTIES": "./sentry.properties",
+        "EXPO_PUBLIC_SENTRY_DSN": "$EXPO_PUBLIC_SENTRY_DSN"
       }
     },
     "production": {
