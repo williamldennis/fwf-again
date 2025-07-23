@@ -297,30 +297,53 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                             </View>
                         </View>
 
-                        <Image
-                            source={{
-                                uri:
-                                    friend.selfie_urls &&
-                                    mapWeatherToSelfieKey(
-                                        friend.weather_condition
-                                    )
-                                        ? friend.selfie_urls[
-                                              mapWeatherToSelfieKey(
-                                                  friend.weather_condition
-                                              )
-                                          ]
-                                        : undefined,
-                            }}
-                            style={{
-                                width: 100,
-                                height: 100,
-                                borderRadius: 50,
-                                resizeMode: "cover",
-                                backgroundColor: "#eee",
-                                marginBottom: 60,
-                                marginTop: 30,
-                            }}
-                        />
+                        {(() => {
+                            // Proper selfie validation like SelfieIndicator
+                            if (friend.selfie_urls && friend.weather_condition) {
+                                const weatherKey = mapWeatherToSelfieKey(friend.weather_condition);
+                                const selfieUrl = friend.selfie_urls[weatherKey];
+                                if (selfieUrl) {
+                                    return (
+                                        <Image
+                                            source={{ uri: selfieUrl }}
+                                            style={{
+                                                width: 100,
+                                                height: 100,
+                                                borderRadius: 50,
+                                                resizeMode: "cover",
+                                                backgroundColor: "#eee",
+                                                marginBottom: 60,
+                                                marginTop: 30,
+                                            }}
+                                        />
+                                    );
+                                }
+                            }
+                            // Fallback to initials when selfie is missing
+                            const initials = friend.contact_name
+                                ? friend.contact_name.split(" ").map((name: string) => name[0]).join("").toUpperCase().slice(0, 2)
+                                : "??";
+                            return (
+                                <View style={{
+                                    width: 100,
+                                    height: 100,
+                                    borderRadius: 50,
+                                    backgroundColor: "#eee",
+                                    marginBottom: 60,
+                                    marginTop: 30,
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                }}>
+                                    <Text style={{
+                                        fontSize: 24,
+                                        fontWeight: "bold",
+                                        color: "#666",
+                                    }}>
+                                        {initials}
+                                    </Text>
+                                </View>
+                            );
+                        })()}
                         {/* Friend's Garden */}
                         <View
                             style={{

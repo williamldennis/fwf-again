@@ -8,9 +8,11 @@ export const initSentry = () => {
     process.env.EXPO_PUBLIC_SENTRY_DSN;
 
   if (!sentryDsn || sentryDsn === "YOUR_SENTRY_DSN_HERE") {
-    console.warn("Sentry DSN not configured. Skipping Sentry initialization.");
+    console.warn("Sentry DSN not configured. Skipping Sentry initialization.", { sentryDsn });
     return;
   }
+
+  console.log("Initializing Sentry with DSN:", sentryDsn ? "***configured***" : "missing");
 
   Sentry.init({
     dsn: sentryDsn,
@@ -24,8 +26,8 @@ export const initSentry = () => {
     // Enable debug mode in development
     debug: __DEV__,
 
-    // Set environment
-    environment: __DEV__ ? "development" : "production",
+    // Set environment based on build type
+    environment: Constants.appOwnership === "expo" ? "development" : "production",
 
     // Adds more context data to events (IP address, cookies, user, etc.)
     sendDefaultPii: true,
