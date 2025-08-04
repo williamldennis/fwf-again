@@ -48,6 +48,7 @@ import { WeatherService } from "../services/weatherService";
 import { ContactsService } from "../services/contactsService";
 import { Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
+import { analytics } from "../services/analyticsService";
 import { GardenService } from "../services/gardenService";
 import { AchievementService } from "../services/achievementService";
 import { ActivityService } from "../services/activityService";
@@ -162,7 +163,6 @@ export default function Home() {
         currentUserId
     );
 
-
     // Debug logging for location updates
     useEffect(() => {
         console.log("[Home] 📍 Location debug:", {
@@ -179,7 +179,6 @@ export default function Home() {
         weatherLoading,
         weather,
     ]);
-
 
     // XP data hook
     const {
@@ -865,6 +864,16 @@ export default function Home() {
                     plantName,
                     friendWeather,
                 });
+
+                // Track plant harvest in analytics
+                analytics.track('plant_harvested', {
+                    plant_name: plantName,
+                    plant_id: plantId,
+                    xp_earned: totalXP,
+                    weather_condition: friendWeather,
+                    garden_owner: friendId === currentUserId ? 'self' : 'friend',
+                    achievements_unlocked: achievementResult?.unlocked?.length || 0,
+                });
             }
         } catch (error) {
             console.error("[XP] ❌ Error awarding harvesting XP:", error);
@@ -1058,6 +1067,17 @@ export default function Home() {
             clearInterval(growthInterval);
         };
     }, [updateGrowth]); // Include updateGrowth in dependencies
+
+    // Track screen view for analytics
+    useEffect(() => {
+        if (currentUserId && Array.isArray(plantedPlants) && Array.isArray(friends)) {
+            analytics.screen("Home", {
+                has_plants: plantedPlants.length > 0,
+                friends_count: friends.length,
+                user_level: xpData?.current_level || 1,
+            });
+        }
+    }, [currentUserId, plantedPlants, friends, xpData?.current_level]);
 
     // Handle app state changes (foreground/background)
     useEffect(() => {
@@ -1399,6 +1419,15 @@ export default function Home() {
                         "[Plant] ✅ Activity logging result:",
                         activityResult
                     );
+
+                    // Track plant selection in analytics
+                    analytics.track("plant_planted", {
+                        plant_type: selectedPlant.name,
+                        plant_id: plantId,
+                        planting_cost: plantingCost,
+                        garden_owner: friendId === user.id ? "self" : "friend",
+                        weather_condition: friendWeatherCondition,
+                    });
                 } catch (error) {
                     console.error(
                         "[Activity] Error logging planting activity:",
@@ -1643,7 +1672,6 @@ export default function Home() {
             </View>
         );
     }
-
 
     return (
         <>
