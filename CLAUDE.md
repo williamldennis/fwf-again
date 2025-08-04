@@ -41,7 +41,6 @@ npm run lint          # Run ESLint
 - **State Management**: React hooks and Supabase real-time
 - **TypeScript**: Strict mode enabled
 - **Testing**: Jest with 80% global coverage threshold (90% for services)
-- **Error Tracking**: Sentry integration
 
 ### Key Directories
 - `/app/` - Expo Router file-based routing screens

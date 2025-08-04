@@ -10,7 +10,6 @@ interface DropdownMenuProps {
     onRefreshLocation?: () => void;
     onLogout: () => void;
     refreshingContacts: boolean;
-    onTestSentry?: () => void;
 }
 
 export const DropdownMenu: React.FC<DropdownMenuProps> = ({
@@ -21,7 +20,6 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
     onRefreshLocation,
     onLogout,
     refreshingContacts,
-    onTestSentry,
 }) => {
     return (
         <Modal
@@ -127,26 +125,6 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
                             >
                                 <Text style={{ fontSize: 16, color: "#333" }}>
                                     Refresh Location
-                                </Text>
-                            </TouchableOpacity>
-                        )}
-                        {onTestSentry && (
-                            <TouchableOpacity
-                                onPress={() => {
-                                    onClose();
-                                    onTestSentry();
-                                }}
-                                style={{
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 16,
-                                    borderBottomWidth: 1,
-                                    borderBottomColor: "#f0f0f0",
-                                }}
-                            >
-                                <Text
-                                    style={{ fontSize: 16, color: "#007AFF" }}
-                                >
-                                    Test Sentry
                                 </Text>
                             </TouchableOpacity>
                         )}
