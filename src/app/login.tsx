@@ -165,9 +165,19 @@ export default function Login() {
                     "thunderstorm",
                 ];
                 const selfies = profile.selfie_urls || {};
-                const hasAllSelfies = requiredSelfies.every(
-                    (key) => selfies[key]
+                console.log("[Login] Raw selfie_urls from database:", profile.selfie_urls);
+                console.log("[Login] Individual selfie checks:", 
+                    requiredSelfies.map(key => ({ 
+                        key, 
+                        value: selfies[key], 
+                        exists: !!selfies[key],
+                        type: typeof selfies[key] 
+                    }))
                 );
+                const hasAllSelfies = requiredSelfies.every(
+                    (key) => selfies[key] && typeof selfies[key] === 'string' && selfies[key].trim().length > 0
+                );
+                console.log("[Login] hasAllSelfies result:", hasAllSelfies);
                 if (!hasAllSelfies) {
                     router.replace("/selfie");
                 } else {

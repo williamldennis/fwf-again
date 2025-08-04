@@ -24,22 +24,30 @@ interface FriendCardProps {
 
 // Weather mapping functions now use the single source of truth
 const getWeatherLottie = (weatherCondition: string) => {
-    const lottieFile = getWeatherLottieFile(weatherCondition);
+    try {
+        const lottieFile = getWeatherLottieFile(weatherCondition);
 
-    // Static mapping for React Native bundler
-    switch (lottieFile) {
-        case "sunny.json":
-            return require("../../assets/lottie/sunny.json");
-        case "cloudy.json":
-            return require("../../assets/lottie/cloudy.json");
-        case "rainy.json":
-            return require("../../assets/lottie/rainy.json");
-        case "snowy.json":
-            return require("../../assets/lottie/snowy.json");
-        case "thunderstorm.json":
-            return require("../../assets/lottie/thunderstorm.json");
-        default:
-            return require("../../assets/lottie/sunny.json");
+        // Static mapping for React Native bundler
+        switch (lottieFile) {
+            case "sunny.json":
+                return require("../../assets/lottie/sunny.json");
+            case "cloudy.json":
+                return require("../../assets/lottie/cloudy.json");
+            case "rainy.json":
+                return require("../../assets/lottie/rainy.json");
+            case "snowy.json":
+                return require("../../assets/lottie/snowy.json");
+            case "thunderstorm.json":
+                return require("../../assets/lottie/thunderstorm.json");
+            default:
+                return require("../../assets/lottie/sunny.json");
+        }
+    } catch (error) {
+        if (__DEV__) {
+            console.error('Failed to load Lottie animation:', error);
+        }
+        // Return sunny as fallback
+        return require("../../assets/lottie/sunny.json");
     }
 };
 
@@ -76,7 +84,7 @@ const formatDay = (timestamp: number) => {
 };
 
 const getWeatherDescriptionFromData = (weather: any) => {
-    if (!weather || !weather[0]) return "";
+    if (!weather || !weather[0] || !weather[0].description) return "";
     return (
         weather[0].description.charAt(0).toUpperCase() +
         weather[0].description.slice(1)
@@ -84,7 +92,7 @@ const getWeatherDescriptionFromData = (weather: any) => {
 };
 
 const getWeatherIcon = (weather: any) => {
-    if (!weather || !weather[0]) return "";
+    if (!weather || !weather[0] || !weather[0].icon) return "";
     return `https://openweathermap.org/img/wn/${weather[0].icon}@2x.png`;
 };
 
@@ -104,20 +112,32 @@ export const FriendCard: React.FC<FriendCardProps> = ({
     hourlyForecast = [],
     dailyForecast = [],
 }) => {
+    // Validate friend data
+    if (!friend || !friend.id) {
+        if (__DEV__) {
+            console.error('FriendCard: Invalid friend data', friend);
+        }
+        return null;
+    }
+
     // Trigger forecast fetch when component renders
     React.useEffect(() => {
-        onFetchForecast(friend);
-    }, [friend.id]);
+        if (friend && friend.id) {
+            onFetchForecast(friend);
+        }
+    }, [friend.id, onFetchForecast]);
 
-    // Debug logging
-    console.log(`[FriendCard] ${friend.contact_name}:`, {
-        weather_condition: friend.weather_condition,
-        hourlyForecast_length: hourlyForecast.length,
-        dailyForecast_length: dailyForecast.length,
-        has_weather_condition: !!friend.weather_condition,
-        has_hourly: hourlyForecast.length > 0,
-        has_daily: dailyForecast.length > 0,
-    });
+    // Debug logging only in development
+    if (__DEV__) {
+        console.log(`[FriendCard] ${friend.contact_name}:`, {
+            weather_condition: friend.weather_condition,
+            hourlyForecast_length: hourlyForecast.length,
+            dailyForecast_length: dailyForecast.length,
+            has_weather_condition: !!friend.weather_condition,
+            has_hourly: hourlyForecast.length > 0,
+            has_daily: dailyForecast.length > 0,
+        });
+    }
 
     return (
         <View
@@ -141,16 +161,36 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                         zIndex: 0,
                     }}
                 >
-                    <LottieView
-                        source={getWeatherLottie(friend.weather_condition)}
-                        autoPlay
-                        loop
-                        style={{
-                            width: 1100,
-                            height: 1100,
-                            opacity: 0.6,
-                        }}
-                    />
+                    {(() => {
+                        try {
+                            const lottieSource = getWeatherLottie(friend.weather_condition);
+                            if (lottieSource) {
+                                return (
+                                    <LottieView
+                                        source={lottieSource}
+                                        autoPlay
+                                        loop
+                                        style={{
+                                            width: 1100,
+                                            height: 1100,
+                                            opacity: 0.6,
+                                        }}
+                                        onAnimationFailure={() => {
+                                            if (__DEV__) {
+                                                console.log('Lottie animation failed to load');
+                                            }
+                                        }}
+                                    />
+                                );
+                            }
+                            return null;
+                        } catch (error) {
+                            if (__DEV__) {
+                                console.error('Error loading Lottie animation:', error);
+                            }
+                            return null;
+                        }
+                    })()}
                 </View>
             )}
 
@@ -298,28 +338,39 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                         </View>
 
                         {(() => {
-                            // Proper selfie validation like SelfieIndicator
-                            if (friend.selfie_urls && friend.weather_condition) {
-                                const weatherKey = mapWeatherToSelfieKey(friend.weather_condition);
-                                const selfieUrl = friend.selfie_urls[weatherKey];
-                                if (selfieUrl) {
-                                    return (
-                                        <Image
-                                            source={{ uri: selfieUrl }}
-                                            style={{
-                                                width: 100,
-                                                height: 100,
-                                                borderRadius: 50,
-                                                resizeMode: "cover",
-                                                backgroundColor: "#eee",
-                                                marginBottom: 60,
-                                                marginTop: 30,
-                                            }}
-                                        />
-                                    );
+                            try {
+                                // Proper selfie validation like SelfieIndicator
+                                if (friend.selfie_urls && friend.weather_condition) {
+                                    const weatherKey = mapWeatherToSelfieKey(friend.weather_condition);
+                                    const selfieUrl = friend.selfie_urls[weatherKey];
+                                    if (selfieUrl && typeof selfieUrl === 'string') {
+                                        return (
+                                            <Image
+                                                source={{ uri: selfieUrl }}
+                                                style={{
+                                                    width: 100,
+                                                    height: 100,
+                                                    borderRadius: 50,
+                                                    resizeMode: "cover",
+                                                    backgroundColor: "#eee",
+                                                    marginBottom: 60,
+                                                    marginTop: 30,
+                                                }}
+                                                onError={() => {
+                                                    if (__DEV__) {
+                                                        console.log('Failed to load selfie image');
+                                                    }
+                                                }}
+                                            />
+                                        );
+                                    }
+                                }
+                            } catch (error) {
+                                if (__DEV__) {
+                                    console.error('Error rendering selfie:', error);
                                 }
                             }
-                            // Fallback to initials when selfie is missing
+                            // Fallback to initials when selfie is missing or errors occur
                             const initials = friend.contact_name
                                 ? friend.contact_name.split(" ").map((name: string) => name[0]).join("").toUpperCase().slice(0, 2)
                                 : "??";
@@ -465,19 +516,34 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                                                     ? "Now"
                                                     : formatTime(hour.dt)}
                                             </Text>
-                                            <Image
-                                                source={{
-                                                    uri: getWeatherIcon(
-                                                        hour.weather
-                                                    ),
-                                                }}
-                                                style={{
-                                                    width: 40,
-                                                    height: 40,
+                                            {getWeatherIcon(hour.weather) ? (
+                                                <Image
+                                                    source={{
+                                                        uri: getWeatherIcon(
+                                                            hour.weather
+                                                        ),
+                                                    }}
+                                                    style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        marginBottom: 8,
+                                                    }}
+                                                    resizeMode="contain"
+                                                    onError={() => {
+                                                        if (__DEV__) {
+                                                            console.log('Failed to load weather icon');
+                                                        }
+                                                    }}
+                                                />
+                                            ) : (
+                                                <View style={{ 
+                                                    width: 40, 
+                                                    height: 40, 
                                                     marginBottom: 8,
-                                                }}
-                                                resizeMode="contain"
-                                            />
+                                                    backgroundColor: '#f0f0f0',
+                                                    borderRadius: 20
+                                                }} />
+                                            )}
                                             <Text
                                                 style={{
                                                     fontSize: 16,
@@ -587,18 +653,32 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                                             marginHorizontal: 16,
                                         }}
                                     >
-                                        <Image
-                                            source={{
-                                                uri: getWeatherIcon(
-                                                    day.weather
-                                                ),
-                                            }}
-                                            style={{
+                                        {getWeatherIcon(day.weather) ? (
+                                            <Image
+                                                source={{
+                                                    uri: getWeatherIcon(
+                                                        day.weather
+                                                    ),
+                                                }}
+                                                style={{
+                                                    width: 50,
+                                                    height: 50,
+                                                }}
+                                                resizeMode="contain"
+                                                onError={() => {
+                                                    if (__DEV__) {
+                                                        console.log('Failed to load weather icon');
+                                                    }
+                                                }}
+                                            />
+                                        ) : (
+                                            <View style={{
                                                 width: 50,
                                                 height: 50,
-                                            }}
-                                            resizeMode="contain"
-                                        />
+                                                backgroundColor: '#f0f0f0',
+                                                borderRadius: 25
+                                            }} />
+                                        )}
                                     </View>
                                     <View style={{ alignItems: "flex-end" }}>
                                         <Text
