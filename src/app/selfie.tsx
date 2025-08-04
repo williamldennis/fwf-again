@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
     View,
     Text,
@@ -52,12 +52,63 @@ const WEATHER_TYPES = [
 export default function Selfie() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selfies, setSelfies] = useState<Record<string, string>>({});
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
     const cameraRef = useRef<CameraView>(null);
     const [permission, requestPermission] = useCameraPermissions();
+    const [checkingExistingSelfies, setCheckingExistingSelfies] = useState(true);
 
     const currentWeather = WEATHER_TYPES[currentIndex];
+
+    // Check for existing selfies when component mounts or permissions change
+    useEffect(() => {
+        if (permission?.granted) {
+            checkExistingSelfies();
+        }
+    }, [permission?.granted]);
+
+    const checkExistingSelfies = async () => {
+        try {
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: profile } = await supabase
+                .from("profiles")
+                .select("selfie_urls")
+                .eq("id", user.id)
+                .single();
+
+            if (profile?.selfie_urls) {
+                const requiredSelfies = [
+                    "sunny",
+                    "cloudy",
+                    "rainy",
+                    "snowy",
+                    "thunderstorm",
+                ];
+                const existingSelfies = profile.selfie_urls || {};
+                const hasAllSelfies = requiredSelfies.every(
+                    (key) =>
+                        existingSelfies[key] &&
+                        typeof existingSelfies[key] === "string" &&
+                        existingSelfies[key].trim().length > 0
+                );
+
+                if (hasAllSelfies) {
+                    // User already has all selfies, redirect to home
+                    router.replace("/home");
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error("Error checking existing selfies:", error);
+        } finally {
+            setCheckingExistingSelfies(false);
+            setLoading(false);
+        }
+    };
 
     const handleCapture = async () => {
         if (cameraRef.current) {
@@ -121,11 +172,15 @@ export default function Selfie() {
         }
     };
 
-    if (loading) {
+    if (loading || checkingExistingSelfies) {
         return (
             <View className="flex-1 justify-center items-center">
                 <ActivityIndicator size="large" />
-                <Text className="mt-4">Saving your selfies...</Text>
+                <Text className="mt-4">
+                    {checkingExistingSelfies
+                        ? "Checking for existing selfies..."
+                        : "Saving your selfies..."}
+                </Text>
             </View>
         );
     }
