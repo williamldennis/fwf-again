@@ -4,7 +4,7 @@ export default ({ config }) => ({
   ...config,
   name: "fwf",
   slug: "fwf",
-  version: "1.0.7",
+  version: "1.0.8",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "fwf",
@@ -57,16 +57,6 @@ export default ({ config }) => ({
         backgroundColor: "#ffffff",
       },
     ],
-    [
-      "@sentry/react-native/expo",
-      {
-        url: "https://sentry.io/",
-        project: "fwf",
-        organization: "fair-weather-friends",
-        setCommits: true,
-        uploadSourceMaps: true,
-      },
-    ],
   ],
   experiments: {
     typedRoutes: true,
@@ -78,7 +68,6 @@ export default ({ config }) => ({
     supabaseKey:
       process.env.EXPO_PUBLIC_SUPABASE_KEY ||
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxZ2RldnR0aGh3ZWhtaWRkcHB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk5MTQyNTgsImV4cCI6MjA2NTQ5MDI1OH0.89y4pBIcjMUeeL3vuUHY3_65WiwpQLeuOQIXMfjvqbE",
-    sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     router: {},
     eas: {
       projectId: "85aaf47f-aa13-4b69-a2e4-42d51a2cef36",

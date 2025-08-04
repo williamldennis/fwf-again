@@ -48,12 +48,11 @@ import { WeatherService } from "../services/weatherService";
 import { ContactsService } from "../services/contactsService";
 import { Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
+import { analytics } from "../services/analyticsService";
 import { GardenService } from "../services/gardenService";
 import { AchievementService } from "../services/achievementService";
 import { ActivityService } from "../services/activityService";
 import * as Haptics from "expo-haptics";
-import { logMessage, addBreadcrumb, testSentry } from "../utils/sentry";
-import * as Sentry from "@sentry/react-native";
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -164,18 +163,6 @@ export default function Home() {
         currentUserId
     );
 
-    // Test Sentry on app load (only once)
-    useEffect(() => {
-        if (currentUserId) {
-            testSentry();
-            logMessage("App loaded successfully", "info", {
-                currentUserId,
-                appVersion: "1.0.5",
-                environment: __DEV__ ? "development" : "production",
-            });
-        }
-    }, [currentUserId]);
-
     // Debug logging for location updates
     useEffect(() => {
         console.log("[Home] 📍 Location debug:", {
@@ -192,20 +179,6 @@ export default function Home() {
         weatherLoading,
         weather,
     ]);
-
-    // Friends debug logging
-    useEffect(() => {
-        logMessage("Friends state updated in home", "info", {
-            currentUserId,
-            friendsCount: friends.length,
-            friendIds: friends.map((f) => f.id),
-            friendNames: friends.map((f) => f.contact_name),
-        });
-        addBreadcrumb("Friends state updated", "friends", {
-            currentUserId,
-            friendsCount: friends.length,
-        });
-    }, [friends, currentUserId]);
 
     // XP data hook
     const {
@@ -891,6 +864,16 @@ export default function Home() {
                     plantName,
                     friendWeather,
                 });
+
+                // Track plant harvest in analytics
+                analytics.track('plant_harvested', {
+                    plant_name: plantName,
+                    plant_id: plantId,
+                    xp_earned: totalXP,
+                    weather_condition: friendWeather,
+                    garden_owner: friendId === currentUserId ? 'self' : 'friend',
+                    achievements_unlocked: achievementResult?.unlocked?.length || 0,
+                });
             }
         } catch (error) {
             console.error("[XP] ❌ Error awarding harvesting XP:", error);
@@ -1084,6 +1067,17 @@ export default function Home() {
             clearInterval(growthInterval);
         };
     }, [updateGrowth]); // Include updateGrowth in dependencies
+
+    // Track screen view for analytics
+    useEffect(() => {
+        if (currentUserId && Array.isArray(plantedPlants) && Array.isArray(friends)) {
+            analytics.screen("Home", {
+                has_plants: plantedPlants.length > 0,
+                friends_count: friends.length,
+                user_level: xpData?.current_level || 1,
+            });
+        }
+    }, [currentUserId, plantedPlants, friends, xpData?.current_level]);
 
     // Handle app state changes (foreground/background)
     useEffect(() => {
@@ -1425,6 +1419,15 @@ export default function Home() {
                         "[Plant] ✅ Activity logging result:",
                         activityResult
                     );
+
+                    // Track plant selection in analytics
+                    analytics.track("plant_planted", {
+                        plant_type: selectedPlant.name,
+                        plant_id: plantId,
+                        planting_cost: plantingCost,
+                        garden_owner: friendId === user.id ? "self" : "friend",
+                        weather_condition: friendWeatherCondition,
+                    });
                 } catch (error) {
                     console.error(
                         "[Activity] Error logging planting activity:",
@@ -1670,12 +1673,6 @@ export default function Home() {
         );
     }
 
-    // Add test button for Sentry verification
-    const testSentryError = () => {
-        Sentry.captureException(new Error("Test error from home screen"));
-        console.log("Test error sent to Sentry!");
-    };
-
     return (
         <>
             <View style={{ flex: 1, backgroundColor }}>
@@ -1788,7 +1785,6 @@ export default function Home() {
                 onRefreshLocation={handleRefreshLocation}
                 onLogout={handleLogout}
                 refreshingContacts={refreshingContacts}
-                onTestSentry={testSentryError}
             />
 
             {/* PLANT PICKER MODAL */}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabase';
+import { analytics } from '../services/analyticsService';
 
 export interface UseAuthResult {
   user: any | null;
@@ -38,6 +39,12 @@ export function useAuth(): UseAuthResult {
           console.log('[Auth] ✅ User authenticated:', data.user.id);
           setUser(data.user);
           setCurrentUserId(data.user.id);
+          
+          // Identify user in analytics
+          analytics.identify(data.user.id, {
+            email: data.user.email,
+            phone: data.user.phone,
+          });
         } else {
           console.log('[Auth] ℹ️  No user found');
           setUser(null);
@@ -71,12 +78,25 @@ export function useAuth(): UseAuthResult {
             setUser(session.user);
             setCurrentUserId(session.user.id);
             setError(null);
+            
+            // Track sign in and identify user
+            if (event === 'SIGNED_IN') {
+              analytics.track('user_signed_in');
+            }
+            analytics.identify(session.user.id, {
+              email: session.user.email,
+              phone: session.user.phone,
+            });
           }
         } else if (event === 'SIGNED_OUT') {
           console.log('[Auth] 👋 User signed out');
           setUser(null);
           setCurrentUserId(null);
           setError(null);
+          
+          // Track sign out and reset analytics
+          analytics.track('user_signed_out');
+          analytics.reset();
         } else if (event === 'USER_UPDATED') {
           if (session?.user) {
             console.log('[Auth] 🔄 User updated:', session.user.id);

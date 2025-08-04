@@ -150,9 +150,6 @@ export default function Login() {
                 const { status } =
                     await Location.getForegroundPermissionsAsync();
                 if (status !== "granted") {
-                    console.log(
-                        "[Login] ⚠️ Location permission not granted, redirecting to location permission"
-                    );
                     router.replace("/location-permission");
                     return;
                 }
@@ -166,7 +163,7 @@ export default function Login() {
                 ];
                 const selfies = profile.selfie_urls || {};
                 const hasAllSelfies = requiredSelfies.every(
-                    (key) => selfies[key]
+                    (key) => selfies[key] && typeof selfies[key] === 'string' && selfies[key].trim().length > 0
                 );
                 if (!hasAllSelfies) {
                     router.replace("/selfie");
@@ -220,7 +217,6 @@ export default function Login() {
             if (error) {
                 alert(error.message);
             } else {
-                console.log("signUp", error);
                 router.replace("/phone-number-add");
             }
         } catch (error) {

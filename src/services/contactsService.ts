@@ -2,7 +2,6 @@ import * as Contacts from "expo-contacts";
 import { parsePhoneNumberFromString, CountryCode } from "libphonenumber-js";
 import { supabase } from "../utils/supabase";
 import { WeatherService } from "./weatherService";
-import { logMessage, logError, addBreadcrumb } from "../utils/sentry";
 
 export interface Contact {
     contact_phone: string;
@@ -222,11 +221,6 @@ export class ContactsService {
      * Find friends from user's contacts
      */
     static async findFriendsFromContacts(contacts: Contact[], currentUserId: string): Promise<Friend[]> {
-        logMessage("Starting friend discovery from contacts", "info", { 
-            currentUserId, 
-            contactCount: contacts.length 
-        });
-        addBreadcrumb("Friend discovery started", "friends", { currentUserId, contactCount: contacts.length });
         
         // Create a mapping of E.164 phone numbers to contact names
         const phoneToNameMap = new Map<string, string>();
@@ -237,34 +231,18 @@ export class ContactsService {
         const contactPhones = contacts.map((c) => c.contact_phone);
         const uniquePhones = Array.from(new Set(contactPhones));
         console.log(`Unique phone numbers: ${uniquePhones.length}`);
-        logMessage("Processing unique phone numbers", "info", { 
-            currentUserId, 
-            uniquePhoneCount: uniquePhones.length,
-            samplePhones: uniquePhones.slice(0, 3) // Log first 3 for debugging
-        });
 
         // Batch into chunks of 500
         const BATCH_SIZE = 500;
         const phoneChunks = this.chunkArray<string>(uniquePhones, BATCH_SIZE);
         console.log(`Batching into ${phoneChunks.length} chunks...`);
-        logMessage("Batching phone numbers for database query", "info", { 
-            currentUserId, 
-            batchCount: phoneChunks.length,
-            batchSize: BATCH_SIZE
-        });
 
         // Parallelize the queries
         console.log("Searching for friends in database...");
-        logMessage("Querying database for friends", "info", { currentUserId, batchCount: phoneChunks.length });
         
         try {
             const friendResults = await Promise.all(
                 phoneChunks.map((chunk, index) => {
-                    logMessage(`Querying batch ${index + 1}/${phoneChunks.length}`, "info", { 
-                        currentUserId, 
-                        batchIndex: index,
-                        batchSize: chunk.length 
-                    });
                     return supabase
                         .from("profiles")
                         .select(
@@ -279,28 +257,14 @@ export class ContactsService {
                 if (result.data) allFriends = allFriends.concat(result.data);
             }
 
-            logMessage("Database query completed", "info", { 
-                currentUserId, 
-                totalFriendsFound: allFriends.length,
-                friendIds: allFriends.map(f => f.id)
-            });
 
             // Remove the current user from the results
             const filteredFriends = allFriends.filter((f) => f.id !== currentUserId);
             console.log(`Filtered friends (excluding self): ${filteredFriends.length}`);
-            logMessage("Filtered friends (excluding self)", "info", { 
-                currentUserId, 
-                filteredCount: filteredFriends.length,
-                filteredIds: filteredFriends.map(f => f.id)
-            });
 
             // Add contact names, city names, and fresh weather data to the friends data
             // Use staggered approach instead of Promise.all to prevent API overload
             console.log("[Friends] 🌤️ Starting staggered weather updates for friends...");
-            logMessage("Starting weather updates for friends", "info", { 
-                currentUserId, 
-                friendCount: filteredFriends.length 
-            });
             
             const friendsWithNamesCitiesAndWeather: Friend[] = [];
             
@@ -309,12 +273,6 @@ export class ContactsService {
                 let cityName = "Unknown";
                 let freshWeather = null;
 
-                logMessage(`Processing friend: ${contactName}`, "info", { 
-                    currentUserId, 
-                    friendId: friend.id,
-                    friendPhone: friend.phone_number,
-                    hasLocation: !!(friend.latitude && friend.longitude)
-                });
 
                 if (friend.latitude && friend.longitude) {
                     // Get city name
@@ -323,30 +281,13 @@ export class ContactsService {
                             friend.latitude,
                             friend.longitude
                         );
-                        logMessage(`Got city name for ${contactName}`, "info", { 
-                            currentUserId, 
-                            friendId: friend.id,
-                            cityName 
-                        });
                     } catch (cityError) {
                         console.warn(`[Friends] ⚠️ Could not get city name for ${contactName}:`, cityError);
-                        logError(cityError as Error, { 
-                            currentUserId, 
-                            friendId: friend.id,
-                            operation: "getCityName",
-                            errorType: "city_lookup_error"
-                        });
                     }
 
                     // Get fresh weather data using friend's stored location
                     try {
                         console.log(`[Friends] 🌤️ Fetching fresh weather for ${contactName} at ${friend.latitude}, ${friend.longitude}`);
-                        logMessage(`Fetching weather for ${contactName}`, "info", { 
-                            currentUserId, 
-                            friendId: friend.id,
-                            latitude: friend.latitude,
-                            longitude: friend.longitude
-                        });
                         
                         freshWeather = await WeatherService.fetchWeatherData(
                             friend.latitude,
@@ -354,32 +295,15 @@ export class ContactsService {
                         );
                         console.log(`[Friends] ✅ Fresh weather fetched for ${contactName}: ${freshWeather.current.weather[0].main} ${freshWeather.current.main.temp}°F`);
                         
-                        logMessage(`Weather fetched for ${contactName}`, "info", { 
-                            currentUserId, 
-                            friendId: friend.id,
-                            weatherCondition: freshWeather.current.weather[0].main,
-                            temperature: freshWeather.current.main.temp
-                        });
                         
                         // Small delay to avoid overwhelming the API and show progress
                         await new Promise(resolve => setTimeout(resolve, 200));
                         
                     } catch (weatherError) {
                         console.warn(`[Friends] ⚠️ Could not fetch fresh weather for ${contactName}, using stored data:`, weatherError);
-                        logError(weatherError as Error, { 
-                            currentUserId, 
-                            friendId: friend.id,
-                            operation: "fetchWeather",
-                            errorType: "weather_fetch_error"
-                        });
                     }
                 } else {
                     console.log(`[Friends] ⚠️ No location data for ${contactName}, using stored weather data`);
-                    logMessage(`No location data for ${contactName}`, "warning", { 
-                        currentUserId, 
-                        friendId: friend.id,
-                        contactName 
-                    });
                 }
 
                 friendsWithNamesCitiesAndWeather.push({
@@ -395,23 +319,9 @@ export class ContactsService {
             }
 
             console.log(`[Friends] ✅ Completed staggered weather updates for ${friendsWithNamesCitiesAndWeather.length} friends`);
-            logMessage("Friend discovery completed", "info", { 
-                currentUserId, 
-                finalFriendCount: friendsWithNamesCitiesAndWeather.length,
-                friendNames: friendsWithNamesCitiesAndWeather.map(f => f.contact_name)
-            });
-            addBreadcrumb("Friend discovery completed", "friends", { 
-                currentUserId, 
-                friendCount: friendsWithNamesCitiesAndWeather.length 
-            });
             
             return friendsWithNamesCitiesAndWeather;
         } catch (error) {
-            logError(error as Error, { 
-                currentUserId, 
-                operation: "findFriendsFromContacts",
-                errorType: "friend_discovery_error"
-            });
             throw error;
         }
     }
