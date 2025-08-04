@@ -18,6 +18,10 @@ class AnalyticsService {
       const apiKey = process.env.EXPO_PUBLIC_POSTHOG_API_KEY;
       const host = process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
 
+      console.log('🔍 PostHog initialization started');
+      console.log('🔑 API Key present:', !!apiKey);
+      console.log('🌐 Host:', host);
+
       if (!apiKey) {
         console.warn('PostHog API key not found. Analytics will be disabled.');
         return;
@@ -30,9 +34,15 @@ class AnalyticsService {
         recordScreenViews: true,
       });
 
-      console.log('PostHog initialized successfully');
+      console.log('✅ PostHog initialized successfully');
+      
+      // Send a test event to verify connection
+      this.track('posthog_initialized', {
+        timestamp: new Date().toISOString(),
+        environment: __DEV__ ? 'development' : 'production'
+      });
     } catch (error) {
-      console.error('Failed to initialize PostHog:', error);
+      console.error('❌ Failed to initialize PostHog:', error);
     }
   }
 

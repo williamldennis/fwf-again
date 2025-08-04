@@ -18,7 +18,9 @@
     },
     "production": {
       "env": {
-        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+        "EXPO_PUBLIC_POSTHOG_API_KEY": "phc_fSrCWCHBme5Abc8zfrqFcSos1tRJ684RfMgZnoWybjM",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
       }
     }
   },
