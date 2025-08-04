@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
 import { supabase } from '../utils/supabase';
 import { GardenService } from '../services/gardenService';
 import { ContactsService } from '../services/contactsService';
@@ -17,6 +18,9 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const subscriptionRef = useRef<any>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryCountRef = useRef(0);
+  const maxRetries = 5;
 
   // Helper to get all relevant user IDs
   const getAllUserIds = useCallback(() => {
@@ -80,20 +84,35 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
     }
   }, [fetchAllGardens]);
 
-  // Real-time subscription
-  useEffect(() => {
+  // Robust real-time subscription with reconnection logic
+  const setupSubscription = useCallback(() => {
     if (!userId) return;
+    
+    const allUserIds = getAllUserIds();
+    if (allUserIds.length === 0) return;
+
     // Clean up previous subscription
     if (subscriptionRef.current) {
       supabase.removeChannel(subscriptionRef.current);
       subscriptionRef.current = null;
     }
-    // Subscribe to changes in planted_plants
+
+    // Clear any pending reconnect timeout
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    
+    // Subscribe to changes in planted_plants for all users (no filter needed due to permissive RLS)
     const channel = supabase
-      .channel('public:planted_plants')
+      .channel(`garden-updates-${userId}-${Date.now()}`) // Unique channel name to avoid conflicts
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'planted_plants' },
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'planted_plants'
+        },
         async (payload) => {
           const realtimeNewGardenOwnerId =
             payload.new && typeof payload.new === 'object' && 'garden_owner_id' in payload.new
@@ -105,20 +124,89 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
               : undefined;
           const realtimeGardenOwnerId =
             realtimeNewGardenOwnerId || realtimeOldGardenOwnerId;
-          if (!realtimeGardenOwnerId || typeof realtimeGardenOwnerId !== 'string') return;
-          // Only fetch the affected garden's plants
-          await updateSingleGarden(realtimeGardenOwnerId);
+          
+          if (!realtimeGardenOwnerId || typeof realtimeGardenOwnerId !== 'string') {
+            return;
+          }
+          
+          // Only update if it's a garden we care about
+          if (allUserIds.includes(realtimeGardenOwnerId)) {
+            try {
+              await updateSingleGarden(realtimeGardenOwnerId);
+              // Reset retry count on successful update
+              retryCountRef.current = 0;
+            } catch (error) {
+              console.error('[Real-time] Error updating garden:', error);
+            }
+          }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log('[Real-time] Subscription status:', status, err);
+        
+        if (status === 'SUBSCRIBED') {
+          retryCountRef.current = 0; // Reset retry count on successful connection
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          handleReconnect();
+        }
+      });
+    
     subscriptionRef.current = channel;
+  }, [userId, getAllUserIds, updateSingleGarden]);
+
+  // Handle reconnection with exponential backoff
+  const handleReconnect = useCallback(() => {
+    if (retryCountRef.current >= maxRetries) {
+      console.log('[Real-time] Max retries reached, giving up');
+      return;
+    }
+
+    const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 30000); // Max 30 seconds
+    retryCountRef.current += 1;
+    
+    console.log(`[Real-time] Reconnecting in ${delay}ms (attempt ${retryCountRef.current}/${maxRetries})`);
+    
+    reconnectTimeoutRef.current = setTimeout(() => {
+      console.log('[Real-time] Attempting reconnection...');
+      setupSubscription();
+    }, delay);
+  }, [setupSubscription]);
+
+  // Set up subscription
+  useEffect(() => {
+    setupSubscription();
+    
     return () => {
       if (subscriptionRef.current) {
+        console.log('[Real-time] Cleaning up subscription');
         supabase.removeChannel(subscriptionRef.current);
         subscriptionRef.current = null;
       }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
     };
-  }, [userId, updateSingleGarden]);
+  }, [setupSubscription]);
+
+  // Handle app state changes (foreground/background)
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      console.log('[Real-time] App state changed to:', nextAppState);
+      
+      if (nextAppState === 'active') {
+        // App came to foreground, ensure subscription is active
+        console.log('[Real-time] App became active, checking subscription');
+        if (!subscriptionRef.current || subscriptionRef.current.state !== 'joined') {
+          console.log('[Real-time] Subscription inactive, reconnecting...');
+          setupSubscription();
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, [setupSubscription]);
 
   // Initial fetch
   useEffect(() => {
