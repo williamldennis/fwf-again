@@ -172,19 +172,6 @@ export default function Selfie() {
         }
     };
 
-    if (loading || checkingExistingSelfies) {
-        return (
-            <View className="flex-1 justify-center items-center">
-                <ActivityIndicator size="large" />
-                <Text className="mt-4">
-                    {checkingExistingSelfies
-                        ? "Checking for existing selfies..."
-                        : "Saving your selfies..."}
-                </Text>
-            </View>
-        );
-    }
-
     if (!permission) {
         return (
             <View className="flex-1 justify-center items-center">
@@ -208,6 +195,19 @@ export default function Selfie() {
                         Grant Permission
                     </Text>
                 </TouchableOpacity>
+            </View>
+        );
+    }
+
+    if (loading || checkingExistingSelfies) {
+        return (
+            <View className="flex-1 justify-center items-center">
+                <ActivityIndicator size="large" />
+                <Text className="mt-4">
+                    {checkingExistingSelfies
+                        ? "Checking for existing selfies..."
+                        : "Saving your selfies..."}
+                </Text>
             </View>
         );
     }
