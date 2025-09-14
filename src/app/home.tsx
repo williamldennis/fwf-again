@@ -163,7 +163,7 @@ export default function Home() {
         userProfile?.longitude,
         currentUserId
     );
-    console.log("[Home] 🌤️ hourlyForGraph", hourlyForGraph);
+    // console.log("[Home] 🌤️ hourlyForGraph", hourlyForGraph);
 
     // may need a hook for this
     // only need to flag new activities if action taker is someone else

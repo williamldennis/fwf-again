@@ -222,9 +222,7 @@ export class WeatherService {
                 let data;
                 if (time < nowTimestamp) {
                     const url = `https://api.openweathermap.org/data/3.0/onecall/timemachine?lat=${latitude}&lon=${longitude}&units=imperial&dt=${time}&appid=${OPENWEATHER_API_KEY}`
-                    console.log("url", url);
                     const response = await fetch(url);
-                    console.log("response", response);
                     data = await response.json();
                     if (data.cod && data.cod !== 200) {
                         throw new Error(`Weather API error: ${data.message}`);
@@ -248,7 +246,6 @@ export class WeatherService {
                     }
                 } else {
                     const url = `https://api.openweathermap.org/data/3.0/onecall?lat=${latitude}&lon=${longitude}&units=imperial&exclude=minutely,daily,alerts&appid=${OPENWEATHER_API_KEY}`;
-                    console.log("url", url);
                     const response = await fetch(url);
                     data = await response.json();
                     if (data.cod && data.cod !== 200) {
@@ -278,7 +275,7 @@ export class WeatherService {
                     break;
                 }
             }
-            console.log(`[Weather] ✅ Hourly data points fetched for graph: ${hourlyForecasts}`);
+            console.log(`[Weather] ✅ Fetched ${hourlyForecasts.length} hourly data points for graph`);
             return { hourly: hourlyForecasts };
 
         }
