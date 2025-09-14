@@ -950,6 +950,7 @@ export default function Home() {
                 forecast: any[];
                 hourly: any[];
                 daily: any[];
+                hourlyForGraph: any[];
             }
         >
     >({});
@@ -972,12 +973,17 @@ export default function Home() {
                 friend.latitude,
                 friend.longitude
             );
+            const weatherDataForGraph = await WeatherService.fetchWeatherDataForGraph(
+                friend.latitude,
+                friend.longitude
+            );
             setFriendForecasts((prev) => ({
                 ...prev,
                 [friend.id]: {
                     forecast: weatherData.forecast,
                     hourly: weatherData.hourly || [],
                     daily: weatherData.daily || [],
+                    hourlyForGraph: weatherDataForGraph.hourly || [],
                 },
             }));
             console.log(

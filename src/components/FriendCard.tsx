@@ -20,6 +20,7 @@ interface FriendCardProps {
     onFetchForecast: (friend: any) => void;
     hourlyForecast?: any[];
     dailyForecast?: any[];
+    hourlyForGraph?: any[];
 }
 
 // Weather mapping functions now use the single source of truth
@@ -111,6 +112,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({
     onFetchForecast,
     hourlyForecast = [],
     dailyForecast = [],
+    hourlyForGraph = [],
 }) => {
     // Validate friend data
     if (!friend || !friend.id) {
@@ -450,6 +452,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                                     hourlyForecast={hourlyForecast}
                                     dailyForecast={dailyForecast}
                                     cityName={friend.city_name || ""}
+                                    hourlyForGraph={hourlyForGraph}
                                 />
                             )}
                     </View>
@@ -536,9 +539,9 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                                                     }}
                                                 />
                                             ) : (
-                                                <View style={{ 
-                                                    width: 40, 
-                                                    height: 40, 
+                                                <View style={{
+                                                    width: 40,
+                                                    height: 40,
                                                     marginBottom: 8,
                                                     backgroundColor: '#f0f0f0',
                                                     borderRadius: 20

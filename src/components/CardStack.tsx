@@ -35,6 +35,7 @@ interface CardStackProps {
             forecast: any[];
             hourly: any[];
             daily: any[];
+            hourlyForGraph: any[];
         }
     >;
     onFetchForecast: (friend: any) => void;
@@ -186,6 +187,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                             onFetchForecast={onFetchForecast}
                             hourlyForecast={friendForecastData?.hourly || []}
                             dailyForecast={friendForecastData?.daily || []}
+                            hourlyForGraph={friendForecastData?.hourlyForGraph || []}
                         />
                     </ErrorBoundary>
                 </View>
