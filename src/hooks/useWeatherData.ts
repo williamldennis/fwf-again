@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { WeatherService, HourlyForecast, DailyForecast } from "../services/weatherService";
+import { WeatherService, HourlyForecast, DailyForecast, HourlyForGraph } from "../services/weatherService";
 import { supabase } from "../utils/supabase";
 // @ts-ignore
 import tzlookup from "tz-lookup";
@@ -10,6 +10,7 @@ export interface WeatherData {
     current: any;
     forecast: any[];
     hourly?: HourlyForecast[];
+    hourlyForGraph?: HourlyForGraph[];
     daily?: DailyForecast[];
     cityName: string;
     localHour: number;
@@ -20,6 +21,7 @@ export interface WeatherState {
     weather: any | null;
     forecast: any[];
     hourly: HourlyForecast[];
+    hourlyForGraph: HourlyForGraph[];
     daily: DailyForecast[];
     cityName: string;
     backgroundColor: string;
@@ -65,13 +67,14 @@ export function useWeatherData(
     const [weather, setWeather] = useState<any | null>(null);
     const [forecast, setForecast] = useState<any[]>([]);
     const [hourly, setHourly] = useState<HourlyForecast[]>([]);
+    const [hourlyForGraph, setHourlyForGraph] = useState<HourlyForGraph[]>([]);
     const [daily, setDaily] = useState<DailyForecast[]>([]);
     const [cityName, setCityName] = useState<string>("");
     const [backgroundColor, setBackgroundColor] = useState<string>("#87CEEB");
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-    
+
     const currentLocation = useRef<{ latitude: number; longitude: number } | null>(null);
 
     // Fetch weather data with caching
@@ -86,6 +89,7 @@ export function useWeatherData(
             setWeather(cachedData.data.current);
             setForecast(cachedData.data.forecast);
             setHourly(cachedData.data.hourly || []);
+            setHourlyForGraph(cachedData.data.hourlyForGraph || []);
             setDaily(cachedData.data.daily || []);
             setCityName(cachedData.data.cityName);
             setBackgroundColor(cachedData.data.backgroundColor);
@@ -106,10 +110,12 @@ export function useWeatherData(
             }
             const bgColor = getBackgroundColor(localHour);
             const weatherData = await WeatherService.fetchWeatherData(lat, lon);
+            const weatherDataForGraph = await WeatherService.fetchWeatherDataForGraph(lat, lon);
             const completeWeatherData: WeatherData = {
                 current: weatherData.current,
                 forecast: weatherData.forecast,
                 hourly: weatherData.hourly,
+                hourlyForGraph: weatherDataForGraph.hourly,
                 daily: weatherData.daily,
                 cityName: cityNameResult,
                 localHour,
@@ -122,12 +128,13 @@ export function useWeatherData(
             setWeather(weatherData.current);
             setForecast(weatherData.forecast);
             setHourly(weatherData.hourly || []);
+            setHourlyForGraph(weatherDataForGraph.hourly || []);
             setDaily(weatherData.daily || []);
             setCityName(cityNameResult);
             setBackgroundColor(bgColor);
             setLastUpdated(new Date());
             currentLocation.current = { latitude: lat, longitude: lon };
-            
+
             // Update user's weather and location in database if userId is provided
             if (userId) {
                 try {
@@ -148,6 +155,7 @@ export function useWeatherData(
                 setWeather(cachedData.data.current);
                 setForecast(cachedData.data.forecast);
                 setHourly(cachedData.data.hourly || []);
+                setHourlyForGraph(cachedData.data.hourlyForGraph || []);
                 setDaily(cachedData.data.daily || []);
                 setCityName(cachedData.data.cityName);
                 setBackgroundColor(cachedData.data.backgroundColor);
@@ -194,14 +202,14 @@ export function useWeatherData(
     useEffect(() => {
         if (typeof latitude === "number" && typeof longitude === "number") {
             console.log(`[Weather] 📍 Coordinates changed to: ${latitude}, ${longitude}`);
-            
+
             // Clear cache for new coordinates to ensure fresh weather
             const cacheKey = getCacheKey(latitude, longitude);
             if (weatherCache.has(cacheKey)) {
                 console.log("[Weather] 🗑️ Clearing cache for new coordinates");
                 weatherCache.delete(cacheKey);
             }
-            
+
             fetchWeatherData(latitude, longitude);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,6 +219,7 @@ export function useWeatherData(
         weather,
         forecast,
         hourly,
+        hourlyForGraph,
         daily,
         cityName,
         backgroundColor,

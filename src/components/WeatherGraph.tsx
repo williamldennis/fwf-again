@@ -1,10 +1,11 @@
 import React from "react";
 import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { LineChart } from "react-native-chart-kit";
-import { HourlyForecast } from "../services/weatherService";
+import { HourlyForecast, HourlyForGraph } from "../services/weatherService";
 
 interface WeatherGraphProps {
     hourlyForecast: HourlyForecast[];
+    hourlyForGraph: HourlyForGraph[];
     width?: number;
     height?: number;
 }
@@ -15,15 +16,20 @@ const GRAPH_HEIGHT = 200;
 
 const WeatherGraph: React.FC<WeatherGraphProps> = ({
     hourlyForecast,
+    hourlyForGraph,
     width = GRAPH_WIDTH,
     height = GRAPH_HEIGHT,
 }) => {
     if (!hourlyForecast || hourlyForecast.length === 0) {
         return null;
     }
+    if (!hourlyForGraph || hourlyForGraph.length === 0) {
+        return null;
+    }
 
     // Filter to 24 hours
-    const data = hourlyForecast.slice(0, 24);
+    // const data = hourlyForecast.slice(0, 24);
+    const data = hourlyForGraph;
 
     // Calculate temperature range for dynamic Y-axis
     const temps = data.map((hour) => hour.temp);
@@ -52,7 +58,7 @@ const WeatherGraph: React.FC<WeatherGraphProps> = ({
     const tempData = data.map((hour) => hour.temp);
 
     // Prepare precipitation data (convert to percentage)
-    const precipData = data.map((hour) => hour.pop * 100);
+    const precipData = data.map((hour) => hour.pop ? hour.pop * 100 : 0);
 
     // Temperature chart configuration
     const tempChartConfig = {

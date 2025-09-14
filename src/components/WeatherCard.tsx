@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { HourlyForecast, DailyForecast } from "../services/weatherService";
+import { HourlyForecast, DailyForecast, HourlyForGraph } from "../services/weatherService";
 import { getWeatherDisplayName } from "../utils/weatherUtils";
 import WeatherModal from "./WeatherModal";
 
 interface WeatherCardProps {
     currentWeather: any;
     hourlyForecast: HourlyForecast[];
+    hourlyForGraph: HourlyForGraph[];
     dailyForecast: DailyForecast[];
     cityName: string;
 }
@@ -14,6 +15,7 @@ interface WeatherCardProps {
 export const WeatherCard: React.FC<WeatherCardProps> = ({
     currentWeather,
     hourlyForecast,
+    hourlyForGraph,
     dailyForecast,
     cityName,
 }) => {
@@ -88,6 +90,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
                 onClose={() => setModalVisible(false)}
                 currentWeather={currentWeather}
                 hourlyForecast={hourlyForecast}
+                hourlyForGraph={hourlyForGraph}
                 dailyForecast={dailyForecast}
                 cityName={cityName}
             />

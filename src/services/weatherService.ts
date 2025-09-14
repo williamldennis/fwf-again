@@ -30,6 +30,21 @@ export interface HourlyForecast {
     clouds?: number;
 }
 
+export interface HourlyForGraph {
+    dt: number;
+    temp: number;
+    feels_like: number;
+    humidity: number;
+    pressure: number;
+    weather: WeatherCondition[];
+    wind_speed: number;
+    wind_deg: number;
+    pop?: number;
+    uvi: number; // UV index
+    visibility?: number;
+    clouds?: number;
+}
+
 export interface DailyForecast {
     dt: number;
     temp: {
@@ -188,6 +203,91 @@ export class WeatherService {
         }
     }
 
+    static async fetchWeatherDataForGraph(latitude: number, longitude: number): Promise<{ hourly: HourlyForGraph[] }> {
+        try {
+            console.log("[Weather] 🌤️ Fetching weather data for graph with OneCall API 3.0...");
+
+            if (!OPENWEATHER_API_KEY) {
+                throw new Error("OpenWeather API key is missing");
+            }
+
+            const now = new Date();
+            const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+            const utcTimestamp = Math.floor(localMidnight.getTime() / 1000);
+            const nowTimestamp = Math.floor(now.getTime() / 1000);
+            const hourlyForecasts: HourlyForGraph[] = [];
+
+            for (let i = 0; i <= 24; i++) {
+                const time = utcTimestamp + i * 3600;
+                let data;
+                if (time < nowTimestamp) {
+                    const url = `https://api.openweathermap.org/data/3.0/onecall/timemachine?lat=${latitude}&lon=${longitude}&units=imperial&dt=${time}&appid=${OPENWEATHER_API_KEY}`
+                    console.log("url", url);
+                    const response = await fetch(url);
+                    console.log("response", response);
+                    data = await response.json();
+                    if (data.cod && data.cod !== 200) {
+                        throw new Error(`Weather API error: ${data.message}`);
+                    }
+                    if (data.data?.length > 0) {
+                        const hour = data.data[0];
+                        const hourlyForecast: HourlyForGraph = {
+                            dt: hour.dt,
+                            temp: hour.temp,
+                            feels_like: hour.feels_like,
+                            humidity: hour.humidity,
+                            pressure: hour.pressure,
+                            weather: hour.weather,
+                            wind_speed: hour.wind_speed,
+                            wind_deg: hour.wind_deg,
+                            uvi: hour.uvi,
+                            visibility: hour.visibility,
+                            clouds: hour.clouds,
+                        };
+                        hourlyForecasts.push(hourlyForecast);
+                    }
+                } else {
+                    const url = `https://api.openweathermap.org/data/3.0/onecall?lat=${latitude}&lon=${longitude}&units=imperial&exclude=minutely,daily,alerts&appid=${OPENWEATHER_API_KEY}`;
+                    console.log("url", url);
+                    const response = await fetch(url);
+                    data = await response.json();
+                    if (data.cod && data.cod !== 200) {
+                        throw new Error(`Weather API error: ${data.message}`);
+                    }
+                    const { dt } = hourlyForecasts.length > 0 ? hourlyForecasts[hourlyForecasts.length - 1] : { dt: null };
+                    const firstDt = data.hourly && data.hourly.length > 0 ? data.hourly[0].dt : null;
+                    const start = dt && firstDt && dt === firstDt ? 1 : 0;
+                    const remaining = 25 - hourlyForecasts.length;
+                    data.hourly?.slice(start, start + remaining).forEach((hour: any) => {
+                        hourlyForecasts.push
+                            ({
+                                dt: hour.dt,
+                                temp: hour.temp,
+                                feels_like: hour.feels_like,
+                                humidity: hour.humidity,
+                                pressure: hour.pressure,
+                                weather: hour.weather,
+                                wind_speed: hour.wind_speed,
+                                wind_deg: hour.wind_deg,
+                                pop: hour.pop,
+                                uvi: hour.uvi,
+                                visibility: hour.visibility,
+                                clouds: hour.clouds,
+                            })
+                    });
+                    break;
+                }
+            }
+            console.log(`[Weather] ✅ Hourly data points fetched for graph: ${hourlyForecasts}`);
+            return { hourly: hourlyForecasts };
+
+        }
+        catch (error) {
+            console.error("[Weather] ❌ Error fetching weather data for graph:", error);
+            throw error;
+        }
+    }
+
     /**
      * Fetch forecast data for a friend's location
      */
@@ -200,11 +300,11 @@ export class WeatherService {
             const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&units=imperial&appid=${OPENWEATHER_API_KEY}`;
             const res = await fetch(url);
             const data = await res.json();
-            
+
             if (data.list) {
                 return this.aggregateToFiveDay(data.list);
             }
-            
+
             return [];
         } catch (error) {
             console.error("[Weather] ❌ Error fetching friend forecast:", error);
@@ -327,31 +427,31 @@ export class WeatherService {
      * Update user's weather and location in the database
      */
     static async updateUserWeatherInDatabase(
-        userId: string, 
-        weatherData: any, 
+        userId: string,
+        weatherData: any,
         location?: { latitude: number; longitude: number }
     ): Promise<void> {
         try {
             const { supabase } = require("../utils/supabase");
-            
+
             const updateData: any = {
                 weather_temp: weatherData.current.main.temp,
                 weather_condition: weatherData.current.weather[0].main,
                 weather_icon: weatherData.current.weather[0].icon,
                 weather_updated_at: new Date().toISOString(),
             };
-            
+
             // Add location coordinates if provided
             if (location) {
                 updateData.latitude = location.latitude;
                 updateData.longitude = location.longitude;
             }
-            
+
             await supabase
                 .from("profiles")
                 .update(updateData)
                 .eq("id", userId);
-                
+
             console.log("[Weather] ✅ Weather and location updated in database");
         } catch (error) {
             console.error("[Weather] ❌ Error updating weather and location in database:", error);

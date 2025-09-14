@@ -23,6 +23,7 @@ interface CardStackProps {
     onWeatherPress?: () => void;
     forecastData: any[];
     hourlyForecast?: any[];
+    hourlyForGraph?: any[];
     dailyForecast?: any[];
     loading: boolean;
     error: string | null;
@@ -57,6 +58,7 @@ export const CardStack: React.FC<CardStackProps> = ({
     onWeatherPress,
     forecastData,
     hourlyForecast = [],
+    hourlyForGraph = [],
     dailyForecast = [],
     loading,
     error,
@@ -150,6 +152,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                         onWeatherPress={onWeatherPress}
                         forecastData={forecastData}
                         hourlyForecast={hourlyForecast}
+                        hourlyForGraph={hourlyForGraph}
                         dailyForecast={dailyForecast}
                         loading={loading}
                         error={error}

@@ -149,6 +149,7 @@ export default function Home() {
         forecast,
         hourly,
         daily,
+        hourlyForGraph,
         cityName,
         backgroundColor,
         loading: weatherLoading,
@@ -162,6 +163,7 @@ export default function Home() {
         userProfile?.longitude,
         currentUserId
     );
+    console.log("[Home] 🌤️ hourlyForGraph", hourlyForGraph);
 
     // may need a hook for this
     // only need to flag new activities if action taker is someone else
@@ -1764,6 +1766,7 @@ export default function Home() {
                         onWeatherPress={openWeatherModal}
                         forecastData={userFiveDayData}
                         hourlyForecast={hourly}
+                        hourlyForGraph={hourlyForGraph}
                         dailyForecast={daily}
                         loading={weatherLoading}
                         error={weatherError}
@@ -1854,6 +1857,7 @@ export default function Home() {
                 onClose={closeWeatherModal}
                 currentWeather={weather}
                 hourlyForecast={hourly}
+                hourlyForGraph={hourlyForGraph}
                 dailyForecast={daily}
                 cityName={cityName}
             />

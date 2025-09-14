@@ -29,6 +29,7 @@ interface UserCardProps {
     onWeatherPress?: () => void;
     forecastData: any[];
     hourlyForecast?: any[];
+    hourlyForGraph?: any[];
     dailyForecast?: any[];
     loading: boolean;
     error: string | null;
@@ -125,6 +126,7 @@ export const UserCard: React.FC<UserCardProps> = ({
     onWeatherPress,
     forecastData,
     hourlyForecast = [],
+    hourlyForGraph = [],
     dailyForecast = [],
     loading,
     error,
@@ -221,16 +223,16 @@ export const UserCard: React.FC<UserCardProps> = ({
                             source={{
                                 uri:
                                     selfieUrls &&
-                                    weather &&
-                                    weather.weather &&
-                                    mapWeatherToSelfieKey(
-                                        weather.weather[0].main
-                                    )
+                                        weather &&
+                                        weather.weather &&
+                                        mapWeatherToSelfieKey(
+                                            weather.weather[0].main
+                                        )
                                         ? selfieUrls[
-                                              mapWeatherToSelfieKey(
-                                                  weather.weather[0].main
-                                              )
-                                          ]
+                                        mapWeatherToSelfieKey(
+                                            weather.weather[0].main
+                                        )
+                                        ]
                                         : undefined,
                             }}
                             style={{
@@ -265,8 +267,8 @@ export const UserCard: React.FC<UserCardProps> = ({
                                 }
                                 weatherCondition={
                                     weather &&
-                                    weather.weather &&
-                                    weather.weather[0]
+                                        weather.weather &&
+                                        weather.weather[0]
                                         ? weather.weather[0].main
                                         : "clear"
                                 }
@@ -288,6 +290,7 @@ export const UserCard: React.FC<UserCardProps> = ({
                                 <WeatherCard
                                     currentWeather={weather}
                                     hourlyForecast={hourlyForecast}
+                                    hourlyForGraph={hourlyForGraph}
                                     dailyForecast={dailyForecast}
                                     cityName={weather.name || ""}
                                 />
