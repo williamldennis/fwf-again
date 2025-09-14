@@ -163,6 +163,10 @@ export default function Home() {
         currentUserId
     );
 
+    // may need a hook for this
+    // only need to flag new activities if action taker is someone else
+    // const hasNewActivities 
+
     // Debug logging for location updates
     useEffect(() => {
         console.log("[Home] 📍 Location debug:", {
@@ -481,9 +485,9 @@ export default function Home() {
                 );
                 const weatherBonus = selectedPlant
                     ? GrowthService.getWeatherBonus(
-                          selectedPlant,
-                          weatherCondition
-                      )
+                        selectedPlant,
+                        weatherCondition
+                    )
                     : 1.0;
 
                 // Enhanced achievement context with all relevant data
@@ -1136,9 +1140,9 @@ export default function Home() {
             setForecastSummary(
                 forecast[0]?.weather?.[0]?.description
                     ? forecast[0].weather[0].description
-                          .charAt(0)
-                          .toUpperCase() +
-                          forecast[0].weather[0].description.slice(1)
+                        .charAt(0)
+                        .toUpperCase() +
+                    forecast[0].weather[0].description.slice(1)
                     : ""
             );
         }
@@ -1693,6 +1697,7 @@ export default function Home() {
                         onPointsPress={openPointsInfoModal}
                         onActivityLogPress={openActivityLogModal}
                         xpData={xpData}
+                        hasNewActivities={true}
                     />
                 </View>
                 {/* Progressive Loading Indicators */}

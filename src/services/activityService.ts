@@ -64,6 +64,34 @@ export class ActivityService {
     }
   }
 
+  static async getLatestActivityTimestamp(gardenOwnerId: string): Promise<string | null> {
+    try {
+      console.log(`[ActivityService] ⏱️ Fetching latest activity timestamp for garden:`, {
+        gardenOwnerId,
+      });
+
+      const { data, error } = await supabase
+        .from('garden_activities')
+        .select('created_at')
+        .eq('garden_owner_id', gardenOwnerId)
+        .neq('actor_id', gardenOwnerId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('[ActivityService] ❌ Error fetching latest activity timestamp:', error);
+        return null;
+      }
+
+      console.log(`[ActivityService] ✅ Latest activity timestamp fetched:`, data?.created_at);
+      return data?.created_at || null;
+    } catch (error) {
+      console.error('[ActivityService] ❌ Exception fetching latest activity timestamp:', error);
+      return null;
+    }
+  }
+
   /**
    * Get activities for a user's garden with pagination
    */
@@ -99,7 +127,7 @@ export class ActivityService {
             hasMore: false,
           };
         }
-        
+
         console.error('[ActivityService] ❌ Error fetching activities:', activitiesError);
         return {
           success: false,
@@ -117,7 +145,7 @@ export class ActivityService {
 
       // Get unique garden owner IDs (for activities in friend's gardens)
       const gardenOwnerIds = [...new Set(activities.map(a => a.garden_owner_id))];
-      
+
       // Fetch garden owner names from profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')

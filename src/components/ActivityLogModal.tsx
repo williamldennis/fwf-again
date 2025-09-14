@@ -193,7 +193,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
 
     // Format timestamp
     const formatTimestamp = (timestamp: string) => {
-        const date = DateTime.fromISO(timestamp);
+        const date = DateTime.fromISO(timestamp, { zone: "utc" });
         const now = DateTime.now();
         const diffMinutes = now.diff(date, "minutes").minutes;
         const diffHours = now.diff(date, "hours").hours;
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         maxHeight: "80%",
-        minHeight: "50%",
+        minHeight: "65%",
     },
     header: {
         flexDirection: "row",
