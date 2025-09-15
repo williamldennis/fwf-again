@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
     View,
     Text,
@@ -168,9 +168,6 @@ export default function Home() {
         currentUserId
     );
 
-    // may need a hook for this
-    // only need to flag new activities if action taker is someone else
-    // const hasNewActivities 
 
     // Debug logging for location updates
     useEffect(() => {
@@ -932,7 +929,10 @@ export default function Home() {
     // Points info modal state
     const [showPointsInfoModal, setShowPointsInfoModal] = useState(false);
     const [activities, setActivities] = useState<GardenActivity[]>([]);
-    // subscribe to activies here, not just when modal is opened?
+    const [hasNewActivity, setHasNewActivity] = useState(false);
+    const handleNewActivity = useCallback((newActivity: GardenActivity) => {
+        setActivities((prev) => [newActivity, ...prev]);
+    }, []);
 
     // Activity log modal state
     const [showActivityLogModal, setShowActivityLogModal] = useState(false);
@@ -1212,6 +1212,114 @@ export default function Home() {
             );
         }
     }, [forecast]);
+
+    // Activity bell badge related logic
+    useEffect(() => {
+        const checkNewActivity = async () => {
+            if (!currentUserId) return;
+            console.log("[App] 🔔 Checking for new activity...");
+            refreshProfile().catch((error) => {
+                console.warn(
+                    "[App] ⚠️ Could not refresh profile from checkNewActivity:",
+                    error
+                );
+            });
+            let delay = 1000;
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            let latestActivityTs = await ActivityService.getLatestActivityTimestamp(currentUserId);
+            const maxRetries = 3;
+            for (let i = 0; i < maxRetries; i++) {
+                if (latestActivityTs) break;
+                console.log(`[App] 🔔 No latest activity timestamp, retrying fetch (${i + 1}/${maxRetries})...`)
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                latestActivityTs = await ActivityService.getLatestActivityTimestamp(currentUserId);
+                delay *= 2; // Exponential backoff
+            }
+            console.log(`[App] 🔔 Latest activity timestamp: ${latestActivityTs}, User last checked at: ${userProfile?.lastCheckedActivityAt}`);
+            if (latestActivityTs && !userProfile?.lastCheckedActivityAt) {
+                console.log("[App] 🔔 Set new activity to true (no last checked timestamp)");
+                setHasNewActivity(true);
+            } else if (latestActivityTs && userProfile?.lastCheckedActivityAt) {
+                let latest = DateTime.fromISO(latestActivityTs);
+                const lastChecked = DateTime.fromISO(userProfile.lastCheckedActivityAt);
+                const maxRetries = 3;
+                let delay = 1000;
+                for (let i = 0; i < maxRetries; i++) {
+                    if (latest > lastChecked) break;
+                    console.log(`[App] 🔔 Latest activity (${latest.toISO()}) not newer than last checked (${lastChecked.toISO()}), retrying fetch (${i + 1}/${maxRetries})...`)
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                    const latestActivityTsRetry = await ActivityService.getLatestActivityTimestamp(currentUserId);
+                    if (latestActivityTsRetry) {
+                        latest = DateTime.fromISO(latestActivityTsRetry);
+                    }
+                    delay *= 2; // Exponential backoff
+                }
+                console.log(`[App] 🔔 Comparing latest activity (${latest.toISO()}) with last checked (${lastChecked.toISO()}), set new activity to ${latest > lastChecked}`);
+                setHasNewActivity(latest > lastChecked);
+            }
+        }
+        checkNewActivity();
+    }, [activities, plantedPlants, xpData]);
+
+    useEffect(() => {
+        const updateNewActivity = async () => {
+            if (!currentUserId) return;
+            console.log("[App] 🔔 Updating new activity status...");
+            refreshProfile().catch((error) => {
+                console.warn(
+                    "[App] ⚠️ Could not refresh profile from updateNewActivity:",
+                    error
+                );
+            });
+            let delay = 1000;
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            let latestActivityTs = await ActivityService.getLatestActivityTimestamp(currentUserId);
+            const maxRetries = 3;
+            for (let i = 0; i < maxRetries; i++) {
+                if (latestActivityTs) break;
+                console.log(`[App] 🔔 No latest activity timestamp, retrying fetch (${i + 1}/${maxRetries})...`)
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                latestActivityTs = await ActivityService.getLatestActivityTimestamp(currentUserId);
+                delay *= 2; // Exponential backoff
+            }
+            console.log(`[App] 🔔 Latest activity timestamp: ${latestActivityTs}, User last checked at: ${userProfile?.lastCheckedActivityAt}`);
+            if (latestActivityTs && !userProfile?.lastCheckedActivityAt) {
+                console.log("[App] 🔔 Set new activity to true (no last checked timestamp)");
+                setHasNewActivity(true);
+            } else if (latestActivityTs && userProfile?.lastCheckedActivityAt) {
+                let latest = DateTime.fromISO(latestActivityTs);
+                const lastChecked = DateTime.fromISO(userProfile.lastCheckedActivityAt);
+                const maxRetries = 3;
+                let delay = 1000;
+                for (let i = 0; i < maxRetries; i++) {
+                    if (latest > lastChecked) break;
+                    console.log(`[App] 🔔 Latest activity (${latest.toISO()}) not newer than last checked (${lastChecked.toISO()}), retrying fetch (${i + 1}/${maxRetries})...`)
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                    const latestActivityTsRetry = await ActivityService.getLatestActivityTimestamp(currentUserId);
+                    if (latestActivityTsRetry) {
+                        latest = DateTime.fromISO(latestActivityTsRetry);
+                    }
+                    delay *= 2; // Exponential backoff
+                }
+                console.log(`[App] 🔔 Comparing latest activity (${latest.toISO()}) with last checked (${lastChecked.toISO()}), set new activity to ${latest > lastChecked}`);
+                setHasNewActivity(latest > lastChecked);
+            }
+        }
+        updateNewActivity();
+    }, [showActivityLogModal]);
+
+    useEffect(() => {
+        if (currentUserId) {
+            const subscription = ActivityService.subscribeToActivities(
+                currentUserId,
+                handleNewActivity
+            );
+            return () => {
+                ActivityService.unsubscribeFromActivities(currentUserId);
+            };
+        }
+    }, [currentUserId]);
+
 
     // Combined loading state - only show loading for initial app setup
     // Removed isLoading variable - no longer needed
@@ -1762,7 +1870,7 @@ export default function Home() {
                         onPointsPress={openPointsInfoModal}
                         onActivityLogPress={openActivityLogModal}
                         xpData={xpData}
-                        hasNewActivities={true}
+                        hasNewActivity={hasNewActivity}
                     />
                 </View>
                 {/* Progressive Loading Indicators */}

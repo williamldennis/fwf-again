@@ -13,7 +13,7 @@ interface HeaderBarProps {
         xp_to_next_level: number;
         xp_progress: number;
     } | null;
-    hasNewActivities: boolean;
+    hasNewActivity: boolean;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -23,7 +23,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     onPointsPress,
     onActivityLogPress,
     xpData,
-    hasNewActivities,
+    hasNewActivity,
 }) => {
     return (
         <View style={styles.container}>
@@ -68,8 +68,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                     activeOpacity={0.7}
                 >
                     <Text style={styles.activityLogIcon}>🔔</Text>
-                    {/* {hasNewActivities && ( */}
-                    <View style={styles.redDot} />
+                    {hasNewActivity && (<View style={styles.redDot} />)}
                 </TouchableOpacity>
             </View>
         </View>

@@ -69,21 +69,21 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
                     error: result.error,
                 });
 
-                if (result.activities && result.activities.length > 0) {
-                    console.log(
-                        "[ActivityLogModal] 📋 Activities data:",
-                        result.activities.map((a) => ({
-                            id: a.id,
-                            activity_type: a.activity_type,
-                            plant_name: a.plant_name,
-                            actor_name: a.actor_name,
-                            garden_owner_name: a.garden_owner_name,
-                            created_at: a.created_at,
-                            actor_id: a.actor_id,
-                            garden_owner_id: a.garden_owner_id,
-                        }))
-                    );
-                }
+                // if (result.activities && result.activities.length > 0) {
+                //     console.log(
+                //         "[ActivityLogModal] 📋 Activities data:",
+                //         result.activities.map((a) => ({
+                //             id: a.id,
+                //             activity_type: a.activity_type,
+                //             plant_name: a.plant_name,
+                //             actor_name: a.actor_name,
+                //             garden_owner_name: a.garden_owner_name,
+                //             created_at: a.created_at,
+                //             actor_id: a.actor_id,
+                //             garden_owner_id: a.garden_owner_id,
+                //         }))
+                //     );
+                // }
 
                 if (result.success && result.activities) {
                     if (append) {
@@ -131,6 +131,15 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
     const handleNewActivity = useCallback((newActivity: GardenActivity) => {
         setActivities((prev) => [newActivity, ...prev]);
     }, []);
+
+    // Update last_checked_activity_at for user
+    useEffect(() => {
+        const updateLastChecked = async () => {
+            if (!visible || !currentUserId) return;
+            await ActivityService.setLastCheckedActivityAt(currentUserId);
+        }
+        updateLastChecked();
+    }, [visible, currentUserId]);
 
     // Load initial data
     useEffect(() => {

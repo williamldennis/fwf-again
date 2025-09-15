@@ -80,6 +80,10 @@ export class ActivityService {
         .single();
 
       if (error) {
+        if (error.code === 'PGRST116') {
+          console.log(`[ActivityService] ℹ️ No activities found for user ${gardenOwnerId}`);
+          return null;
+        }
         console.error('[ActivityService] ❌ Error fetching latest activity timestamp:', error);
         return null;
       }
@@ -89,6 +93,26 @@ export class ActivityService {
     } catch (error) {
       console.error('[ActivityService] ❌ Exception fetching latest activity timestamp:', error);
       return null;
+    }
+  }
+
+  static async setLastCheckedActivityAt(userId: string): Promise<void> {
+    try {
+      console.log(`[ActivityService] ⏱️ Setting last_checked_activity_at for user: ${userId}`);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ last_checked_activity_at: new Date().toISOString() })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('[ActivityService] ❌ Error setting last_checked_activity_at:', error);
+        throw new Error(`Failed to set last_checked_activity_at: ${error.message}`);
+      }
+
+      console.log(`[ActivityService] ✅ last_checked_activity_at set successfully for user: ${userId}`);
+    } catch (error) {
+      console.error('[ActivityService] ❌ Exception setting last_checked_activity_at:', error);
+      throw error;
     }
   }
 

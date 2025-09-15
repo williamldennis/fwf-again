@@ -130,16 +130,16 @@ export const FriendCard: React.FC<FriendCardProps> = ({
     }, [friend.id, onFetchForecast]);
 
     // Debug logging only in development
-    if (__DEV__) {
-        console.log(`[FriendCard] ${friend.contact_name}:`, {
-            weather_condition: friend.weather_condition,
-            hourlyForecast_length: hourlyForecast.length,
-            dailyForecast_length: dailyForecast.length,
-            has_weather_condition: !!friend.weather_condition,
-            has_hourly: hourlyForecast.length > 0,
-            has_daily: dailyForecast.length > 0,
-        });
-    }
+    // if (__DEV__) {
+    //     console.log(`[FriendCard] ${friend.contact_name}:`, {
+    //         weather_condition: friend.weather_condition,
+    //         hourlyForecast_length: hourlyForecast.length,
+    //         dailyForecast_length: dailyForecast.length,
+    //         has_weather_condition: !!friend.weather_condition,
+    //         has_hourly: hourlyForecast.length > 0,
+    //         has_daily: dailyForecast.length > 0,
+    //     });
+    // }
 
     return (
         <View

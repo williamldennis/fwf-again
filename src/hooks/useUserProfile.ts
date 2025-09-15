@@ -75,7 +75,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
       // Get complete profile data
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("latitude,longitude,selfie_urls,points")
+        .select("latitude,longitude,selfie_urls,points,last_checked_activity_at")
         .eq("id", userId)
         .single();
 
@@ -94,6 +94,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
           // Preserve fresh location if we have it, otherwise use database location
           latitude: prev?.latitude || profileData.latitude,
           longitude: prev?.longitude || profileData.longitude,
+          lastCheckedActivityAt: profileData.last_checked_activity_at || null,
         };
         return userProfile;
       });
