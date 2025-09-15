@@ -10,6 +10,9 @@ import {
     Image,
     AppState,
 } from "react-native";
+// @ts-ignore
+import tzlookup from "tz-lookup";
+import { DateTime } from "luxon";
 import { Stack, router } from "expo-router";
 import React from "react";
 import { supabase } from "../utils/supabase";
@@ -22,7 +25,7 @@ import { useFriends } from "../hooks/useFriends";
 import { useGardenData } from "../hooks/useGardenData";
 import { useAvailablePlants } from "../hooks/useAvailablePlants";
 import { useXP } from "../hooks/useXP";
-import { useWeatherData } from "../hooks/useWeatherData";
+import { useWeatherData, getBackgroundColor } from "../hooks/useWeatherData";
 import { XPService } from "../services/xpService";
 import XPToast from "../components/XPToast";
 import AchievementToast from "../components/AchievementToast";
@@ -44,15 +47,16 @@ import ActivityLogModal from "../components/ActivityLogModal";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
-import { WeatherService } from "../services/weatherService";
+import { CompleteWeatherData, HourlyForGraph, WeatherData, WeatherDataType, WeatherService } from "../services/weatherService";
 import { ContactsService } from "../services/contactsService";
 import { Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { analytics } from "../services/analyticsService";
 import { GardenService } from "../services/gardenService";
 import { AchievementService } from "../services/achievementService";
-import { ActivityService } from "../services/activityService";
+import { ActivityService, GardenActivity } from "../services/activityService";
 import * as Haptics from "expo-haptics";
+import { ca } from "zod/v4/locales";
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -163,7 +167,6 @@ export default function Home() {
         userProfile?.longitude,
         currentUserId
     );
-    // console.log("[Home] 🌤️ hourlyForGraph", hourlyForGraph);
 
     // may need a hook for this
     // only need to flag new activities if action taker is someone else
@@ -928,6 +931,8 @@ export default function Home() {
 
     // Points info modal state
     const [showPointsInfoModal, setShowPointsInfoModal] = useState(false);
+    const [activities, setActivities] = useState<GardenActivity[]>([]);
+    // subscribe to activies here, not just when modal is opened?
 
     // Activity log modal state
     const [showActivityLogModal, setShowActivityLogModal] = useState(false);
@@ -969,26 +974,78 @@ export default function Home() {
             console.log(
                 `[Friends] 🌤️ Fetching complete weather data for ${friend.contact_name} at ${friend.latitude}, ${friend.longitude}`
             );
-            const weatherData = await WeatherService.fetchWeatherData(
-                friend.latitude,
-                friend.longitude
-            );
-            const weatherDataForGraph = await WeatherService.fetchWeatherDataForGraph(
-                friend.latitude,
-                friend.longitude
-            );
-            setFriendForecasts((prev) => ({
-                ...prev,
-                [friend.id]: {
+            const cachedDataResponse = await WeatherService.getCachedWeatherData(friend.latitude, friend.longitude, WeatherDataType.Complete);
+            if (cachedDataResponse.success && cachedDataResponse.data && cachedDataResponse.data.completeData) {
+                const cachedData = cachedDataResponse.data.completeData;
+                setFriendForecasts((prev) => ({
+                    ...prev,
+                    [friend.id]: {
+                        forecast: cachedData.forecast,
+                        hourly: cachedData.hourly || [],
+                        daily: cachedData.daily || [],
+                        hourlyForGraph: cachedData.hourlyForGraph || [],
+                    },
+                }));
+                console.log(
+                    `[Friends] ✅ Complete weather data cached for ${friend.contact_name} using cached data`
+                );
+            } else {
+                let weatherData: WeatherData | null = null;
+                const cachedDataResponse = await WeatherService.getCachedWeatherData(friend.latitude, friend.longitude, WeatherDataType.Partial);
+                if (cachedDataResponse.success && cachedDataResponse.data && cachedDataResponse.data.partialData) {
+                    weatherData = cachedDataResponse.data.partialData;
+                } else {
+                    weatherData = await WeatherService.fetchWeatherData(
+                        friend.latitude,
+                        friend.longitude
+                    );
+                    await WeatherService.saveWeatherData(friend.latitude, friend.longitude, weatherData, WeatherDataType.Partial);
+                }
+                const weatherDataForGraph = await WeatherService.fetchWeatherDataForGraph(
+                    friend.latitude,
+                    friend.longitude
+                );
+                setFriendForecasts((prev) => ({
+                    ...prev,
+                    [friend.id]: {
+                        forecast: weatherData.forecast,
+                        hourly: weatherData.hourly || [],
+                        daily: weatherData.daily || [],
+                        hourlyForGraph: weatherDataForGraph.hourly || [],
+                    },
+                }));
+                let cityNameResult;
+                const cachedCityResponse = await WeatherService.getCachedCityFromCoords(friend.latitude, friend.longitude);
+                if (cachedCityResponse.success && cachedCityResponse.city) {
+                    cityNameResult = cachedCityResponse.city;
+                } else {
+                    cityNameResult = await WeatherService.getCityFromCoords(friend.latitude, friend.longitude);
+                    await WeatherService.saveCityCoords(friend.latitude, friend.longitude, cityNameResult);
+                }
+                let localHour = 12;
+                try {
+                    const timezone = tzlookup(friend.latitude, friend.longitude);
+                    const localTime = DateTime.now().setZone(timezone);
+                    localHour = localTime.hour;
+                } catch (e) {
+                    console.warn("⚠️ Could not determine timezone, using default hour");
+                }
+                const bgColor = getBackgroundColor(localHour);
+                const completeWeatherData: CompleteWeatherData = {
+                    current: weatherData.current,
                     forecast: weatherData.forecast,
-                    hourly: weatherData.hourly || [],
-                    daily: weatherData.daily || [],
-                    hourlyForGraph: weatherDataForGraph.hourly || [],
-                },
-            }));
-            console.log(
-                `[Friends] ✅ Complete weather data cached for ${friend.contact_name}`
-            );
+                    hourly: weatherData.hourly,
+                    hourlyForGraph: weatherDataForGraph.hourly,
+                    daily: weatherData.daily,
+                    cityName: cityNameResult,
+                    localHour,
+                    backgroundColor: bgColor,
+                };
+                await WeatherService.saveWeatherData(friend.latitude, friend.longitude, completeWeatherData, WeatherDataType.Complete);
+                console.log(
+                    `[Friends] ✅ Complete weather data cached for ${friend.contact_name} with fetched data`
+                );
+            }
         } catch (e) {
             console.warn(
                 `[Friends] ⚠️ Could not fetch weather data for ${friend.contact_name}:`,
@@ -1873,6 +1930,8 @@ export default function Home() {
                 visible={showActivityLogModal}
                 onClose={closeActivityLogModal}
                 currentUserId={currentUserId || ""}
+                activities={activities}
+                setActivities={setActivities}
             />
         </>
     );

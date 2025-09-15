@@ -1,7 +1,7 @@
 import * as Contacts from "expo-contacts";
 import { parsePhoneNumberFromString, CountryCode } from "libphonenumber-js";
 import { supabase } from "../utils/supabase";
-import { WeatherService } from "./weatherService";
+import { WeatherDataType, WeatherService } from "./weatherService";
 
 export interface Contact {
     contact_phone: string;
@@ -58,10 +58,10 @@ export class ContactsService {
                 });
                 contacts = contactsResult.data;
             } catch (contactsError) {
-                return { 
-                    success: false, 
-                    contactCount: 0, 
-                    error: "Could not access contacts. Please check your permissions." 
+                return {
+                    success: false,
+                    contactCount: 0,
+                    error: "Could not access contacts. Please check your permissions."
                 };
             }
 
@@ -91,10 +91,10 @@ export class ContactsService {
 
             return { success: true, contactCount: contacts.length };
         } catch (error) {
-            return { 
-                success: false, 
-                contactCount: 0, 
-                error: "Failed to refresh contacts. Please try again." 
+            return {
+                success: false,
+                contactCount: 0,
+                error: "Failed to refresh contacts. Please try again."
             };
         }
     }
@@ -104,7 +104,7 @@ export class ContactsService {
      */
     private static processContacts(contacts: any[], userCountryCode: CountryCode): Contact[] {
         const rows: Contact[] = [];
-        
+
         contacts.forEach((contact) => {
             (contact.phoneNumbers || []).forEach((pn: any) => {
                 if (pn.number) {
@@ -152,21 +152,21 @@ export class ContactsService {
             const BATCH_SIZE = 200;
             for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
                 const batch = contacts.slice(i, i + BATCH_SIZE);
-                
+
                 // Add user_id to each contact record for RLS policy
                 const batchWithUserId = batch.map(contact => ({
                     ...contact,
                     user_id: userId
                 }));
-                
+
                 const { error } = await supabase
                     .from("user_contacts")
                     .insert(batchWithUserId);
                 if (error) {
                     console.error("Batch insert error:", error);
-                    return { 
-                        success: false, 
-                        error: "Some contacts may not have been saved. Please try again." 
+                    return {
+                        success: false,
+                        error: "Some contacts may not have been saved. Please try again."
                     };
                 }
             }
@@ -174,9 +174,9 @@ export class ContactsService {
             return { success: true };
         } catch (dbError) {
             console.error("Database operation failed:", dbError);
-            return { 
-                success: false, 
-                error: "Failed to save contacts. Please check your internet connection and try again." 
+            return {
+                success: false,
+                error: "Failed to save contacts. Please check your internet connection and try again."
             };
         }
     }
@@ -195,19 +195,19 @@ export class ContactsService {
                 .select("contact_phone, contact_name")
                 .eq("user_id", userId)
                 .range(from, from + pageSize - 1);
-            
+
             if (contactsError) {
                 console.error("Contacts fetch error:", contactsError);
                 throw new Error("Failed to fetch contacts.");
             }
-            
+
             if (!contacts || contacts.length === 0) {
                 break; // No more data
             }
-            
+
             allContacts = allContacts.concat(contacts);
             from += pageSize;
-            
+
             // If we got less than pageSize, we're done
             if (contacts.length < pageSize) {
                 break;
@@ -221,7 +221,7 @@ export class ContactsService {
      * Find friends from user's contacts
      */
     static async findFriendsFromContacts(contacts: Contact[], currentUserId: string): Promise<Friend[]> {
-        
+
         // Create a mapping of E.164 phone numbers to contact names
         const phoneToNameMap = new Map<string, string>();
         contacts.forEach((contact) => {
@@ -239,7 +239,7 @@ export class ContactsService {
 
         // Parallelize the queries
         console.log("Searching for friends in database...");
-        
+
         try {
             const friendResults = await Promise.all(
                 phoneChunks.map((chunk, index) => {
@@ -265,42 +265,49 @@ export class ContactsService {
             // Add contact names, city names, and fresh weather data to the friends data
             // Use staggered approach instead of Promise.all to prevent API overload
             console.log("[Friends] 🌤️ Starting staggered weather updates for friends...");
-            
+
             const friendsWithNamesCitiesAndWeather: Friend[] = [];
-            
+
             for (const friend of filteredFriends) {
                 const contactName = phoneToNameMap.get(friend.phone_number);
                 let cityName = "Unknown";
                 let freshWeather = null;
 
-
                 if (friend.latitude && friend.longitude) {
                     // Get city name
                     try {
-                        cityName = await WeatherService.getCityFromCoords(
-                            friend.latitude,
-                            friend.longitude
-                        );
+                        const cachedCityResponse = await WeatherService.getCachedCityFromCoords(friend.latitude, friend.longitude);
+                        if (cachedCityResponse.success && cachedCityResponse.city) {
+                            cityName = cachedCityResponse.city;
+                            console.log(`[Weather] ✅ Using cached city name: ${cityName}`);
+                        } else {
+                            cityName = await WeatherService.getCityFromCoords(friend.latitude, friend.longitude);
+                            console.log(`[Weather] ✅ Fetched city name: ${cityName}, saving to DB cache...`);
+                            await WeatherService.saveCityCoords(friend.latitude, friend.longitude, cityName);
+                        }
                     } catch (cityError) {
                         console.warn(`[Friends] ⚠️ Could not get city name for ${contactName}:`, cityError);
                     }
 
-                    // Get fresh weather data using friend's stored location
+                    // Get cached or fresh weather data using friend's stored location
                     try {
-                        console.log(`[Friends] 🌤️ Fetching fresh weather for ${contactName} at ${friend.latitude}, ${friend.longitude}`);
-                        
-                        freshWeather = await WeatherService.fetchWeatherData(
-                            friend.latitude,
-                            friend.longitude
-                        );
-                        console.log(`[Friends] ✅ Fresh weather fetched for ${contactName}: ${freshWeather.current.weather[0].main} ${freshWeather.current.main.temp}°F`);
-                        
-                        
+                        const cachedDataResponse = await WeatherService.getCachedWeatherData(friend.latitude, friend.longitude, WeatherDataType.Partial);
+                        if (cachedDataResponse.success && cachedDataResponse.data && cachedDataResponse.data.partialData) {
+                            freshWeather = cachedDataResponse.data.partialData;
+                        } else {
+                            console.log(`[Friends] 🌤️ Fetching fresh weather for ${contactName} at ${friend.latitude}, ${friend.longitude}`);
+                            freshWeather = await WeatherService.fetchWeatherData(
+                                friend.latitude,
+                                friend.longitude
+                            );
+                            await WeatherService.saveWeatherData(friend.latitude, friend.longitude, freshWeather, WeatherDataType.Partial);
+                            console.log(`[Friends] ✅ Fresh weather fetched for ${contactName}: ${freshWeather.current.weather[0].main} ${freshWeather.current.main.temp}°F`);
+                        }
                         // Small delay to avoid overwhelming the API and show progress
                         await new Promise(resolve => setTimeout(resolve, 200));
-                        
+
                     } catch (weatherError) {
-                        console.warn(`[Friends] ⚠️ Could not fetch fresh weather for ${contactName}, using stored data:`, weatherError);
+                        console.warn(`[Friends] ⚠️ Could not get weather for ${contactName}, using stored data:`, weatherError);
                     }
                 } else {
                     console.log(`[Friends] ⚠️ No location data for ${contactName}, using stored weather data`);
@@ -319,7 +326,7 @@ export class ContactsService {
             }
 
             console.log(`[Friends] ✅ Completed staggered weather updates for ${friendsWithNamesCitiesAndWeather.length} friends`);
-            
+
             return friendsWithNamesCitiesAndWeather;
         } catch (error) {
             throw error;

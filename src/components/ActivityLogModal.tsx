@@ -19,14 +19,19 @@ interface ActivityLogModalProps {
     visible: boolean;
     onClose: () => void;
     currentUserId: string;
+    activities: GardenActivity[];
+    setActivities: React.Dispatch<React.SetStateAction<GardenActivity[]>>;
 }
 
 export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
     visible,
     onClose,
     currentUserId,
+    activities,
+    setActivities,
 }) => {
-    const [activities, setActivities] = useState<GardenActivity[]>([]);
+    // may want to pass activities/setActivities from home for bell badge
+    // const [activities, setActivities] = useState<GardenActivity[]>([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);

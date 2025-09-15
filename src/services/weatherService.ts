@@ -1,11 +1,86 @@
-const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
+import { supabase } from "../utils/supabase";
+import { z } from "zod";
 
-export interface WeatherData {
-    current: any;
-    forecast: any[];
-    hourly?: HourlyForecast[];
-    daily?: DailyForecast[];
-}
+const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
+const WEATHER_CACHE_DURATION = 60 * 60 * 1000; // 60 minutes
+
+const ZWeatherCondition = z.object({
+    main: z.string(),
+    description: z.string(),
+    icon: z.string(),
+});
+
+const ZHourlyForecast = z.object({
+    dt: z.number(),
+    temp: z.number(),
+    feels_like: z.number(),
+    humidity: z.number(),
+    pressure: z.number(),
+    weather: z.array(ZWeatherCondition),
+    wind_speed: z.number(),
+    wind_deg: z.number(),
+    pop: z.number(), // precipitation probability (0-1)
+    uvi: z.number(), // UV index
+    visibility: z.number().optional(),
+    clouds: z.number().optional(),
+});
+
+const ZHourlyForGraph = z.object({
+    dt: z.number(),
+    temp: z.number(),
+    feels_like: z.number(),
+    humidity: z.number(),
+    pressure: z.number(),
+    weather: z.array(ZWeatherCondition),
+    wind_speed: z.number(),
+    wind_deg: z.number(),
+    pop: z.number().optional(),
+    uvi: z.number(), // UV index
+    visibility: z.number().optional(),
+    clouds: z.number().optional(),
+});
+
+const ZDailyForecast = z.object({
+    dt: z.number(),
+    temp: z.object({
+        day: z.number(),
+        min: z.number(),
+        max: z.number(),
+        night: z.number(),
+        eve: z.number(),
+        morn: z.number(),
+    }),
+    feels_like: z.object({
+        day: z.number(),
+        night: z.number(),
+        eve: z.number(),
+        morn: z.number(),
+    }),
+    humidity: z.number(),
+    pressure: z.number(),
+    weather: z.array(ZWeatherCondition),
+    wind_speed: z.number(),
+    wind_deg: z.number(),
+    pop: z.number(),
+    uvi: z.number(),
+    clouds: z.number().optional(),
+});
+
+const ZWeatherData = z.object({
+    current: z.any(),
+    forecast: z.array(z.any()),
+    hourly: z.array(ZHourlyForecast).optional(),
+    daily: z.array(ZDailyForecast).optional(),
+})
+
+const ZCompleteWeatherData = ZWeatherData.extend({
+    hourlyForGraph: z.array(ZHourlyForGraph).optional(),
+    cityName: z.string(),
+    localHour: z.number(),
+    backgroundColor: z.string(),
+})
+
+export type WeatherData = z.infer<typeof ZWeatherData>;
 
 export interface FiveDayForecast {
     date: string;
@@ -77,7 +152,34 @@ export interface WeatherCondition {
     icon: string;
 }
 
+export type CompleteWeatherData = z.infer<typeof ZCompleteWeatherData>;
+
+export interface CachedWeatherDataResponse {
+    success: boolean;
+    data?: { completeData?: CompleteWeatherData, partialData?: WeatherData; timestamp: number } | null;
+    error?: string;
+}
+
+export interface CachedCityFromCoordsResponse {
+    success: boolean;
+    city?: string | null;
+    error?: string;
+}
+
+export interface SaveToDBCacheResponse {
+    success: boolean;
+    error?: string;
+}
+
+export enum WeatherDataType {
+    Partial = 'partial',
+    Complete = 'complete',
+}
+
 export class WeatherService {
+    static getCacheKey(latitude: number, longitude: number): string {
+        return `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+    }
     /**
      * Fetch weather data for a given location using the OpenWeather OneCall API 3.0
      */
@@ -102,7 +204,16 @@ export class WeatherService {
 
             // Get city name from coordinates
             console.log("[Weather] 🏙️ Fetching city name...");
-            const cityName = await this.getCityFromCoords(latitude, longitude);
+            let cityName;
+            const cachedCityResponse = await this.getCachedCityFromCoords(latitude, longitude);
+            if (cachedCityResponse.success && cachedCityResponse.city) {
+                cityName = cachedCityResponse.city;
+                console.log(`[Weather] ✅ Using cached city name: ${cityName}`);
+            } else {
+                cityName = await this.getCityFromCoords(latitude, longitude);
+                console.log(`[Weather] ✅ Fetched city name: ${cityName}, saving to DB cache...`);
+                await this.saveCityCoords(latitude, longitude, cityName);
+            }
             console.log(`[Weather] ✅ City name: ${cityName}`);
 
             // Extract current weather
@@ -453,6 +564,233 @@ export class WeatherService {
         } catch (error) {
             console.error("[Weather] ❌ Error updating weather and location in database:", error);
             throw error;
+        }
+    }
+
+    static async getCachedWeatherData(
+        latitude: number, longitude: number, type: WeatherDataType
+    ): Promise<CachedWeatherDataResponse> {
+        try {
+            console.log("[Weather] 🌤️ Getting cached weather data from DB...");
+            const key = this.getCacheKey(latitude, longitude);
+            if (type === WeatherDataType.Complete) {
+                const { data, error } = await supabase
+                    .from('weather_data')
+                    .select('data, updated_at')
+                    .eq('coordinates', key)
+                    .eq('type', type)
+                    .single();
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        console.log("[Weather] No cached weather data found in DB");
+                        return { success: true, data: null };
+                    }
+                    throw error;
+                }
+                const freshData = data && (Date.now() - new Date(data.updated_at).getTime() <= WEATHER_CACHE_DURATION);
+                if (freshData) {
+                    console.log("[Weather] ✅ Cached weather data fetched from DB is fresh");
+                    const completeData = ZCompleteWeatherData.parse(data.data);
+                    return {
+                        success: true,
+                        data: { completeData, timestamp: new Date(data.updated_at).getTime() },
+                    }
+                } else {
+                    console.log("[Weather] Cached weather data fetched from DB is stale");
+                    return { success: true, data: null };
+                }
+            } else {
+                const { data, error } = await supabase
+                    .from('weather_data')
+                    .select('data, updated_at')
+                    .eq('coordinates', key)
+                    .eq('type', type)
+                    .single();
+                if (error && error.code !== "PGRST116") {
+                    throw error;
+                }
+                const freshData = data && (Date.now() - new Date(data.updated_at).getTime() <= WEATHER_CACHE_DURATION);
+                if (freshData) {
+                    console.log("[Weather] ✅ Cached weather data fetched from DB is fresh");
+                    const partialData = ZWeatherData.parse(data.data);
+                    return {
+                        success: true,
+                        data: { partialData, timestamp: new Date(data.updated_at).getTime() },
+                    }
+                } else {
+                    console.log("[Weather] Using complete cached data as fallback for partial data");
+                    const { data, error } = await supabase
+                        .from('weather_data')
+                        .select('data, updated_at')
+                        .eq('coordinates', key)
+                        .eq('type', WeatherDataType.Complete)
+                        .single();
+                    if (error) {
+                        if (error.code === 'PGRST116') {
+                            console.log("[Weather] No cached weather data found in DB");
+                            return { success: true, data: null };
+                        }
+                        throw error;
+                    }
+                    const freshData = data && (Date.now() - new Date(data.updated_at).getTime() <= WEATHER_CACHE_DURATION);
+                    if (freshData) {
+                        console.log("[Weather] ✅ Cached weather data fetched from DB is fresh");
+                        const completeData = ZCompleteWeatherData.parse(data.data);
+                        const partialData = {
+                            current: completeData.current,
+                            forecast: completeData.forecast,
+                            hourly: completeData.hourly,
+                            daily: completeData.daily,
+                        } as WeatherData;
+                        return {
+                            success: true,
+                            data: { partialData, timestamp: new Date(data.updated_at).getTime() },
+                        }
+                    } else {
+                        console.log("[Weather] Cached weather data fetched from DB is stale");
+                        return { success: true, data: null };
+                    }
+                }
+            }
+        }
+        catch (error) {
+            console.error("[Weather] ❌ Error getting cached weather data from DB:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            }
+        }
+    }
+
+    static async getCachedWeatherDataFallback(
+        latitude: number, longitude: number, type: WeatherDataType
+    ): Promise<CachedWeatherDataResponse> {
+        try {
+            console.log("[Weather] 🌤️ Getting cached weather data fallback from DB...");
+            const key = this.getCacheKey(latitude, longitude);
+            const { data, error } = await supabase
+                .from('weather_data')
+                .select('data, updated_at')
+                .eq('coordinates', key)
+                .eq('type', type)
+                .single();
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    console.log("[Weather] No cached weather data found in DB");
+                    return { success: true, data: null };
+                }
+                throw error;
+            }
+            console.log("[Weather] ✅ Cached weather data fetched from DB");
+            if (data) {
+                if (type === WeatherDataType.Complete) {
+                    const completeData = ZCompleteWeatherData.parse(data.data);
+                    return {
+                        success: true,
+                        data: { completeData, timestamp: new Date(data.updated_at).getTime() },
+                    }
+                } else {
+                    const partialData = ZWeatherData.parse(data.data);
+                    return {
+                        success: true,
+                        data: { partialData, timestamp: new Date(data.updated_at).getTime() },
+                    }
+                }
+            } else {
+                return { success: true, data: null };
+            }
+
+        }
+        catch (error) {
+            console.error("[Weather] ❌ Error getting cached weather data fallback from DB:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            }
+        }
+    }
+
+
+    static async saveWeatherData(
+        latitude: number, longitude: number, weatherData: CompleteWeatherData | WeatherData, type: WeatherDataType
+    ): Promise<SaveToDBCacheResponse> {
+        try {
+            console.log("[Weather] 💾 Saving weather data to cache in DB...");
+            if (type === WeatherDataType.Complete) {
+                ZCompleteWeatherData.parse(weatherData);
+            } else {
+                ZWeatherData.parse(weatherData);
+            }
+            const key = this.getCacheKey(latitude, longitude);
+            const { error } = await supabase
+                .from('weather_data')
+                .upsert({
+                    coordinates: key,
+                    data: weatherData,
+                    updated_at: new Date().toISOString(),
+                    type,
+                }, { onConflict: 'coordinates,type' });
+            if (error) {
+                throw error;
+            }
+            console.log("[Weather] ✅ Weather data saved to cache in DB");
+            return { success: true };
+
+        } catch (error) {
+            console.error("[Weather] ❌ Error saving weather data to cache:", error);
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        }
+    }
+
+    static async getCachedCityFromCoords(lat: number, lon: number): Promise<CachedCityFromCoordsResponse> {
+        try {
+            console.log("[Weather] 🌤️ Getting cached city from coords from DB...");
+            const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+            const { data, error } = await supabase
+                .from('city_coordinates')
+                .select('city')
+                .eq('coordinates', key)
+                .single();
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    console.log("[Weather] No cached city coords found in DB");
+                    return { success: true, city: null };
+                }
+                throw error;
+            }
+            console.log("[Weather] ✅ Cached city fetched from DB");
+            return {
+                success: true,
+                city: data ? data.city : null,
+            }
+        } catch (error) {
+            console.error("[Weather] ❌ Error getting cached city from coords:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            }
+        }
+    }
+
+    static async saveCityCoords(lat: number, lon: number, cityName: string): Promise<SaveToDBCacheResponse> {
+        try {
+            console.log("[Weather] 💾 Saving city and coords to cache in DB...");
+            const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+            const { error } = await supabase
+                .from('city_coordinates')
+                .upsert({
+                    coordinates: key,
+                    city: cityName,
+                }, { onConflict: 'coordinates' });
+            if (error) {
+                throw error;
+            }
+            console.log("[Weather] ✅ City and coords saved to cache in DB");
+            return { success: true };
+
+        } catch (error) {
+            console.error("[Weather] ❌ Error saving city and coords to cache:", error);
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
         }
     }
 } 
