@@ -1,5 +1,8 @@
 import { supabase } from "../utils/supabase";
 import { z } from "zod";
+// @ts-ignore
+import tzlookup from "tz-lookup";
+import { DateTime } from "luxon";
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 const WEATHER_CACHE_DURATION = 60 * 60 * 1000; // 60 minutes
@@ -80,7 +83,14 @@ const ZCompleteWeatherData = ZWeatherData.extend({
     backgroundColor: z.string(),
 })
 
+const ZCoordinates = z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+})
+
 export type WeatherData = z.infer<typeof ZWeatherData>;
+
+export type Coordinates = z.infer<typeof ZCoordinates>;
 
 export interface FiveDayForecast {
     date: string;
@@ -163,6 +173,12 @@ export interface CachedWeatherDataResponse {
 export interface CachedCityFromCoordsResponse {
     success: boolean;
     city?: string | null;
+    error?: string;
+}
+
+export interface CachedCoordsFromCityResponse {
+    success: boolean;
+    coordinates?: Coordinates | null;
     error?: string;
 }
 
@@ -322,11 +338,22 @@ export class WeatherService {
                 throw new Error("OpenWeather API key is missing");
             }
 
+            // given lat/lon, need to find out current time in local tz
+            const timezone = tzlookup(latitude, longitude);
+            const localTime = DateTime.now().setZone(timezone);
+            const localMidnight = localTime.startOf("day");
+            const localMidnightJS = new Date(localMidnight.toMillis());
+            const utcTimestamp = Math.floor(localMidnightJS.getTime() / 1000);
             const now = new Date();
-            const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-            const utcTimestamp = Math.floor(localMidnight.getTime() / 1000);
             const nowTimestamp = Math.floor(now.getTime() / 1000);
             const hourlyForecasts: HourlyForGraph[] = [];
+            console.log(`[Weather] 🕰️ Local timezone: ${timezone}, local midnight: ${localMidnightJS.toISOString()}, UTC timestamp: ${utcTimestamp}, nowTimestamp ${nowTimestamp}`);
+
+            // const now = new Date();
+            // const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+            // const utcTimestamp = Math.floor(localMidnight.getTime() / 1000);
+            // const nowTimestamp = Math.floor(now.getTime() / 1000);
+            // const hourlyForecasts: HourlyForGraph[] = [];
 
             for (let i = 0; i <= 24; i++) {
                 const time = utcTimestamp + i * 3600;
@@ -443,6 +470,32 @@ export class WeatherService {
         } catch (error) {
             console.error("[Weather] ❌ Error getting city name:", error);
             return "Unknown";
+        }
+    }
+
+    /**
+     * Get coordinates name from city using OpenWeather Geocoding API
+     */
+    static async getCoordsFromCity(city: string): Promise<Coordinates | null> {
+        try {
+            if (!OPENWEATHER_API_KEY) {
+                throw new Error("OpenWeather API key is missing");
+            }
+
+            const response = await fetch(
+                `https://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${OPENWEATHER_API_KEY}`
+            );
+            const data = await response.json();
+
+            if (data && data.length > 0) {
+                const coords = { latitude: data[0].lat, longitude: data[0].lon };
+                return ZCoordinates.parse(coords);
+            }
+
+            return null;
+        } catch (error) {
+            console.error("[Weather] ❌ Error getting city name:", error);
+            return null;
         }
     }
 
@@ -567,6 +620,8 @@ export class WeatherService {
         }
     }
 
+    // TODO: can further optimize and save api calls by saving city in weather_data
+    // so given longitude/latitude, look up city, then see if data exist for city
     static async getCachedWeatherData(
         latitude: number, longitude: number, type: WeatherDataType
     ): Promise<CachedWeatherDataResponse> {
@@ -765,6 +820,44 @@ export class WeatherService {
             }
         } catch (error) {
             console.error("[Weather] ❌ Error getting cached city from coords:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            }
+        }
+    }
+
+    static async getCachedCoordsFromCity(city: string): Promise<CachedCoordsFromCityResponse> {
+        try {
+            console.log("[Weather] 🌤️ Getting cached coords from city from DB...");
+            const { data, error } = await supabase
+                .from('city_coordinates')
+                .select('coordinates')
+                .eq('city', city);
+            if (error) {
+                throw error;
+            }
+            if (!data || data.length === 0) {
+                console.log("[Weather] No cached coords for city found in DB");
+                return { success: true, coordinates: null };
+            }
+            const parts = data[0].coordinates.split(',');
+            if (parts.length !== 2) {
+                console.log("[Weather] Invalid coordinates format in DB");
+                return { success: true, coordinates: null };
+            }
+
+            const coordinates = ZCoordinates.parse({
+                latitude: parseFloat(parts[0]),
+                longitude: parseFloat(parts[1]),
+            })
+            console.log("[Weather] ✅ Cached coords fetched from DB");
+            return {
+                success: true,
+                coordinates
+            }
+        } catch (error) {
+            console.error("[Weather] ❌ Error getting cached coords from city:", error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error',

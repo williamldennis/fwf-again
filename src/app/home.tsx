@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
     View,
     Text,
@@ -14,7 +14,6 @@ import {
 import tzlookup from "tz-lookup";
 import { DateTime } from "luxon";
 import { Stack, router } from "expo-router";
-import React from "react";
 import { supabase } from "../utils/supabase";
 import { useHeaderHeight } from "@react-navigation/elements";
 
@@ -48,8 +47,7 @@ import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
 import { CompleteWeatherData, HourlyForGraph, WeatherData, WeatherDataType, WeatherService } from "../services/weatherService";
-import { ContactsService } from "../services/contactsService";
-import { Friend } from "../services/contactsService";
+import { ContactsService , Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { analytics } from "../services/analyticsService";
 import { GardenService } from "../services/gardenService";

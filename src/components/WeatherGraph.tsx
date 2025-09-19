@@ -1,11 +1,16 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { LineChart } from "react-native-chart-kit";
-import { HourlyForecast, HourlyForGraph } from "../services/weatherService";
+import { Coordinates, HourlyForecast, HourlyForGraph, WeatherService } from "../services/weatherService";
+// @ts-ignore
+import tzlookup from "tz-lookup";
+import { DateTime } from "luxon";
+
 
 interface WeatherGraphProps {
     hourlyForecast: HourlyForecast[];
     hourlyForGraph: HourlyForGraph[];
+    city: string;
     width?: number;
     height?: number;
 }
@@ -17,9 +22,53 @@ const GRAPH_HEIGHT = 200;
 const WeatherGraph: React.FC<WeatherGraphProps> = ({
     hourlyForecast,
     hourlyForGraph,
+    city,
     width = GRAPH_WIDTH,
     height = GRAPH_HEIGHT,
 }) => {
+    // use local city timezone
+    const [timezone, setTimezone] = React.useState<string>("Anerica/New_York");
+
+    useEffect(() => {
+
+        const getTimeZone = async () => {
+            if (!hourlyForecast || hourlyForecast.length === 0) {
+                return null;
+            }
+            if (!hourlyForGraph || hourlyForGraph.length === 0) {
+                return null;
+            }
+            let coordinates: Coordinates | null = null;
+            const cachedCoordsResult = await WeatherService.getCachedCoordsFromCity(city);
+            if (!cachedCoordsResult.success || !cachedCoordsResult.coordinates) {
+                console.log("[WeatherGraph] No cached coordinates found for city, calling geocoding API");
+                const coordsResult = await WeatherService.getCoordsFromCity(city);
+                if (!coordsResult) {
+                    console.log("[WeatherGraph] No result returned for coordinates from city, defaulting to America/New_York");
+                    setTimezone("America/New_York");
+                    return;
+                }
+                if (coordsResult && coordsResult.latitude && coordsResult.longitude) {
+                    coordinates = {
+                        latitude: coordsResult.latitude,
+                        longitude: coordsResult.longitude,
+                    };
+                    console.log("[WeatherGraph] ✅ Coordinates fetched from geocoding API:", coordinates);
+                    await WeatherService.saveCityCoords(coordsResult.latitude, coordsResult.longitude, city);
+                }
+            } else {
+                coordinates = cachedCoordsResult.coordinates;
+                console.log("[WeatherGraph] ✅ Using cached coordinates for city:", coordinates);
+            }
+            const { latitude, longitude } = coordinates || { latitude: 40.7152, longitude: -73.9467 };
+            const timezone = tzlookup(latitude, longitude);
+            setTimezone(timezone);
+            console.log(`[WeatherGraph] Setting timezone for ${city} to ${timezone}`);
+        }
+        getTimeZone();
+    }, [city])
+
+
     if (!hourlyForecast || hourlyForecast.length === 0) {
         return null;
     }
@@ -41,10 +90,9 @@ const WeatherGraph: React.FC<WeatherGraphProps> = ({
 
     // Prepare time labels - only show key times
     const timeLabels = data.map((hour) => {
-        const date = new Date(hour.dt * 1000);
-        const hours = date.getHours();
-        const now = new Date();
-        const currentHour = now.getHours();
+        const dt = DateTime.fromSeconds(hour.dt, { zone: timezone });
+        const hours = dt.hour;
+        const currentHour = DateTime.now().setZone(timezone).hour;
 
         if (hours === currentHour) return "Now";
         if (hours === 0) return "12AM";

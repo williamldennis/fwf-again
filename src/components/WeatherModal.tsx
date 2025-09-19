@@ -112,7 +112,7 @@ const WeatherModal: React.FC<WeatherModalProps> = ({
                             <Text style={styles.sectionTitle}>
                                 Today's Forecast
                             </Text>
-                            <WeatherGraph hourlyForecast={hourlyForecast} hourlyForGraph={hourlyForGraph} />
+                            <WeatherGraph hourlyForecast={hourlyForecast} hourlyForGraph={hourlyForGraph} city={cityName} />
                         </View>
                     )}
 
