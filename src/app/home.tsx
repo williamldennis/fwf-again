@@ -47,7 +47,7 @@ import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
 import { CompleteWeatherData, HourlyForGraph, WeatherData, WeatherDataType, WeatherService } from "../services/weatherService";
-import { ContactsService , Friend } from "../services/contactsService";
+import { ContactsService, Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { analytics } from "../services/analyticsService";
 import { GardenService } from "../services/gardenService";
@@ -133,7 +133,8 @@ export default function Home() {
         updatePoints,
         refreshProfile,
     } = useUserProfile(currentUserId);
-    const { friends, refreshFriends } = useFriends(currentUserId);
+    // check if need to display friendsLoading in ui, when cached data is served while new data is being fetched 
+    const { friends, refreshFriends, loading: friendsLoading } = useFriends(currentUserId);
     const {
         plantedPlants,
         updateSingleGarden,
