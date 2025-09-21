@@ -244,7 +244,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                     height={screenHeight}
                     data={stackItems}
                     renderItem={renderCard}
-                    onSnapToItem={setCurrentIndex}
+                    // onSnapToItem={setCurrentIndex}}
                     windowSize={5}
                 />
 
@@ -258,6 +258,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                             selfieUrls={selfieUrls}
                             weather={weather}
                             onPress={(pressedIndex) => {
+                                setCurrentIndex(pressedIndex);
                                 // Navigate to the pressed card
                                 if (
                                     pressedIndex !== currentIndex &&
