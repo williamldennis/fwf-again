@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity } from "react-native";
 import { getWeatherSelfieKey } from "../utils/weatherUtils";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface SelfieIndicatorProps {
     item: {
@@ -15,6 +16,8 @@ interface SelfieIndicatorProps {
     index: number;
 }
 
+const USER_CACHE_KEY = 'user_profile_cache'; // add userId to this if needed?
+
 export const SelfieIndicator: React.FC<SelfieIndicatorProps> = ({
     item,
     isActive,
@@ -23,18 +26,54 @@ export const SelfieIndicator: React.FC<SelfieIndicatorProps> = ({
     onPress,
     index,
 }) => {
+    const [cachedSelfieUrl, setCachedSelfieUrl] = useState<string | null>(null);
     const size = 40; // Increased from 24 to 40
     const borderWidth = 2;
     const activeBorderColor = "#007AFF";
     const inactiveBorderColor = "#D1D5DB";
 
+    // Load cached selfie URL on mount
+    useEffect(() => {
+        if (item.type === "user") {
+            AsyncStorage.getItem(USER_CACHE_KEY)
+                .then(cached => {
+                    if (cached) {
+                        try {
+                            const parsed = JSON.parse(cached);
+                            if (parsed.selfieUrl) {
+                                console.log("[SelfieIndicator] 🚀 Loaded cached user selfie URL");
+                                setCachedSelfieUrl(parsed.selfieUrl);
+                            }
+                        } catch (e) {
+                            console.warn("[SelfieIndicator] ⚠️ Failed to parse cached user selfie URL:", e);
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.warn("[SelfieIndicator] ⚠️ Failed to load cached user selfie URL:", err);
+                });
+        }
+    }, [item.type]);
+
     const getIndicatorContent = () => {
         if (item.type === "user") {
             // User card - show user's selfie based on current weather
+            // Priority 1: Fresh selfie based on current weather
             if (selfieUrls && weather?.weather?.[0]?.main) {
                 const weatherKey = getWeatherSelfieKey(weather.weather[0].main);
                 const selfieUrl = selfieUrls[weatherKey];
                 if (selfieUrl) {
+                    // Save selfieUrl to AsyncStorage cache
+                    AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify({
+                        selfieUrl,
+                        timestamp: Date.now()
+                    }))
+                        .then(() => {
+                            console.log("[SelfieIndicator] ✅ User selfie URL cached successfully");
+                        })
+                        .catch(err => {
+                            console.warn("[SelfieIndicator] ⚠️ Failed to cache user selfie URL:", err);
+                        });
                     return (
                         <Image
                             source={{ uri: selfieUrl }}
@@ -47,7 +86,22 @@ export const SelfieIndicator: React.FC<SelfieIndicatorProps> = ({
                     );
                 }
             }
-            // Fallback to initials
+
+            // Priority 2: Cached selfie (shows immediately while fresh data loads)
+            if (cachedSelfieUrl) {
+                return (
+                    <Image
+                        source={{ uri: cachedSelfieUrl }}
+                        style={{
+                            width: size - borderWidth * 2,
+                            height: size - borderWidth * 2,
+                            borderRadius: (size - borderWidth * 2) / 2,
+                        }}
+                    />
+                );
+            }
+
+            // Priority 3: Fallback to initials
             return (
                 <Text
                     style={{
@@ -85,11 +139,11 @@ export const SelfieIndicator: React.FC<SelfieIndicatorProps> = ({
             // Fallback to initials
             const initials = friend.contact_name
                 ? friend.contact_name
-                      .split(" ")
-                      .map((name: string) => name[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)
+                    .split(" ")
+                    .map((name: string) => name[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)
                 : "??";
             return (
                 <Text
