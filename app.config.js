@@ -4,7 +4,7 @@ export default ({ config }) => ({
     ...config,
     name: "fwf",
     slug: "fwf",
-    version: "1.0.10",
+    version: "1.0.2",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "fwf",
@@ -13,7 +13,7 @@ export default ({ config }) => ({
     ios: {
         ...config.ios,
         supportsTablet: true,
-        bundleIdentifier: "com.willydennis.fwf.angi",
+        bundleIdentifier: "com.willydennis.fwf",
         infoPlist: {
             NSContactsUsageDescription:
                 "This app needs access to your contacts to help you connect with friends.",

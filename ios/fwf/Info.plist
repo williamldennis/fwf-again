@@ -28,7 +28,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>fwf</string>
-          <string>com.willydennis.fwf.angi</string>
+          <string>com.willydennis.fwf</string>
         </array>
       </dict>
       <dict>
