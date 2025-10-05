@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { ContactsService, Friend, Contact } from '../services/contactsService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface UseFriendsResult {
   friends: Friend[];
@@ -14,19 +15,21 @@ export function useFriends(userId: string | null): UseFriendsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const FRIENDS_CACHE_KEY = userId ? `friends_${userId}` : null;
+
   // Fetch friends data
   const fetchFriendsData = useCallback(async (userId: string) => {
     console.log("[Friends] 👥 Starting friends fetch...");
-    
+
     try {
       // Fetch user's contacts and find friends
       console.log("[Friends] 📞 Fetching user's contacts...");
-      
+
       const allContacts = await ContactsService.fetchUserContacts(userId);
       console.log(`[Friends] ✅ Total contacts retrieved: ${allContacts.length}`);
 
       console.log("[Friends] 🔍 Processing contacts and finding friends...");
-      
+
       const friendsWithNamesAndCities = await ContactsService.findFriendsFromContacts(
         allContacts,
         userId
@@ -34,6 +37,15 @@ export function useFriends(userId: string | null): UseFriendsResult {
       console.log(`[Friends] ✅ Friends with cities loaded: ${friendsWithNamesAndCities.length}`);
 
       setFriends(friendsWithNamesAndCities);
+      // Save to AsyncStorage cache
+      if (FRIENDS_CACHE_KEY) {
+        try {
+          await AsyncStorage.setItem(FRIENDS_CACHE_KEY, JSON.stringify(friendsWithNamesAndCities));
+          console.log("[Friends] 💾 Friends cached to AsyncStorage");
+        } catch (cacheErr) {
+          console.warn("[Friends] ⚠️ Failed to cache friends:", cacheErr);
+        }
+      }
       console.log("[Friends] ✅ Friends data loaded successfully");
     } catch (err) {
       console.error("[Friends] ❌ Friends fetch error:", err);
@@ -41,14 +53,14 @@ export function useFriends(userId: string | null): UseFriendsResult {
       setError(`Failed to fetch friends: ${errorMessage}`);
       // Don't throw - friends failure shouldn't break the app
     }
-  }, []);
+  }, [FRIENDS_CACHE_KEY]);
 
   // Refresh friends data
   const refreshFriends = useCallback(async (): Promise<void> => {
     if (!userId) return;
-    
+
     console.log("[Friends] 🔄 Refreshing friends data...");
-    
+
     setLoading(true);
     setError(null);
 
@@ -71,10 +83,10 @@ export function useFriends(userId: string | null): UseFriendsResult {
     }
 
     console.log("[Friends] 📱 Refreshing contacts from device...");
-    
+
     try {
       const result = await ContactsService.refreshContacts();
-      
+
       if (result.success) {
         console.log(`[Friends] ✅ Contacts refreshed: ${result.contactCount} contacts`);
         // Refresh friends data after contacts are updated
@@ -82,7 +94,7 @@ export function useFriends(userId: string | null): UseFriendsResult {
       } else {
         console.error("[Friends] ❌ Contacts refresh failed:", result.error);
       }
-      
+
       return result;
     } catch (err) {
       console.error("[Friends] ❌ Contacts refresh error:", err);
@@ -91,7 +103,7 @@ export function useFriends(userId: string | null): UseFriendsResult {
     }
   }, [userId, refreshFriends]);
 
-  // Initial friends fetch
+  // Initial friends fetch with cache
   useEffect(() => {
     if (!userId) {
       setFriends([]);
@@ -100,24 +112,42 @@ export function useFriends(userId: string | null): UseFriendsResult {
       return;
     }
 
-    console.log("[Friends] 🚀 Initial friends fetch...");
-    
-    setLoading(true);
-    setError(null);
+    console.log("[Friends] 🚀 Initial friends fetch with cache...");
+    let cancelled = false;
 
-    fetchFriendsData(userId)
-      .then(() => {
-        console.log("[Friends] ✅ Initial friends fetch completed");
-      })
-      .catch((err) => {
-        console.error("[Friends] ❌ Initial friends fetch error:", err);
-        const errorMessage = err instanceof Error ? err.message : "Unknown error";
-        setError(`Friends fetch failed: ${errorMessage}`);
-      })
-      .finally(() => {
+    const loadCachedAndFetch = async () => {
+      if (!userId) {
+        setFriends([]);
         setLoading(false);
-      });
-  }, [userId, fetchFriendsData]);
+        setError(null);
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      // Try to load cached friends first
+      if (FRIENDS_CACHE_KEY) {
+        try {
+          const cached = await AsyncStorage.getItem(FRIENDS_CACHE_KEY);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (!cancelled) {
+              setFriends(parsed);
+              console.log("[Friends] 🚀 Loaded cached friends from AsyncStorage");
+            }
+          }
+        } catch (cacheErr) {
+          console.warn("[Friends] ⚠️ Failed to load cached friends:", cacheErr);
+        }
+      }
+      // fetch fresh friends from DB
+      await fetchFriendsData(userId);
+      if (!cancelled) setLoading(false);
+    };
+    loadCachedAndFetch();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, fetchFriendsData, FRIENDS_CACHE_KEY]);
 
   return {
     friends,

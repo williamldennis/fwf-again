@@ -1,5 +1,8 @@
 import { XPService, UserXPSummary, XPAwardResult, XPTransaction } from '../../services/xpService';
 
+// Import the mocked modules
+import { supabase } from '../../utils/supabase';
+
 // Mock the supabase module
 jest.mock('../../utils/supabase', () => ({
   supabase: {
@@ -7,9 +10,6 @@ jest.mock('../../utils/supabase', () => ({
     from: jest.fn()
   }
 }));
-
-// Import the mocked modules
-import { supabase } from '../../utils/supabase';
 
 describe('XPService', () => {
   const mockUserId = 'test-user-id';

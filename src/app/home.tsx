@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
     View,
     Text,
@@ -10,8 +10,10 @@ import {
     Image,
     AppState,
 } from "react-native";
+// @ts-ignore
+import tzlookup from "tz-lookup";
+import { DateTime } from "luxon";
 import { Stack, router } from "expo-router";
-import React from "react";
 import { supabase } from "../utils/supabase";
 import { useHeaderHeight } from "@react-navigation/elements";
 
@@ -22,7 +24,7 @@ import { useFriends } from "../hooks/useFriends";
 import { useGardenData } from "../hooks/useGardenData";
 import { useAvailablePlants } from "../hooks/useAvailablePlants";
 import { useXP } from "../hooks/useXP";
-import { useWeatherData } from "../hooks/useWeatherData";
+import { useWeatherData, getBackgroundColor } from "../hooks/useWeatherData";
 import { XPService } from "../services/xpService";
 import XPToast from "../components/XPToast";
 import AchievementToast from "../components/AchievementToast";
@@ -44,15 +46,15 @@ import ActivityLogModal from "../components/ActivityLogModal";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
-import { WeatherService } from "../services/weatherService";
-import { ContactsService } from "../services/contactsService";
-import { Friend } from "../services/contactsService";
+import { CompleteWeatherData, HourlyForGraph, WeatherData, WeatherDataType, WeatherService } from "../services/weatherService";
+import { ContactsService, Friend } from "../services/contactsService";
 import FiveDayForecast from "../components/FiveDayForecast";
 import { analytics } from "../services/analyticsService";
 import { GardenService } from "../services/gardenService";
 import { AchievementService } from "../services/achievementService";
-import { ActivityService } from "../services/activityService";
+import { ActivityService, GardenActivity } from "../services/activityService";
 import * as Haptics from "expo-haptics";
+import { ca } from "zod/v4/locales";
 
 const getWeatherGradient = (weatherCondition: string) => {
     switch (weatherCondition?.toLowerCase()) {
@@ -131,7 +133,8 @@ export default function Home() {
         updatePoints,
         refreshProfile,
     } = useUserProfile(currentUserId);
-    const { friends, refreshFriends } = useFriends(currentUserId);
+    // check if need to display friendsLoading in ui, when cached data is served while new data is being fetched 
+    const { friends, refreshFriends, loading: friendsLoading } = useFriends(currentUserId);
     const {
         plantedPlants,
         updateSingleGarden,
@@ -149,6 +152,7 @@ export default function Home() {
         forecast,
         hourly,
         daily,
+        hourlyForGraph,
         cityName,
         backgroundColor,
         loading: weatherLoading,
@@ -162,6 +166,7 @@ export default function Home() {
         userProfile?.longitude,
         currentUserId
     );
+
 
     // Debug logging for location updates
     useEffect(() => {
@@ -481,9 +486,9 @@ export default function Home() {
                 );
                 const weatherBonus = selectedPlant
                     ? GrowthService.getWeatherBonus(
-                          selectedPlant,
-                          weatherCondition
-                      )
+                        selectedPlant,
+                        weatherCondition
+                    )
                     : 1.0;
 
                 // Enhanced achievement context with all relevant data
@@ -922,6 +927,11 @@ export default function Home() {
 
     // Points info modal state
     const [showPointsInfoModal, setShowPointsInfoModal] = useState(false);
+    const [activities, setActivities] = useState<GardenActivity[]>([]);
+    const [hasNewActivity, setHasNewActivity] = useState(false);
+    const handleNewActivity = useCallback((newActivity: GardenActivity) => {
+        setActivities((prev) => [newActivity, ...prev]);
+    }, []);
 
     // Activity log modal state
     const [showActivityLogModal, setShowActivityLogModal] = useState(false);
@@ -944,6 +954,7 @@ export default function Home() {
                 forecast: any[];
                 hourly: any[];
                 daily: any[];
+                hourlyForGraph: any[];
             }
         >
     >({});
@@ -962,21 +973,78 @@ export default function Home() {
             console.log(
                 `[Friends] 🌤️ Fetching complete weather data for ${friend.contact_name} at ${friend.latitude}, ${friend.longitude}`
             );
-            const weatherData = await WeatherService.fetchWeatherData(
-                friend.latitude,
-                friend.longitude
-            );
-            setFriendForecasts((prev) => ({
-                ...prev,
-                [friend.id]: {
+            const cachedDataResponse = await WeatherService.getCachedWeatherData(friend.latitude, friend.longitude, WeatherDataType.Complete);
+            if (cachedDataResponse.success && cachedDataResponse.data && cachedDataResponse.data.completeData) {
+                const cachedData = cachedDataResponse.data.completeData;
+                setFriendForecasts((prev) => ({
+                    ...prev,
+                    [friend.id]: {
+                        forecast: cachedData.forecast,
+                        hourly: cachedData.hourly || [],
+                        daily: cachedData.daily || [],
+                        hourlyForGraph: cachedData.hourlyForGraph || [],
+                    },
+                }));
+                console.log(
+                    `[Friends] ✅ Complete weather data cached for ${friend.contact_name} using cached data`
+                );
+            } else {
+                let weatherData: WeatherData | null = null;
+                const cachedDataResponse = await WeatherService.getCachedWeatherData(friend.latitude, friend.longitude, WeatherDataType.Partial);
+                if (cachedDataResponse.success && cachedDataResponse.data && cachedDataResponse.data.partialData) {
+                    weatherData = cachedDataResponse.data.partialData;
+                } else {
+                    weatherData = await WeatherService.fetchWeatherData(
+                        friend.latitude,
+                        friend.longitude
+                    );
+                    await WeatherService.saveWeatherData(friend.latitude, friend.longitude, weatherData, WeatherDataType.Partial);
+                }
+                const weatherDataForGraph = await WeatherService.fetchWeatherDataForGraph(
+                    friend.latitude,
+                    friend.longitude
+                );
+                setFriendForecasts((prev) => ({
+                    ...prev,
+                    [friend.id]: {
+                        forecast: weatherData.forecast,
+                        hourly: weatherData.hourly || [],
+                        daily: weatherData.daily || [],
+                        hourlyForGraph: weatherDataForGraph.hourly || [],
+                    },
+                }));
+                let cityNameResult;
+                const cachedCityResponse = await WeatherService.getCachedCityFromCoords(friend.latitude, friend.longitude);
+                if (cachedCityResponse.success && cachedCityResponse.city) {
+                    cityNameResult = cachedCityResponse.city;
+                } else {
+                    cityNameResult = await WeatherService.getCityFromCoords(friend.latitude, friend.longitude);
+                    await WeatherService.saveCityCoords(friend.latitude, friend.longitude, cityNameResult);
+                }
+                let localHour = 12;
+                try {
+                    const timezone = tzlookup(friend.latitude, friend.longitude);
+                    const localTime = DateTime.now().setZone(timezone);
+                    localHour = localTime.hour;
+                } catch (e) {
+                    console.warn("⚠️ Could not determine timezone, using default hour");
+                }
+                const bgColor = getBackgroundColor(localHour);
+                const completeWeatherData: CompleteWeatherData = {
+                    current: weatherData.current,
                     forecast: weatherData.forecast,
-                    hourly: weatherData.hourly || [],
-                    daily: weatherData.daily || [],
-                },
-            }));
-            console.log(
-                `[Friends] ✅ Complete weather data cached for ${friend.contact_name}`
-            );
+                    hourly: weatherData.hourly,
+                    hourlyForGraph: weatherDataForGraph.hourly,
+                    daily: weatherData.daily,
+                    cityName: cityNameResult,
+                    localHour,
+                    backgroundColor: bgColor,
+                };
+                await WeatherService.saveWeatherData(friend.latitude, friend.longitude, completeWeatherData, WeatherDataType.Complete);
+                console.log(
+                    `[Friends] ✅ Complete weather data cached for ${friend.contact_name} with fetched data`
+                );
+            }
         } catch (e) {
             console.warn(
                 `[Friends] ⚠️ Could not fetch weather data for ${friend.contact_name}:`,
@@ -1136,13 +1204,75 @@ export default function Home() {
             setForecastSummary(
                 forecast[0]?.weather?.[0]?.description
                     ? forecast[0].weather[0].description
-                          .charAt(0)
-                          .toUpperCase() +
-                          forecast[0].weather[0].description.slice(1)
+                        .charAt(0)
+                        .toUpperCase() +
+                    forecast[0].weather[0].description.slice(1)
                     : ""
             );
         }
     }, [forecast]);
+
+    // Activity bell badge related logic
+    const checkNewActivity = async () => {
+        if (!currentUserId) return;
+        console.log("[App] 🔔 Checking for new activity...");
+        refreshProfile().catch((error) => {
+            console.warn(
+                "[App] ⚠️ Could not refresh profile from checkNewActivity:",
+                error
+            );
+        });
+        let delay = 1000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        let latestActivityTs = await ActivityService.getLatestActivityTimestamp(currentUserId);
+        const maxRetries = 3;
+        for (let i = 0; i < maxRetries; i++) {
+            if (latestActivityTs) break;
+            console.log(`[App] 🔔 No latest activity timestamp, retrying fetch (${i + 1}/${maxRetries})...`)
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            latestActivityTs = await ActivityService.getLatestActivityTimestamp(currentUserId);
+            delay *= 2; // Exponential backoff
+        }
+        console.log(`[App] 🔔 Latest activity timestamp: ${latestActivityTs}, User last checked at: ${userProfile?.lastCheckedActivityAt}`);
+        if (latestActivityTs && !userProfile?.lastCheckedActivityAt) {
+            console.log("[App] 🔔 Set new activity to true (no last checked timestamp)");
+            setHasNewActivity(true);
+        } else if (latestActivityTs && userProfile?.lastCheckedActivityAt) {
+            let latest = DateTime.fromISO(latestActivityTs);
+            const lastChecked = DateTime.fromISO(userProfile.lastCheckedActivityAt);
+            const maxRetries = 3;
+            let delay = 1000;
+            for (let i = 0; i < maxRetries; i++) {
+                if (latest > lastChecked) break;
+                console.log(`[App] 🔔 Latest activity (${latest.toISO()}) not newer than last checked (${lastChecked.toISO()}), retrying fetch (${i + 1}/${maxRetries})...`)
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                const latestActivityTsRetry = await ActivityService.getLatestActivityTimestamp(currentUserId);
+                if (latestActivityTsRetry) {
+                    latest = DateTime.fromISO(latestActivityTsRetry);
+                }
+                delay *= 2; // Exponential backoff
+            }
+            console.log(`[App] 🔔 Comparing latest activity (${latest.toISO()}) with last checked (${lastChecked.toISO()}), set new activity to ${latest > lastChecked}`);
+            setHasNewActivity(latest > lastChecked);
+        }
+    }
+
+    useEffect(() => {
+        checkNewActivity();
+    }, [activities, plantedPlants, xpData, showActivityLogModal]);
+
+    useEffect(() => {
+        if (currentUserId) {
+            const subscription = ActivityService.subscribeToActivities(
+                currentUserId,
+                handleNewActivity
+            );
+            return () => {
+                ActivityService.unsubscribeFromActivities(currentUserId);
+            };
+        }
+    }, [currentUserId]);
+
 
     // Combined loading state - only show loading for initial app setup
     // Removed isLoading variable - no longer needed
@@ -1693,6 +1823,7 @@ export default function Home() {
                         onPointsPress={openPointsInfoModal}
                         onActivityLogPress={openActivityLogModal}
                         xpData={xpData}
+                        hasNewActivity={hasNewActivity}
                     />
                 </View>
                 {/* Progressive Loading Indicators */}
@@ -1759,6 +1890,7 @@ export default function Home() {
                         onWeatherPress={openWeatherModal}
                         forecastData={userFiveDayData}
                         hourlyForecast={hourly}
+                        hourlyForGraph={hourlyForGraph}
                         dailyForecast={daily}
                         loading={weatherLoading}
                         error={weatherError}
@@ -1849,6 +1981,7 @@ export default function Home() {
                 onClose={closeWeatherModal}
                 currentWeather={weather}
                 hourlyForecast={hourly}
+                hourlyForGraph={hourlyForGraph}
                 dailyForecast={daily}
                 cityName={cityName}
             />
@@ -1858,6 +1991,8 @@ export default function Home() {
                 visible={showActivityLogModal}
                 onClose={closeActivityLogModal}
                 currentUserId={currentUserId || ""}
+                activities={activities}
+                setActivities={setActivities}
             />
         </>
     );

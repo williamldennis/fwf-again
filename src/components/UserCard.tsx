@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
     View,
     Text,
@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     ScrollView,
 } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import LottieView from "lottie-react-native";
 import GardenArea from "./GardenArea";
 import FiveDayForecast from "./FiveDayForecast";
@@ -17,6 +18,8 @@ import {
     getWeatherSelfieKey,
     getWeatherDisplayName,
 } from "../utils/weatherUtils";
+
+const USER_CACHE_KEY = 'user_profile_cache'; // can add userId to this if needed
 
 interface UserCardProps {
     weather: any;
@@ -29,6 +32,7 @@ interface UserCardProps {
     onWeatherPress?: () => void;
     forecastData: any[];
     hourlyForecast?: any[];
+    hourlyForGraph?: any[];
     dailyForecast?: any[];
     loading: boolean;
     error: string | null;
@@ -125,12 +129,60 @@ export const UserCard: React.FC<UserCardProps> = ({
     onWeatherPress,
     forecastData,
     hourlyForecast = [],
+    hourlyForGraph = [],
     dailyForecast = [],
     loading,
     error,
     cardWidth,
     cardHeight,
 }) => {
+    const [cachedSelfieUrl, setCachedSelfieUrl] = useState<string | null>(null);
+
+    // Load cached selfie URL on mount
+    useEffect(() => {
+        if (currentUserId) {
+            AsyncStorage.getItem(USER_CACHE_KEY)
+                .then(cached => {
+                    if (cached) {
+                        try {
+                            const parsed = JSON.parse(cached);
+                            if (parsed.selfieUrl) {
+                                console.log("[SelfieIndicator] 🚀 Loaded cached user selfie URL");
+                                setCachedSelfieUrl(parsed.selfieUrl);
+                            }
+                        } catch (e) {
+                            console.warn("[SelfieIndicator] ⚠️ Failed to parse cached user selfie URL:", e);
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.warn("[SelfieIndicator] ⚠️ Failed to load cached user selfie URL:", err);
+                });
+        }
+    }, [currentUserId]);
+
+    // cache selfie url when selfieUrls or weather changes
+    useEffect(() => {
+        if (selfieUrls && weather?.weather?.[0]?.main && currentUserId) {
+            const weatherKey = getWeatherSelfieKey(weather.weather[0].main);
+            const selfieUrl = selfieUrls[weatherKey];
+            if (selfieUrl) {
+                // Save selfieUrl to AsyncStorage cache
+                AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify({
+                    selfieUrl,
+                    timestamp: Date.now()
+                }))
+                    .then(() => {
+                        console.log("[SelfieIndicator] ✅ User selfie URL cached successfully");
+                        setCachedSelfieUrl(selfieUrl);
+                    })
+                    .catch(err => {
+                        console.warn("[SelfieIndicator] ⚠️ Failed to cache user selfie URL:", err);
+                    });
+            }
+        }
+    }, [selfieUrls, weather, currentUserId]);
+
     return (
         <View
             style={{
@@ -220,18 +272,18 @@ export const UserCard: React.FC<UserCardProps> = ({
                         <Image
                             source={{
                                 uri:
-                                    selfieUrls &&
-                                    weather &&
-                                    weather.weather &&
-                                    mapWeatherToSelfieKey(
-                                        weather.weather[0].main
-                                    )
+                                    (selfieUrls &&
+                                        weather &&
+                                        weather.weather &&
+                                        mapWeatherToSelfieKey(
+                                            weather.weather[0].main
+                                        )
                                         ? selfieUrls[
-                                              mapWeatherToSelfieKey(
-                                                  weather.weather[0].main
-                                              )
-                                          ]
-                                        : undefined,
+                                        mapWeatherToSelfieKey(
+                                            weather.weather[0].main
+                                        )
+                                        ]
+                                        : undefined) || cachedSelfieUrl || undefined
                             }}
                             style={{
                                 width: 100,
@@ -265,8 +317,8 @@ export const UserCard: React.FC<UserCardProps> = ({
                                 }
                                 weatherCondition={
                                     weather &&
-                                    weather.weather &&
-                                    weather.weather[0]
+                                        weather.weather &&
+                                        weather.weather[0]
                                         ? weather.weather[0].main
                                         : "clear"
                                 }
@@ -288,6 +340,7 @@ export const UserCard: React.FC<UserCardProps> = ({
                                 <WeatherCard
                                     currentWeather={weather}
                                     hourlyForecast={hourlyForecast}
+                                    hourlyForGraph={hourlyForGraph}
                                     dailyForecast={dailyForecast}
                                     cityName={weather.name || ""}
                                 />

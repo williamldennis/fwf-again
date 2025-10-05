@@ -9,7 +9,7 @@ import {
     Dimensions,
     StyleSheet,
 } from "react-native";
-import { HourlyForecast, DailyForecast } from "../services/weatherService";
+import { HourlyForecast, DailyForecast, HourlyForGraph } from "../services/weatherService";
 import WeatherGraph from "./WeatherGraph";
 
 interface WeatherModalProps {
@@ -17,6 +17,7 @@ interface WeatherModalProps {
     onClose: () => void;
     currentWeather: any;
     hourlyForecast: HourlyForecast[];
+    hourlyForGraph: HourlyForGraph[];
     dailyForecast: DailyForecast[];
     cityName: string;
 }
@@ -28,9 +29,11 @@ const WeatherModal: React.FC<WeatherModalProps> = ({
     onClose,
     currentWeather,
     hourlyForecast,
+    hourlyForGraph,
     dailyForecast,
     cityName,
 }) => {
+    // console.log("[WeatherModal] hourlyForecast", hourlyForecast); // Debugging line
     const formatTime = (timestamp: number) => {
         const date = new Date(timestamp * 1000);
         return date.toLocaleTimeString("en-US", {
@@ -109,7 +112,7 @@ const WeatherModal: React.FC<WeatherModalProps> = ({
                             <Text style={styles.sectionTitle}>
                                 Today's Forecast
                             </Text>
-                            <WeatherGraph hourlyForecast={hourlyForecast} />
+                            <WeatherGraph hourlyForecast={hourlyForecast} hourlyForGraph={hourlyForGraph} city={cityName} />
                         </View>
                     )}
 

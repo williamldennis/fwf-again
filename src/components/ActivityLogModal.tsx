@@ -19,14 +19,19 @@ interface ActivityLogModalProps {
     visible: boolean;
     onClose: () => void;
     currentUserId: string;
+    activities: GardenActivity[];
+    setActivities: React.Dispatch<React.SetStateAction<GardenActivity[]>>;
 }
 
 export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
     visible,
     onClose,
     currentUserId,
+    activities,
+    setActivities,
 }) => {
-    const [activities, setActivities] = useState<GardenActivity[]>([]);
+    // may want to pass activities/setActivities from home for bell badge
+    // const [activities, setActivities] = useState<GardenActivity[]>([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -64,21 +69,21 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
                     error: result.error,
                 });
 
-                if (result.activities && result.activities.length > 0) {
-                    console.log(
-                        "[ActivityLogModal] 📋 Activities data:",
-                        result.activities.map((a) => ({
-                            id: a.id,
-                            activity_type: a.activity_type,
-                            plant_name: a.plant_name,
-                            actor_name: a.actor_name,
-                            garden_owner_name: a.garden_owner_name,
-                            created_at: a.created_at,
-                            actor_id: a.actor_id,
-                            garden_owner_id: a.garden_owner_id,
-                        }))
-                    );
-                }
+                // if (result.activities && result.activities.length > 0) {
+                //     console.log(
+                //         "[ActivityLogModal] 📋 Activities data:",
+                //         result.activities.map((a) => ({
+                //             id: a.id,
+                //             activity_type: a.activity_type,
+                //             plant_name: a.plant_name,
+                //             actor_name: a.actor_name,
+                //             garden_owner_name: a.garden_owner_name,
+                //             created_at: a.created_at,
+                //             actor_id: a.actor_id,
+                //             garden_owner_id: a.garden_owner_id,
+                //         }))
+                //     );
+                // }
 
                 if (result.success && result.activities) {
                     if (append) {
@@ -126,6 +131,15 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
     const handleNewActivity = useCallback((newActivity: GardenActivity) => {
         setActivities((prev) => [newActivity, ...prev]);
     }, []);
+
+    // Update last_checked_activity_at for user
+    useEffect(() => {
+        const updateLastChecked = async () => {
+            if (!visible || !currentUserId) return;
+            await ActivityService.setLastCheckedActivityAt(currentUserId);
+        }
+        updateLastChecked();
+    }, [visible, currentUserId]);
 
     // Load initial data
     useEffect(() => {
@@ -193,7 +207,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
 
     // Format timestamp
     const formatTimestamp = (timestamp: string) => {
-        const date = DateTime.fromISO(timestamp);
+        const date = DateTime.fromISO(timestamp, { zone: "utc" });
         const now = DateTime.now();
         const diffMinutes = now.diff(date, "minutes").minutes;
         const diffHours = now.diff(date, "hours").hours;
@@ -360,7 +374,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         maxHeight: "80%",
-        minHeight: "50%",
+        minHeight: "65%",
     },
     header: {
         flexDirection: "row",

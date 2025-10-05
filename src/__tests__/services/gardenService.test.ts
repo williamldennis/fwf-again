@@ -1,6 +1,9 @@
 import { GardenService } from '../../services/gardenService';
 import { GrowthService } from '../../services/growthService';
 
+// Import the mocked modules
+import { supabase } from '../../utils/supabase';
+
 // Mock the supabase module
 jest.mock('../../utils/supabase', () => ({
   supabase: {
@@ -14,9 +17,6 @@ jest.mock('../../services/growthService', () => ({
     calculateGrowthStage: jest.fn()
   }
 }));
-
-// Import the mocked modules
-import { supabase } from '../../utils/supabase';
 
 describe('GardenService', () => {
   beforeEach(() => {

@@ -7,6 +7,7 @@ export interface UserProfile {
   points: number;
   latitude: number | null;
   longitude: number | null;
+  lastCheckedActivityAt?: string | null;
 }
 
 export interface UseUserProfileResult {
@@ -32,7 +33,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
   const fetchLocationForWeather = useCallback(async (userId: string) => {
     console.log("[Profile] 🚀 Fast location fetch for weather...");
     setWeatherLoading(true);
-    
+
     try {
       // Always get fresh current location
       console.log("[Profile] 📍 Getting fresh current location for weather...");
@@ -69,12 +70,12 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
   const fetchFullProfile = useCallback(async (userId: string) => {
     console.log("[Profile] 👤 Fetching full profile (background)...");
     setProfileLoading(true);
-    
+
     try {
       // Get complete profile data
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("latitude,longitude,selfie_urls,points")
+        .select("latitude,longitude,selfie_urls,points,last_checked_activity_at")
         .eq("id", userId)
         .single();
 
@@ -93,10 +94,11 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
           // Preserve fresh location if we have it, otherwise use database location
           latitude: prev?.latitude || profileData.latitude,
           longitude: prev?.longitude || profileData.longitude,
+          lastCheckedActivityAt: profileData.last_checked_activity_at || null,
         };
         return userProfile;
       });
-      
+
       setProfileLoading(false);
     } catch (err) {
       console.error("[Profile] ❌ Full profile fetch error:", err);
@@ -112,7 +114,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
     }
 
     console.log("[Profile] 💰 Updating user points...");
-    
+
     try {
       const { data: profileData, error } = await supabase
         .from("profiles")
@@ -145,10 +147,10 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
     }
 
     console.log("[Profile] 🔄 Updating profile...", updates);
-    
+
     try {
       const updateData: any = {};
-      
+
       if (updates.latitude !== undefined) updateData.latitude = updates.latitude;
       if (updates.longitude !== undefined) updateData.longitude = updates.longitude;
       if (updates.selfieUrls !== undefined) updateData.selfie_urls = updates.selfieUrls;
@@ -166,7 +168,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
 
       // Update local state
       setProfile(prev => prev ? { ...prev, ...updates } : null);
-      
+
       console.log("[Profile] ✅ Profile updated successfully");
     } catch (err) {
       console.error("[Profile] ❌ Profile update error:", err);
@@ -177,7 +179,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
   // Refresh profile data
   const refreshProfile = useCallback(async (): Promise<void> => {
     if (!userId) return;
-    
+
     console.log("[Profile] 🔄 Refreshing profile...");
     setLoading(true);
     setError(null);
@@ -185,10 +187,10 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
     try {
       // First get fresh location
       await fetchLocationForWeather(userId);
-      
+
       // Then fetch full profile (will preserve fresh location)
       await fetchFullProfile(userId);
-      
+
       console.log("[Profile] ✅ Profile refresh completed!");
     } catch (err) {
       console.error("[Profile] ❌ Profile refresh error:", err);
@@ -227,7 +229,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
             ...prev
           }));
         }
-        
+
         // Then fetch full profile in background
         return fetchFullProfile(userId);
       })

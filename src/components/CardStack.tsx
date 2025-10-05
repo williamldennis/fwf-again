@@ -23,6 +23,7 @@ interface CardStackProps {
     onWeatherPress?: () => void;
     forecastData: any[];
     hourlyForecast?: any[];
+    hourlyForGraph?: any[];
     dailyForecast?: any[];
     loading: boolean;
     error: string | null;
@@ -34,6 +35,7 @@ interface CardStackProps {
             forecast: any[];
             hourly: any[];
             daily: any[];
+            hourlyForGraph: any[];
         }
     >;
     onFetchForecast: (friend: any) => void;
@@ -57,6 +59,7 @@ export const CardStack: React.FC<CardStackProps> = ({
     onWeatherPress,
     forecastData,
     hourlyForecast = [],
+    hourlyForGraph = [],
     dailyForecast = [],
     loading,
     error,
@@ -150,6 +153,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                         onWeatherPress={onWeatherPress}
                         forecastData={forecastData}
                         hourlyForecast={hourlyForecast}
+                        hourlyForGraph={hourlyForGraph}
                         dailyForecast={dailyForecast}
                         loading={loading}
                         error={error}
@@ -183,6 +187,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                             onFetchForecast={onFetchForecast}
                             hourlyForecast={friendForecastData?.hourly || []}
                             dailyForecast={friendForecastData?.daily || []}
+                            hourlyForGraph={friendForecastData?.hourlyForGraph || []}
                         />
                     </ErrorBoundary>
                 </View>
@@ -239,7 +244,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                     height={screenHeight}
                     data={stackItems}
                     renderItem={renderCard}
-                    onSnapToItem={setCurrentIndex}
+                    // onSnapToItem={setCurrentIndex}}
                     windowSize={5}
                 />
 
@@ -253,6 +258,7 @@ export const CardStack: React.FC<CardStackProps> = ({
                             selfieUrls={selfieUrls}
                             weather={weather}
                             onPress={(pressedIndex) => {
+                                setCurrentIndex(pressedIndex);
                                 // Navigate to the pressed card
                                 if (
                                     pressedIndex !== currentIndex &&

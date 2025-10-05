@@ -53,6 +53,25 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 }) => {
     // Bounce animation for harvest-ready plants
     const translateY = useSharedValue(0);
+    const [planterDisplayName, setPlanterDisplayName] = React.useState(planterName);
+
+    useEffect(() => {
+        const adjustPlanterDisplayName = async () => {
+            if (!currentUserId) return;
+            const { data } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", currentUserId)
+                .single();
+            const currentUserName = data?.full_name || "Unknown";
+            if (currentUserName === planterName && planterName !== "Unknown") {
+                setPlanterDisplayName("you");
+            } else if (currentUserName !== planterName) {
+                setPlanterDisplayName(planterName);
+            }
+        }
+        adjustPlanterDisplayName();
+    }, [planterName, currentUserId]);
 
     // useEffect hook - ALWAYS called with consistent dependencies
     useEffect(() => {
@@ -489,8 +508,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                             {/* 2. Planted X hours ago by {planterName} */}
                             <Text style={styles.plantedInfo}>
                                 {formattedTimeSincePlanted === "just planted"
-                                    ? `Just planted by ${planterName}`
-                                    : `Planted ${formattedTimeSincePlanted} ago by ${planterName}`}
+                                    ? `Just planted by ${planterDisplayName}`
+                                    : `Planted ${formattedTimeSincePlanted} ago by ${planterDisplayName}`}
                             </Text>
                             <View style={styles.imageContainer}>
                                 <Animated.View style={animatedImageStyle}>
@@ -509,7 +528,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                                 },
                                                 shadowOpacity:
                                                     isMature &&
-                                                    !plant.harvested_at
+                                                        !plant.harvested_at
                                                         ? 0.6
                                                         : 0,
                                                 shadowRadius: 10,
@@ -568,8 +587,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                         weatherEffectPercent > 100
                                             ? styles.weatherEffectCircleUp
                                             : weatherEffectPercent < 100
-                                              ? styles.weatherEffectCircleDown
-                                              : styles.weatherEffectCircleNeutral,
+                                                ? styles.weatherEffectCircleDown
+                                                : styles.weatherEffectCircleNeutral,
                                     ]}
                                 >
                                     <Text
@@ -584,8 +603,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                     {weatherEffectPercent > 100
                                         ? "speeds up"
                                         : weatherEffectPercent < 100
-                                          ? "slows down"
-                                          : "does not affect"}{" "}
+                                            ? "slows down"
+                                            : "does not affect"}{" "}
                                     this plant's growth by{" "}
                                     {weatherEffectPercent}%
                                 </Text>
@@ -659,7 +678,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                                 style={[
                                                     styles.stepLabel,
                                                     isCurrent &&
-                                                        styles.stepLabelCurrent,
+                                                    styles.stepLabelCurrent,
                                                 ]}
                                             >
                                                 {step.label}
@@ -726,12 +745,12 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                                             style={styles.plantInfoWeatherValue}
                                         >
                                             {plantObject.weather_bonus &&
-                                            plantObject.weather_bonus[type]
+                                                plantObject.weather_bonus[type]
                                                 ? Math.round(
-                                                      plantObject.weather_bonus[
-                                                          type
-                                                      ] * 100
-                                                  )
+                                                    plantObject.weather_bonus[
+                                                    type
+                                                    ] * 100
+                                                )
                                                 : 100}
                                             %
                                         </Text>

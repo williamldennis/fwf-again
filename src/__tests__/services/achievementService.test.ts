@@ -1,6 +1,9 @@
 import { AchievementService, Achievement, UserAchievement, AchievementProgress, AchievementCheckResult } from '../../services/achievementService';
 import { XPService } from '../../services/xpService';
 
+// Import the mocked modules
+import { supabase } from '../../utils/supabase';
+
 // Mock the supabase module
 jest.mock('../../utils/supabase', () => ({
   supabase: {
@@ -15,9 +18,6 @@ jest.mock('../../services/xpService', () => ({
     awardXP: jest.fn()
   }
 }));
-
-// Import the mocked modules
-import { supabase } from '../../utils/supabase';
 
 describe('AchievementService', () => {
   const mockUserId = 'test-user-id';

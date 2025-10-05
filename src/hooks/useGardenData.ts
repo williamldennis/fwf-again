@@ -18,7 +18,7 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const subscriptionRef = useRef<any>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
   const maxRetries = 5;
 
@@ -87,7 +87,7 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
   // Robust real-time subscription with reconnection logic
   const setupSubscription = useCallback(() => {
     if (!userId) return;
-    
+
     const allUserIds = getAllUserIds();
     if (allUserIds.length === 0) return;
 
@@ -102,15 +102,15 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
+
     // Subscribe to changes in planted_plants for all users (no filter needed due to permissive RLS)
     const channel = supabase
       .channel(`garden-updates-${userId}-${Date.now()}`) // Unique channel name to avoid conflicts
       .on(
         'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
+        {
+          event: '*',
+          schema: 'public',
           table: 'planted_plants'
         },
         async (payload) => {
@@ -124,11 +124,11 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
               : undefined;
           const realtimeGardenOwnerId =
             realtimeNewGardenOwnerId || realtimeOldGardenOwnerId;
-          
+
           if (!realtimeGardenOwnerId || typeof realtimeGardenOwnerId !== 'string') {
             return;
           }
-          
+
           // Only update if it's a garden we care about
           if (allUserIds.includes(realtimeGardenOwnerId)) {
             try {
@@ -143,14 +143,14 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
       )
       .subscribe((status, err) => {
         console.log('[Real-time] Subscription status:', status, err);
-        
+
         if (status === 'SUBSCRIBED') {
           retryCountRef.current = 0; // Reset retry count on successful connection
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           handleReconnect();
         }
       });
-    
+
     subscriptionRef.current = channel;
   }, [userId, getAllUserIds, updateSingleGarden]);
 
@@ -163,9 +163,9 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
 
     const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 30000); // Max 30 seconds
     retryCountRef.current += 1;
-    
+
     console.log(`[Real-time] Reconnecting in ${delay}ms (attempt ${retryCountRef.current}/${maxRetries})`);
-    
+
     reconnectTimeoutRef.current = setTimeout(() => {
       console.log('[Real-time] Attempting reconnection...');
       setupSubscription();
@@ -175,7 +175,7 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
   // Set up subscription
   useEffect(() => {
     setupSubscription();
-    
+
     return () => {
       if (subscriptionRef.current) {
         console.log('[Real-time] Cleaning up subscription');
@@ -193,7 +193,7 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
   useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
       console.log('[Real-time] App state changed to:', nextAppState);
-      
+
       if (nextAppState === 'active') {
         // App came to foreground, ensure subscription is active
         console.log('[Real-time] App became active, checking subscription');
