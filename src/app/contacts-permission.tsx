@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { View, Text, Button, Alert, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import * as Contacts from 'expo-contacts';
-import { supabase } from '../utils/supabase';
+import { pb } from '../utils/pocketbase';
 import { parsePhoneNumberFromString, CountryCode } from 'libphonenumber-js';
 import contactsImg from '../../assets/images/contacts.png';
 
 const BATCH_SIZE = 200;
 
 type ContactRow = {
-    user_id: string;
+    user: string;
     contact_phone: string;
     contact_name?: string;
 };
@@ -24,7 +24,8 @@ export default function ContactsPermission() {
         const { status } = await Contacts.requestPermissionsAsync();
         if (status === 'granted') {
             const { data } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name] });
-            const { data: { user } } = await supabase.auth.getUser();
+
+            const user = pb.authStore.model;
             if (!user) {
                 Alert.alert('Could not get user info.');
                 setLoading(false);
@@ -33,13 +34,13 @@ export default function ContactsPermission() {
 
             // Fetch user's country code from profile (default to 'US')
             let userCountryCode: CountryCode = 'US' as CountryCode;
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('country_code')
-                .eq('id', user.id)
-                .single();
-            if (profile && profile.country_code) {
-                userCountryCode = profile.country_code as CountryCode;
+            try {
+                const profile = await pb.collection('users').getOne(user.id);
+                if (profile && profile.country_code) {
+                    userCountryCode = profile.country_code as CountryCode;
+                }
+            } catch (error) {
+                console.warn('Could not fetch user profile for country code:', error);
             }
 
             // Prepare rows for bulk insert
@@ -60,7 +61,7 @@ export default function ContactsPermission() {
                         }
                         if (e164) {
                             rows.push({
-                                user_id: user.id,
+                                user: user.id,
                                 contact_phone: e164,
                                 contact_name: contact.name,
                             });
@@ -72,23 +73,36 @@ export default function ContactsPermission() {
             console.log(`Total contacts to upload: ${rows.length}`);
             console.log(`Sample contacts:`, rows.slice(0, 5));
 
-            // Optionally: clear old contacts first
-            await supabase.from('user_contacts').delete().eq('user_id', user.id);
+            // Clear old contacts first
+            try {
+                const existingContacts = await pb.collection('user_contacts').getFullList({
+                    filter: `user = "${user.id}"`,
+                });
+                for (const contact of existingContacts) {
+                    await pb.collection('user_contacts').delete(contact.id);
+                }
+            } catch (deleteError) {
+                console.warn('Could not clear old contacts:', deleteError);
+            }
 
             // Batch insert
             for (let i = 0; i < rows.length; i += BATCH_SIZE) {
                 const batch = rows.slice(i, i + BATCH_SIZE);
-                const { error } = await supabase.from('user_contacts').insert(batch);
-                setProgress(Math.min(100, Math.round(((i + BATCH_SIZE) / rows.length) * 100)));
-                if (error) {
-                    Alert.alert('Failed to upload some contacts', error.message);
-                    setLoading(false);
-                    return;
+                for (const contactRow of batch) {
+                    try {
+                        await pb.collection('user_contacts').create(contactRow);
+                    } catch (createError) {
+                        console.warn('Could not create contact:', createError);
+                    }
                 }
+                setProgress(Math.min(100, Math.round(((i + BATCH_SIZE) / rows.length) * 100)));
             }
 
             // Mark contacts approved
-            await supabase.from('profiles').update({ contacts_approved: true, contacts_count: data.length }).eq('id', user.id);
+            await pb.collection('users').update(user.id, {
+                contacts_approved: true,
+                contacts_count: data.length
+            });
 
             router.replace('/location-permission');
         } else {

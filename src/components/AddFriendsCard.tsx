@@ -16,12 +16,12 @@ export const AddFriendsCard: React.FC<AddFriendsCardProps> = ({
     return (
         <View
             style={{
+                flex: 1,
                 alignItems: "center",
                 justifyContent: "center",
                 paddingTop: 120, // Account for header height
-                paddingBottom: 20,
+                paddingBottom: 100, // Account for footer
                 zIndex: 1,
-                height: cardHeight,
                 width: cardWidth,
                 maxWidth: cardWidth,
             }}

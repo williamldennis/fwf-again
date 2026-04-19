@@ -1,14 +1,14 @@
-import { supabase } from "../utils/supabase";
+import { pb } from "../utils/pocketbase";
 
 // Types for XP system
 export interface XPTransaction {
   id: string;
-  user_id: string;
+  user: string;
   amount: number;
   action_type: string;
   description: string;
   context_data: Record<string, any>;
-  created_at: string;
+  created: string;
 }
 
 export interface UserXPSummary {
@@ -26,15 +26,90 @@ export interface XPAwardResult {
   error?: string;
 }
 
+// XP thresholds per level (from XP_LEVELS_SPEC.md)
+const XP_THRESHOLDS = [
+  0,     // Level 1
+  100,   // Level 2
+  250,   // Level 3
+  450,   // Level 4
+  700,   // Level 5
+  1000,  // Level 6
+  1350,  // Level 7
+  1750,  // Level 8
+  2200,  // Level 9
+  2700,  // Level 10
+  3300,  // Level 11
+  4000,  // Level 12
+  4800,  // Level 13
+  5700,  // Level 14
+  6700,  // Level 15
+  7800,  // Level 16
+  9000,  // Level 17
+  10300, // Level 18
+  11700, // Level 19
+  13200, // Level 20
+  14800, // Level 21
+  16500, // Level 22
+  18300, // Level 23
+  20200, // Level 24
+  22200, // Level 25
+  24300, // Level 26
+  26500, // Level 27
+  28800, // Level 28
+  31200, // Level 29
+  33700, // Level 30
+  36300, // Level 31
+  39000, // Level 32
+  41800, // Level 33
+  44700, // Level 34
+  47700, // Level 35
+  50800, // Level 36
+  54000, // Level 37
+  57300, // Level 38
+  60700, // Level 39
+  64200, // Level 40
+  67800, // Level 41
+  71500, // Level 42
+  75300, // Level 43
+  79200, // Level 44
+  83200, // Level 45
+  87300, // Level 46
+  91500, // Level 47
+  95800, // Level 48
+  100200, // Level 49
+  104700, // Level 50 (max)
+];
+
 export class XPService {
   /**
+   * Calculate level from total XP (client-side pure function)
+   */
+  static calculateLevelFromXP(totalXP: number): number {
+    if (totalXP < 0) return 1;
+
+    for (let i = XP_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (totalXP >= XP_THRESHOLDS[i]) {
+        return Math.min(i + 1, 50);
+      }
+    }
+    return 1;
+  }
+
+  /**
+   * Calculate XP needed to reach next level (client-side pure function)
+   */
+  static calculateXPToNextLevel(currentLevel: number): number {
+    if (currentLevel >= 50) return 0;
+    if (currentLevel < 1) return XP_THRESHOLDS[1];
+
+    const nextLevelIndex = Math.min(currentLevel, XP_THRESHOLDS.length - 1);
+    const currentLevelIndex = currentLevel - 1;
+
+    return XP_THRESHOLDS[nextLevelIndex] - XP_THRESHOLDS[currentLevelIndex];
+  }
+
+  /**
    * Award XP to a user and update their profile
-   * @param userId - The user's UUID
-   * @param amount - Amount of XP to award
-   * @param actionType - Type of action that earned XP (e.g., 'plant_seed', 'harvest_plant')
-   * @param description - Human-readable description of the action
-   * @param context - Additional context data (optional)
-   * @returns Promise<XPAwardResult>
    */
   static async awardXP(
     userId: string,
@@ -52,41 +127,37 @@ export class XPService {
         };
       }
 
-      // Call the database function to award XP
-      const { data, error } = await supabase.rpc('award_xp', {
-        user_uuid: userId,
-        xp_amount: amount,
+      // Get current user XP
+      const user = await pb.collection('users').getOne(userId);
+      const previousLevel = user.current_level || 1;
+      const previousXP = user.total_xp || 0;
+      const newTotalXP = previousXP + amount;
+
+      // Calculate new level
+      const newLevel = this.calculateLevelFromXP(newTotalXP);
+      const xpToNextLevel = this.calculateXPToNextLevel(newLevel);
+
+      // Insert XP transaction
+      await pb.collection('xp_transactions').create({
+        user: userId,
+        amount,
         action_type: actionType,
-        description: description,
+        description,
         context_data: context
       });
 
-      if (error) {
-        console.error("[XPService] Error awarding XP:", error);
-        return {
-          success: false,
-          error: error.message
-        };
-      }
-
-      // Get the updated user XP summary to check for level up
-      const summary = await this.getUserXP(userId);
-      if (!summary) {
-        return {
-          success: false,
-          error: "Failed to retrieve updated XP summary"
-        };
-      }
-
-      // Check if user leveled up by comparing with previous level
-      const previousSummary = await this.getUserXP(userId);
-      const leveledUp = previousSummary ? summary.current_level > previousSummary.current_level : false;
+      // Update user profile
+      await pb.collection('users').update(userId, {
+        total_xp: newTotalXP,
+        current_level: newLevel,
+        xp_to_next_level: xpToNextLevel
+      });
 
       return {
         success: true,
-        newTotalXP: summary.total_xp,
-        newLevel: summary.current_level,
-        leveledUp: leveledUp
+        newTotalXP,
+        newLevel,
+        leveledUp: newLevel > previousLevel
       };
 
     } catch (error) {
@@ -100,8 +171,6 @@ export class XPService {
 
   /**
    * Get user's XP summary including level and progress
-   * @param userId - The user's UUID
-   * @returns Promise<UserXPSummary | null>
    */
   static async getUserXP(userId: string): Promise<UserXPSummary | null> {
     try {
@@ -110,27 +179,26 @@ export class XPService {
         return null;
       }
 
-      // Call the database function to get XP summary
-      const { data, error } = await supabase.rpc('get_user_xp_summary', {
-        user_uuid: userId
-      });
+      const user = await pb.collection('users').getOne(userId);
 
-      if (error) {
-        console.error("[XPService] Error getting user XP:", error);
-        return null;
-      }
+      const totalXP = user.total_xp || 0;
+      const currentLevel = user.current_level || 1;
+      const xpToNextLevel = user.xp_to_next_level || 100;
 
-      if (!data || data.length === 0) {
-        console.warn("[XPService] No XP data found for user:", userId);
-        return null;
-      }
+      // Calculate progress percentage
+      const currentLevelXP = XP_THRESHOLDS[currentLevel - 1] || 0;
+      const nextLevelXP = XP_THRESHOLDS[currentLevel] || currentLevelXP + 100;
+      const xpInCurrentLevel = totalXP - currentLevelXP;
+      const xpNeededForLevel = nextLevelXP - currentLevelXP;
+      const xpProgress = xpNeededForLevel > 0
+        ? Math.min(100, Math.round((xpInCurrentLevel / xpNeededForLevel) * 100))
+        : 100;
 
-      const summary = data[0];
       return {
-        total_xp: summary.total_xp || 0,
-        current_level: summary.current_level || 1,
-        xp_to_next_level: summary.xp_to_next_level || 100,
-        xp_progress: summary.xp_progress || 0
+        total_xp: totalXP,
+        current_level: currentLevel,
+        xp_to_next_level: xpToNextLevel,
+        xp_progress: xpProgress
       };
 
     } catch (error) {
@@ -140,63 +208,21 @@ export class XPService {
   }
 
   /**
-   * Calculate level from total XP
-   * @param totalXP - Total XP amount
-   * @returns Promise<number>
+   * Calculate level from total XP (async wrapper for compatibility)
    */
   static async calculateLevel(totalXP: number): Promise<number> {
-    try {
-      if (totalXP < 0) return 1;
-
-      const { data, error } = await supabase.rpc('calculate_level_from_xp', {
-        total_xp: totalXP
-      });
-
-      if (error) {
-        console.error("[XPService] Error calculating level:", error);
-        return 1;
-      }
-
-      return data || 1;
-
-    } catch (error) {
-      console.error("[XPService] Exception in calculateLevel:", error);
-      return 1;
-    }
+    return this.calculateLevelFromXP(totalXP);
   }
 
   /**
-   * Get XP required to reach next level
-   * @param currentLevel - Current user level
-   * @returns Promise<number>
+   * Get XP required to reach next level (async wrapper for compatibility)
    */
   static async getXPToNextLevel(currentLevel: number): Promise<number> {
-    try {
-      if (currentLevel < 1 || currentLevel > 50) return 0;
-
-      const { data, error } = await supabase.rpc('calculate_xp_to_next_level', {
-        current_level: currentLevel
-      });
-
-      if (error) {
-        console.error("[XPService] Error getting XP to next level:", error);
-        return 100;
-      }
-
-      return data || 100;
-
-    } catch (error) {
-      console.error("[XPService] Exception in getXPToNextLevel:", error);
-      return 100;
-    }
+    return this.calculateXPToNextLevel(currentLevel);
   }
 
   /**
    * Get user's XP transaction history
-   * @param userId - The user's UUID
-   * @param limit - Number of transactions to return (default: 50)
-   * @param offset - Number of transactions to skip (default: 0)
-   * @returns Promise<XPTransaction[]>
    */
   static async getXPHistory(
     userId: string,
@@ -209,19 +235,21 @@ export class XPService {
         return [];
       }
 
-      const { data, error } = await supabase
-        .from('xp_transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+      const page = Math.floor(offset / limit) + 1;
+      const result = await pb.collection('xp_transactions').getList(page, limit, {
+        filter: `user = "${userId}"`,
+        sort: '-created'
+      });
 
-      if (error) {
-        console.error("[XPService] Error getting XP history:", error);
-        return [];
-      }
-
-      return data || [];
+      return result.items.map(item => ({
+        id: item.id,
+        user: item.user,
+        amount: item.amount,
+        action_type: item.action_type,
+        description: item.description,
+        context_data: item.context_data || {},
+        created: item.created
+      }));
 
     } catch (error) {
       console.error("[XPService] Exception in getXPHistory:", error);
@@ -231,9 +259,6 @@ export class XPService {
 
   /**
    * Get total XP earned for a specific action type
-   * @param userId - The user's UUID
-   * @param actionType - Type of action to sum
-   * @returns Promise<number>
    */
   static async getTotalXPForAction(userId: string, actionType: string): Promise<number> {
     try {
@@ -241,18 +266,11 @@ export class XPService {
         return 0;
       }
 
-      const { data, error } = await supabase
-        .from('xp_transactions')
-        .select('amount')
-        .eq('user_id', userId)
-        .eq('action_type', actionType);
+      const result = await pb.collection('xp_transactions').getFullList({
+        filter: `user = "${userId}" && action_type = "${actionType}"`
+      });
 
-      if (error) {
-        console.error("[XPService] Error getting total XP for action:", error);
-        return 0;
-      }
-
-      return data?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0;
+      return result.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
 
     } catch (error) {
       console.error("[XPService] Exception in getTotalXPForAction:", error);
@@ -262,8 +280,6 @@ export class XPService {
 
   /**
    * Get user's XP statistics
-   * @param userId - The user's UUID
-   * @returns Promise<Record<string, number>>
    */
   static async getXPStatistics(userId: string): Promise<Record<string, number>> {
     try {
@@ -271,22 +287,17 @@ export class XPService {
         return {};
       }
 
-      const { data, error } = await supabase
-        .from('xp_transactions')
-        .select('action_type, amount')
-        .eq('user_id', userId);
-
-      if (error) {
-        console.error("[XPService] Error getting XP statistics:", error);
-        return {};
-      }
+      const result = await pb.collection('xp_transactions').getFullList({
+        filter: `user = "${userId}"`
+      });
 
       const stats: Record<string, number> = {};
-      data?.forEach(transaction => {
-        if (!stats[transaction.action_type]) {
-          stats[transaction.action_type] = 0;
+      result.forEach(transaction => {
+        const actionType = transaction.action_type;
+        if (!stats[actionType]) {
+          stats[actionType] = 0;
         }
-        stats[transaction.action_type] += transaction.amount;
+        stats[actionType] += transaction.amount || 0;
       });
 
       return stats;
@@ -299,8 +310,6 @@ export class XPService {
 
   /**
    * Check if user can receive daily XP (hasn't received it today)
-   * @param userId - The user's UUID
-   * @returns Promise<boolean>
    */
   static async canReceiveDailyXP(userId: string): Promise<boolean> {
     try {
@@ -310,22 +319,12 @@ export class XPService {
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
 
-      const { data, error } = await supabase
-        .from('xp_transactions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('action_type', 'daily_use')
-        .gte('created_at', startOfDay)
-        .lte('created_at', endOfDay)
-        .limit(1);
-
-      if (error) {
-        console.error("[XPService] Error checking daily XP eligibility:", error);
-        return false;
-      }
+      const result = await pb.collection('xp_transactions').getList(1, 1, {
+        filter: `user = "${userId}" && action_type = "daily_use" && created >= "${startOfDay}" && created <= "${endOfDay}"`
+      });
 
       // Return true if no daily XP transaction found today
-      return !data || data.length === 0;
+      return result.totalItems === 0;
 
     } catch (error) {
       console.error("[XPService] Exception in canReceiveDailyXP:", error);
@@ -335,8 +334,6 @@ export class XPService {
 
   /**
    * Award daily XP to user (if eligible)
-   * @param userId - The user's UUID
-   * @returns Promise<XPAwardResult>
    */
   static async awardDailyXP(userId: string): Promise<XPAwardResult> {
     try {
@@ -362,7 +359,7 @@ export class XPService {
         5, // Daily XP amount
         'daily_use',
         'Daily app usage reward',
-        { date: new Date().toISOString().split('T')[0] } // Keep UTC for consistency with database
+        { date: new Date().toISOString().split('T')[0] }
       );
 
     } catch (error) {
@@ -376,12 +373,8 @@ export class XPService {
 
   /**
    * Get level benefits for a specific level
-   * @param level - The level to get benefits for
-   * @returns Promise<Record<string, any>>
    */
   static async getLevelBenefits(level: number): Promise<Record<string, any>> {
-    // This will be expanded in future tasks
-    // For now, return basic level information
     const benefits: Record<string, any> = {
       level: level,
       description: `Level ${level} benefits`,
@@ -424,4 +417,4 @@ export class XPService {
   }
 }
 
-export default XPService; 
+export default XPService;

@@ -10,7 +10,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from "react-native";
-import { supabase } from "../utils/supabase";
+import { pb } from "../utils/pocketbase";
 import { router } from "expo-router";
 import PhoneInput, { PhoneInputProps } from "react-native-phone-number-input";
 import type { ComponentType } from "react";
@@ -32,24 +32,21 @@ export default function PhoneNumberAdd() {
             return;
         }
         setLoading(true);
-        const {
-            data: { session },
-            error: sessionError,
-        } = await supabase.auth.getSession();
-        const user = session?.user;
-        if (sessionError || !user) {
+
+        const user = pb.authStore.model;
+        if (!user) {
             Alert.alert("Could not get user info.");
             setLoading(false);
             return;
         }
-        const { error } = await supabase
-            .from("profiles")
-            .update({ phone_number: formattedPhone })
-            .eq("id", user.id);
-        if (error) {
-            Alert.alert("Failed to save phone number:", error.message);
-        } else {
+
+        try {
+            await pb.collection("users").update(user.id, {
+                phone_number: formattedPhone
+            });
             router.replace("/name-input");
+        } catch (error: any) {
+            Alert.alert("Failed to save phone number:", error.message);
         }
         setLoading(false);
     };

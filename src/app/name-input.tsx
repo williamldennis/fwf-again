@@ -11,7 +11,7 @@ import {
     Platform,
     ScrollView,
 } from "react-native";
-import { supabase } from "../utils/supabase";
+import { pb } from "../utils/pocketbase";
 import { router } from "expo-router";
 
 export default function NameInput() {
@@ -31,28 +31,19 @@ export default function NameInput() {
 
         setLoading(true);
         try {
-            const {
-                data: { session },
-                error: sessionError,
-            } = await supabase.auth.getSession();
-            const user = session?.user;
-            if (sessionError || !user) {
+            const user = pb.authStore.model;
+            if (!user) {
                 Alert.alert("Could not get user info.");
                 return;
             }
 
-            const { error } = await supabase
-                .from("profiles")
-                .update({ full_name: fullName.trim() })
-                .eq("id", user.id);
+            await pb.collection("users").update(user.id, {
+                full_name: fullName.trim()
+            });
 
-            if (error) {
-                Alert.alert("Failed to save name:", error.message);
-            } else {
-                router.replace("/contacts-permission");
-            }
-        } catch (error) {
-            Alert.alert("An unexpected error occurred. Please try again.");
+            router.replace("/contacts-permission");
+        } catch (error: any) {
+            Alert.alert("Failed to save name:", error.message || "An unexpected error occurred. Please try again.");
         } finally {
             setLoading(false);
         }

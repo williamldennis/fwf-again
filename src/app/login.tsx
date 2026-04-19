@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../utils/supabase";
+import { pb, isAuthenticated } from "../utils/pocketbase";
 import {
     View,
     TextInput,
@@ -117,58 +117,45 @@ export default function Login() {
     });
 
     const checkPermissionsAndRedirect = async () => {
-        const {
-            data: { session },
-        } = await supabase.auth.getSession();
-        if (session) {
-            // Fetch user profile from Supabase
-            const user = session.user;
-            const { data: profile, error } = await supabase
-                .from("profiles")
-                .select(
-                    "phone_number, full_name, contacts_approved, location_approved, selfie_urls"
-                )
-                .eq("id", user.id)
-                .single();
-            if (error || !profile) {
-                alert("Could not fetch user profile.");
+        if (!isAuthenticated() || !pb.authStore.model) {
+            return;
+        }
+
+        const user = pb.authStore.model;
+
+        // Check phone number first
+        if (!user.phone_number) {
+            router.replace("/phone-number-add");
+        } else if (!user.full_name) {
+            router.replace("/name-input");
+        } else if (!user.contacts_approved) {
+            router.replace("/contacts-permission");
+        } else if (!user.location_approved) {
+            router.replace("/location-permission");
+        } else {
+            // Check if location permission is actually granted on device
+            const { status } =
+                await Location.getForegroundPermissionsAsync();
+            if (status !== "granted") {
+                router.replace("/location-permission");
                 return;
             }
 
-            // Check phone number first
-            if (!profile.phone_number) {
-                router.replace("/phone-number-add");
-            } else if (!profile.full_name) {
-                router.replace("/name-input");
-            } else if (!profile.contacts_approved) {
-                router.replace("/contacts-permission");
-            } else if (!profile.location_approved) {
-                router.replace("/location-permission");
+            const requiredSelfies = [
+                "sunny",
+                "cloudy",
+                "rainy",
+                "snowy",
+                "thunderstorm",
+            ];
+            const selfies = user.selfie_urls || {};
+            const hasAllSelfies = requiredSelfies.every(
+                (key) => selfies[key] && typeof selfies[key] === 'string' && selfies[key].trim().length > 0
+            );
+            if (!hasAllSelfies) {
+                router.replace("/selfie");
             } else {
-                // Check if location permission is actually granted on device
-                const { status } =
-                    await Location.getForegroundPermissionsAsync();
-                if (status !== "granted") {
-                    router.replace("/location-permission");
-                    return;
-                }
-
-                const requiredSelfies = [
-                    "sunny",
-                    "cloudy",
-                    "rainy",
-                    "snowy",
-                    "thunderstorm",
-                ];
-                const selfies = profile.selfie_urls || {};
-                const hasAllSelfies = requiredSelfies.every(
-                    (key) => selfies[key] && typeof selfies[key] === 'string' && selfies[key].trim().length > 0
-                );
-                if (!hasAllSelfies) {
-                    router.replace("/selfie");
-                } else {
-                    router.replace("/home");
-                }
+                router.replace("/home");
             }
         }
     };
@@ -181,18 +168,11 @@ export default function Login() {
         setLoadingText("Signing in...");
 
         try {
-            const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
-            if (error) {
-                alert(error.message);
-            } else {
-                setLoadingText("Signing in...");
-                await checkPermissionsAndRedirect();
-            }
-        } catch (error) {
-            alert("An unexpected error occurred. Please try again.");
+            await pb.collection('users').authWithPassword(email, password);
+            setLoadingText("Signing in...");
+            await checkPermissionsAndRedirect();
+        } catch (error: any) {
+            alert(error.message || "An unexpected error occurred. Please try again.");
         } finally {
             setIsLoading(false);
             setLoadingButton(null);
@@ -208,18 +188,22 @@ export default function Login() {
         setLoadingText("Creating account...");
 
         try {
-            const { error } = await supabase.auth.signUp({
+            // Create user with initial profile data
+            await pb.collection('users').create({
                 email,
                 password,
-                options: { emailRedirectTo: undefined },
+                passwordConfirm: password,
+                points: 0,
+                total_xp: 0,
+                current_level: 1,
+                xp_to_next_level: 100,
             });
-            if (error) {
-                alert(error.message);
-            } else {
-                router.replace("/phone-number-add");
-            }
-        } catch (error) {
-            alert("An unexpected error occurred. Please try again.");
+
+            // Automatically sign in after signup
+            await pb.collection('users').authWithPassword(email, password);
+            router.replace("/phone-number-add");
+        } catch (error: any) {
+            alert(error.message || "An unexpected error occurred. Please try again.");
         } finally {
             setIsLoading(false);
             setLoadingButton(null);

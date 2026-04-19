@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { supabase } from "../utils/supabase";
+import { pb } from "../utils/pocketbase";
 import LottieView from "lottie-react-native";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -69,16 +69,10 @@ export default function Selfie() {
 
     const checkExistingSelfies = async () => {
         try {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
+            const user = pb.authStore.model;
             if (!user) return;
 
-            const { data: profile } = await supabase
-                .from("profiles")
-                .select("selfie_urls")
-                .eq("id", user.id)
-                .single();
+            const profile = await pb.collection("users").getOne(user.id);
 
             if (profile?.selfie_urls) {
                 const requiredSelfies = [
@@ -155,15 +149,13 @@ export default function Selfie() {
     const saveSelfiesWithData = async (selfieData: Record<string, string>) => {
         setLoading(true);
         try {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
+            const user = pb.authStore.model;
             if (!user) throw new Error("No user found");
-            const { error } = await supabase
-                .from("profiles")
-                .update({ selfie_urls: selfieData })
-                .eq("id", user.id);
-            if (error) throw error;
+
+            await pb.collection("users").update(user.id, {
+                selfie_urls: selfieData
+            });
+
             router.replace("/home");
         } catch (error) {
             Alert.alert("Error", "Failed to save selfies");

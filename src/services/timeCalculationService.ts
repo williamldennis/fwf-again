@@ -6,13 +6,24 @@ export class TimeCalculationService {
    * Calculate time elapsed since planting in hours
    */
   static getTimeElapsedHours(plantedAt: string): number {
-    // Parse the timestamp manually to avoid timezone conversion
-    const plantedDate = new Date(plantedAt + 'Z'); // Force UTC interpretation
+    if (!plantedAt) {
+      return 0;
+    }
+
+    // PocketBase timestamps are already in ISO format with timezone
+    // Don't append 'Z' as PocketBase already includes it
+    const plantedDate = new Date(plantedAt);
     const currentDate = new Date();
-    
+
+    // Check for invalid date
+    if (isNaN(plantedDate.getTime())) {
+      console.warn('[TimeCalculationService] Invalid planted_at date:', plantedAt);
+      return 0;
+    }
+
     const timeElapsed = currentDate.getTime() - plantedDate.getTime();
     const hoursElapsed = timeElapsed / (1000 * 60 * 60);
-    
+
     return Math.max(0, hoursElapsed);
   }
 
@@ -24,12 +35,17 @@ export class TimeCalculationService {
     plant: Plant,
     friendWeather: string
   ): number {
+    if (!plant || !plant.growth_time_hours) {
+      console.warn('[TimeCalculationService] Missing plant or growth_time_hours:', plant);
+      return 0;
+    }
+
     const hoursElapsed = this.getTimeElapsedHours(plantedAt);
     const weatherBonus = GrowthService.getWeatherBonus(plant, friendWeather);
-    
+
     const totalRealTimeNeeded = plant.growth_time_hours / weatherBonus;
     const remainingRealTime = totalRealTimeNeeded - hoursElapsed;
-    
+
     return Math.max(0, remainingRealTime);
   }
 

@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import * as Location from "expo-location";
-import { supabase } from "../utils/supabase";
+import { pb } from "../utils/pocketbase";
 import locationImg from "../../assets/images/location.png";
 
 export default function LocationPermission() {
@@ -36,26 +36,23 @@ export default function LocationPermission() {
 
         // Continue with foreground permissions even if background is denied
         const location = await Location.getCurrentPositionAsync({});
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
+
+        const user = pb.authStore.model;
         if (!user) {
             Alert.alert("Could not get user info.");
             setLoading(false);
             return;
         }
-        const { error } = await supabase
-            .from("profiles")
-            .update({
+
+        try {
+            await pb.collection("users").update(user.id, {
                 location_approved: true,
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude,
-            })
-            .eq("id", user.id);
-        if (error) {
-            Alert.alert("Failed to save location:", error.message);
-        } else {
+            });
             router.replace("/selfie");
+        } catch (error: any) {
+            Alert.alert("Failed to save location:", error.message);
         }
         setLoading(false);
     };

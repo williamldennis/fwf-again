@@ -1,16 +1,16 @@
-import { supabase } from "../utils/supabase";
+import { pb } from "../utils/pocketbase";
 
 export interface GardenActivity {
   id: string;
-  garden_owner_id: string;
-  actor_id: string;
+  garden_owner: string;
+  actor: string;
   activity_type: 'planted' | 'harvested';
-  plant_id: string;
-  planted_plant_id?: string;
+  plant: string;
+  planted_plant?: string;
   plant_name: string;
   actor_name: string;
   garden_owner_name?: string;
-  created_at: string;
+  created: string;
 }
 
 export interface ActivityLogResponse {
@@ -19,6 +19,9 @@ export interface ActivityLogResponse {
   error?: string;
   hasMore?: boolean;
 }
+
+// Store active subscriptions for cleanup
+const activeSubscriptions: Map<string, () => void> = new Map();
 
 export class ActivityService {
   /**
@@ -34,84 +37,67 @@ export class ActivityService {
     plantedPlantId?: string
   ): Promise<boolean> {
     try {
-      console.log(`[ActivityService] 📝 Logging ${activityType} activity:`, {
+      console.log(`[ActivityService] Logging ${activityType} activity:`, {
         gardenOwnerId,
         actorId,
         plantName,
         actorName,
       });
 
-      const { data, error } = await supabase.rpc('log_garden_activity', {
-        p_garden_owner_id: gardenOwnerId,
-        p_actor_id: actorId,
-        p_activity_type: activityType,
-        p_plant_id: plantId,
-        p_plant_name: plantName,
-        p_actor_name: actorName,
-        p_planted_plant_id: plantedPlantId,
+      await pb.collection('garden_activities').create({
+        garden_owner: gardenOwnerId,
+        actor: actorId,
+        activity_type: activityType,
+        plant: plantId,
+        plant_name: plantName,
+        actor_name: actorName,
+        planted_plant: plantedPlantId || null,
       });
 
-      if (error) {
-        console.error('[ActivityService] ❌ Error logging activity:', error);
-        return false;
-      }
-
-      console.log(`[ActivityService] ✅ Activity logged successfully: ${activityType}`);
+      console.log(`[ActivityService] Activity logged successfully: ${activityType}`);
       return true;
     } catch (error) {
-      console.error('[ActivityService] ❌ Exception logging activity:', error);
+      console.error('[ActivityService] Exception logging activity:', error);
       return false;
     }
   }
 
   static async getLatestActivityTimestamp(gardenOwnerId: string): Promise<string | null> {
     try {
-      console.log(`[ActivityService] ⏱️ Fetching latest activity timestamp for garden:`, {
+      console.log(`[ActivityService] Fetching latest activity timestamp for garden:`, {
         gardenOwnerId,
       });
 
-      const { data, error } = await supabase
-        .from('garden_activities')
-        .select('created_at')
-        .eq('garden_owner_id', gardenOwnerId)
-        .neq('actor_id', gardenOwnerId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      const result = await pb.collection('garden_activities').getList(1, 1, {
+        filter: `garden_owner = "${gardenOwnerId}" && actor != "${gardenOwnerId}"`,
+        sort: '-created',
+      });
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          console.log(`[ActivityService] ℹ️ No activities found for user ${gardenOwnerId}`);
-          return null;
-        }
-        console.error('[ActivityService] ❌ Error fetching latest activity timestamp:', error);
+      if (result.items.length === 0) {
+        console.log(`[ActivityService] No activities found for user ${gardenOwnerId}`);
         return null;
       }
 
-      console.log(`[ActivityService] ✅ Latest activity timestamp fetched:`, data?.created_at);
-      return data?.created_at || null;
+      const timestamp = result.items[0].created;
+      console.log(`[ActivityService] Latest activity timestamp fetched:`, timestamp);
+      return timestamp;
     } catch (error) {
-      console.error('[ActivityService] ❌ Exception fetching latest activity timestamp:', error);
+      console.error('[ActivityService] Exception fetching latest activity timestamp:', error);
       return null;
     }
   }
 
   static async setLastCheckedActivityAt(userId: string): Promise<void> {
     try {
-      console.log(`[ActivityService] ⏱️ Setting last_checked_activity_at for user: ${userId}`);
-      const { error } = await supabase
-        .from('profiles')
-        .update({ last_checked_activity_at: new Date().toISOString() })
-        .eq('id', userId);
+      console.log(`[ActivityService] Setting last_checked_activity_at for user: ${userId}`);
 
-      if (error) {
-        console.error('[ActivityService] ❌ Error setting last_checked_activity_at:', error);
-        throw new Error(`Failed to set last_checked_activity_at: ${error.message}`);
-      }
+      await pb.collection('users').update(userId, {
+        last_checked_activity_at: new Date().toISOString()
+      });
 
-      console.log(`[ActivityService] ✅ last_checked_activity_at set successfully for user: ${userId}`);
+      console.log(`[ActivityService] last_checked_activity_at set successfully for user: ${userId}`);
     } catch (error) {
-      console.error('[ActivityService] ❌ Exception setting last_checked_activity_at:', error);
+      console.error('[ActivityService] Exception setting last_checked_activity_at:', error);
       throw error;
     }
   }
@@ -125,41 +111,22 @@ export class ActivityService {
     limit: number = 25
   ): Promise<ActivityLogResponse> {
     try {
-      console.log(`[ActivityService] 📋 Fetching activities for garden:`, {
+      console.log(`[ActivityService] Fetching activities for garden:`, {
         gardenOwnerId,
         page,
         limit,
       });
 
-      const offset = page * limit;
+      // PocketBase uses 1-based pagination
+      const pbPage = page + 1;
 
-      // First get the activities - both in user's garden and activities they performed in other gardens
-      const { data: activities, error: activitiesError, count } = await supabase
-        .from('garden_activities')
-        .select('*', { count: 'exact' })
-        .or(`garden_owner_id.eq.${gardenOwnerId},actor_id.eq.${gardenOwnerId}`)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+      // Fetch activities where user is garden owner OR actor
+      const result = await pb.collection('garden_activities').getList(pbPage, limit, {
+        filter: `garden_owner = "${gardenOwnerId}" || actor = "${gardenOwnerId}"`,
+        sort: '-created',
+      });
 
-      if (activitiesError) {
-        // Handle the specific case where there are no activities
-        if (activitiesError.code === 'PGRST103' && activitiesError.message.includes('Requested range not satisfiable')) {
-          console.log('[ActivityService] ℹ️ No activities found for user');
-          return {
-            success: true,
-            activities: [],
-            hasMore: false,
-          };
-        }
-
-        console.error('[ActivityService] ❌ Error fetching activities:', activitiesError);
-        return {
-          success: false,
-          error: activitiesError.message,
-        };
-      }
-
-      if (!activities || activities.length === 0) {
+      if (result.items.length === 0) {
         return {
           success: true,
           activities: [],
@@ -168,44 +135,53 @@ export class ActivityService {
       }
 
       // Get unique garden owner IDs (for activities in friend's gardens)
-      const gardenOwnerIds = [...new Set(activities.map(a => a.garden_owner_id))];
+      const gardenOwnerIds = [...new Set(result.items.map(a => a.garden_owner))];
 
-      // Fetch garden owner names from profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', gardenOwnerIds);
+      // Fetch garden owner names from users collection
+      let gardenOwnerNames = new Map<string, string>();
 
-      if (profilesError) {
-        console.error('[ActivityService] ❌ Error fetching profiles:', profilesError);
-        // Continue without garden owner names
+      if (gardenOwnerIds.length > 0) {
+        try {
+          // Build filter for multiple IDs
+          const idFilters = gardenOwnerIds.map(id => `id = "${id}"`).join(' || ');
+          const users = await pb.collection('users').getFullList({
+            filter: idFilters,
+          });
+
+          users.forEach(user => {
+            gardenOwnerNames.set(user.id, user.full_name || 'Unknown');
+          });
+        } catch (profilesError) {
+          console.error('[ActivityService] Error fetching profiles:', profilesError);
+          // Continue without garden owner names
+        }
       }
 
-      // Create a map of garden owner ID to name
-      const gardenOwnerNames = new Map<string, string>();
-      if (profiles) {
-        profiles.forEach(profile => {
-          gardenOwnerNames.set(profile.id, profile.full_name || 'Unknown');
-        });
-      }
-
-      // Add garden owner names to activities
-      const activitiesWithNames = activities.map(activity => ({
-        ...activity,
-        garden_owner_name: gardenOwnerNames.get(activity.garden_owner_id) || 'Unknown'
+      // Map activities to expected format
+      const activities: GardenActivity[] = result.items.map(item => ({
+        id: item.id,
+        garden_owner: item.garden_owner,
+        actor: item.actor,
+        activity_type: item.activity_type,
+        plant: item.plant,
+        planted_plant: item.planted_plant,
+        plant_name: item.plant_name,
+        actor_name: item.actor_name,
+        garden_owner_name: gardenOwnerNames.get(item.garden_owner) || 'Unknown',
+        created: item.created,
       }));
 
-      const hasMore = count ? offset + limit < count : false;
+      const hasMore = result.totalPages > pbPage;
 
-      console.log(`[ActivityService] ✅ Fetched ${activitiesWithNames.length} activities, hasMore: ${hasMore}`);
+      console.log(`[ActivityService] Fetched ${activities.length} activities, hasMore: ${hasMore}`);
 
       return {
         success: true,
-        activities: activitiesWithNames,
+        activities,
         hasMore,
       };
     } catch (error) {
-      console.error('[ActivityService] ❌ Exception fetching activities:', error);
+      console.error('[ActivityService] Exception fetching activities:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -220,44 +196,60 @@ export class ActivityService {
     gardenOwnerId: string,
     onActivity: (activity: GardenActivity) => void
   ) {
-    console.log(`[ActivityService] 🔔 Subscribing to activities for user: ${gardenOwnerId}`);
+    console.log(`[ActivityService] Subscribing to activities for user: ${gardenOwnerId}`);
 
-    return supabase
-      .channel(`garden_activities_${gardenOwnerId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'garden_activities',
-          filter: `garden_owner_id=eq.${gardenOwnerId}`,
-        },
-        (payload) => {
-          console.log('[ActivityService] 🔔 New activity in user garden received:', payload.new);
-          onActivity(payload.new as GardenActivity);
+    // Unsubscribe from any existing subscription for this user
+    this.unsubscribeFromActivities(gardenOwnerId);
+
+    // Subscribe to all changes on garden_activities
+    // PocketBase doesn't support filter-based subscriptions like Supabase,
+    // so we filter on the client side
+    pb.collection('garden_activities').subscribe('*', (e) => {
+      if (e.action === 'create') {
+        const record = e.record;
+
+        // Filter: only process if this affects the user's garden or they're the actor
+        if (record.garden_owner === gardenOwnerId || record.actor === gardenOwnerId) {
+          console.log('[ActivityService] New activity received:', record);
+
+          const activity: GardenActivity = {
+            id: record.id,
+            garden_owner: record.garden_owner,
+            actor: record.actor,
+            activity_type: record.activity_type,
+            plant: record.plant,
+            planted_plant: record.planted_plant,
+            plant_name: record.plant_name,
+            actor_name: record.actor_name,
+            created: record.created,
+          };
+
+          onActivity(activity);
         }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'garden_activities',
-          filter: `actor_id=eq.${gardenOwnerId}`,
-        },
-        (payload) => {
-          console.log('[ActivityService] 🔔 New activity by user received:', payload.new);
-          onActivity(payload.new as GardenActivity);
-        }
-      )
-      .subscribe();
+      }
+    });
+
+    // Store the cleanup function
+    activeSubscriptions.set(gardenOwnerId, () => {
+      pb.collection('garden_activities').unsubscribe('*');
+    });
+
+    // Return a subscription-like object for compatibility
+    return {
+      unsubscribe: () => this.unsubscribeFromActivities(gardenOwnerId)
+    };
   }
 
   /**
    * Unsubscribe from real-time updates
    */
   static unsubscribeFromActivities(gardenOwnerId: string) {
-    console.log(`[ActivityService] 🔕 Unsubscribing from activities for garden: ${gardenOwnerId}`);
-    supabase.channel(`garden_activities_${gardenOwnerId}`).unsubscribe();
+    console.log(`[ActivityService] Unsubscribing from activities for garden: ${gardenOwnerId}`);
+
+    const cleanup = activeSubscriptions.get(gardenOwnerId);
+    if (cleanup) {
+      cleanup();
+      activeSubscriptions.delete(gardenOwnerId);
+    }
   }
-} 
+}
