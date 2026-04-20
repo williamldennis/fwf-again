@@ -20,7 +20,7 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 // @ts-ignore
 import { DateTime } from "luxon";
-import { supabase } from "../utils/supabase";
+import { pb } from "../utils/pocketbase";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
 import { ActivityService } from "../services/activityService";
@@ -58,16 +58,16 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     useEffect(() => {
         const adjustPlanterDisplayName = async () => {
             if (!currentUserId) return;
-            const { data } = await supabase
-                .from("profiles")
-                .select("full_name")
-                .eq("id", currentUserId)
-                .single();
-            const currentUserName = data?.full_name || "Unknown";
-            if (currentUserName === planterName && planterName !== "Unknown") {
-                setPlanterDisplayName("you");
-            } else if (currentUserName !== planterName) {
-                setPlanterDisplayName(planterName);
+            try {
+                const profile = await pb.collection("users").getOne(currentUserId);
+                const currentUserName = profile?.full_name || "Unknown";
+                if (currentUserName === planterName && planterName !== "Unknown") {
+                    setPlanterDisplayName("you");
+                } else if (currentUserName !== planterName) {
+                    setPlanterDisplayName(planterName);
+                }
+            } catch (error) {
+                console.error("Error fetching planter display name:", error);
             }
         }
         adjustPlanterDisplayName();
@@ -128,13 +128,16 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     if (!plant) return null;
 
     // Calculate values needed for the rest of the component
-    const plantName = plant.plant?.name || plant.plant_name || "Unknown";
-    const plantObject = plant.plant || {
+    // PocketBase expanded relations are at plant.expand.plant
+    const expandedPlant = plant.expand?.plant || plant.plant;
+    const plantName = expandedPlant?.name || plant.plant_name || "Unknown";
+    const plantObject = expandedPlant || {
         id: plant.plant_id,
         name: plantName,
         growth_time_hours: plant.growth_time_hours || 0,
         image_path: plant.image_path || "",
         created_at: plant.planted_at,
+        weather_bonus: { sunny: 1.0, cloudy: 1.0, rainy: 1.0 }, // Default weather bonus
     };
 
     // Use GrowthService to get the weather bonus multiplier for the current weather
@@ -144,10 +147,11 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
     );
 
     // For debugging or display, keep the original weather_bonus object
+    // Use expandedPlant which correctly handles PocketBase's expand structure
     const weatherBonusObject =
-        plant.plant?.weather_bonus || plant.weather_bonus || {};
+        expandedPlant?.weather_bonus || plant.weather_bonus || {};
     const growthTimeHours =
-        plant.plant?.growth_time_hours || plant.growth_time_hours || 0;
+        expandedPlant?.growth_time_hours || plant.growth_time_hours || 0;
 
     // Update plantObject with weather bonus (keep the original object structure)
     const updatedPlantObject = {
@@ -223,56 +227,18 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         onClose();
 
         try {
-            const { data, error } = await supabase
-                .from("planted_plants")
-                .update({
-                    harvested_at: new Date().toISOString(),
-                    harvester_id: currentUserId,
-                })
-                .eq("id", plant.id)
-                .select("*");
+            // Update the planted_plant to mark it as harvested
+            await pb.collection("planted_plants").update(plant.id, {
+                harvested_at: new Date().toISOString(),
+                harvester_id: currentUserId,
+            });
 
-            if (error) {
-                console.error("[Harvest] Error harvesting plant:", error);
-                Alert.alert(
-                    "Error",
-                    "Failed to harvest plant. Please try again."
-                );
+            // Verify the harvest was successful
+            const fetchData = await pb.collection("planted_plants").getOne(plant.id);
+            if (!fetchData || !fetchData.harvested_at) {
+                console.error("[Harvest] Update did not work - harvested_at is still null");
+                Alert.alert("Error", "Plant was not found or could not be updated.");
                 return;
-            }
-
-            // Fetch the updated plant to see if the harvest was successful
-            if (!data || data.length === 0) {
-                const { data: fetchData, error: fetchError } = await supabase
-                    .from("planted_plants")
-                    .select("*")
-                    .eq("id", plant.id)
-                    .single();
-
-                if (fetchError) {
-                    console.error(
-                        "[Harvest] Error fetching updated plant:",
-                        fetchError
-                    );
-                    Alert.alert(
-                        "Error",
-                        "Failed to verify harvest. Please try again."
-                    );
-                    return;
-                }
-
-                if (fetchData && fetchData.harvested_at) {
-                    // Harvest was successful
-                } else {
-                    console.error(
-                        "[Harvest] Update did not work - harvested_at is still null"
-                    );
-                    Alert.alert(
-                        "Error",
-                        "Plant was not found or could not be updated."
-                    );
-                    return;
-                }
             }
 
             // Award points for harvesting
@@ -280,58 +246,21 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 const plantPoints = plant.plant?.harvest_points || 10;
                 console.log(`[Harvest] 🌱 Plant points: ${plantPoints}`);
 
-                const { data: profileData, error: profileError } =
-                    await supabase
-                        .from("profiles")
-                        .select("points")
-                        .eq("id", currentUserId)
-                        .single();
+                const profileData = await pb.collection("users").getOne(currentUserId!);
+                const currentPoints = profileData?.points || 0;
+                const newPoints = currentPoints + plantPoints;
+                console.log(`[Harvest] 💰 Points calculation: ${currentPoints} + ${plantPoints} = ${newPoints}`);
 
-                if (profileError) {
-                    console.error(
-                        "[Harvest] ❌ Error fetching profile:",
-                        profileError
-                    );
-                } else if (profileData) {
-                    const currentPoints = profileData?.points || 0;
-                    const newPoints = currentPoints + plantPoints;
-                    console.log(
-                        `[Harvest] 💰 Points calculation: ${currentPoints} + ${plantPoints} = ${newPoints}`
-                    );
-
-                    const { error: updateError } = await supabase
-                        .from("profiles")
-                        .update({ points: newPoints })
-                        .eq("id", currentUserId);
-
-                    if (updateError) {
-                        console.error(
-                            "[Harvest] ❌ Error updating points:",
-                            updateError
-                        );
-                    } else {
-                        console.log(
-                            `[Harvest] ✅ Points updated successfully: ${newPoints}`
-                        );
-                    }
-                } else {
-                    console.error("[Harvest] ❌ No profile data found");
-                }
+                await pb.collection("users").update(currentUserId!, { points: newPoints });
+                console.log(`[Harvest] ✅ Points updated successfully: ${newPoints}`);
             } catch (pointsError) {
-                console.error(
-                    "[Harvest] ❌ Error awarding points:",
-                    pointsError
-                );
+                console.error("[Harvest] ❌ Error awarding points:", pointsError);
             }
 
             // Log activity for harvesting (non-blocking)
             try {
                 // Get the harvester's name from the database
-                const { data: harvesterProfile } = await supabase
-                    .from("profiles")
-                    .select("full_name")
-                    .eq("id", currentUserId)
-                    .single();
+                const harvesterProfile = await pb.collection("users").getOne(currentUserId!);
                 const harvesterName = harvesterProfile?.full_name || "Unknown";
 
                 await ActivityService.logActivity(

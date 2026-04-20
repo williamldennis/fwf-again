@@ -68,7 +68,7 @@ export interface PlantPickerProps {
 // Garden area props
 export interface GardenAreaProps {
   gardenOwnerId: string;
-  plants: any[]; // Using any[] to handle the joined data structure from Supabase
+  plants: any[]; // Using any[] to handle the joined data structure from PocketBase
   weatherCondition: string;
   onPlantPress: (slotIdx: number) => void;
   onPlantDetailsPress?: (plant: any, weatherCondition: string) => void; // Optional callback for plant details

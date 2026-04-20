@@ -239,13 +239,13 @@ export const CardStack: React.FC<CardStackProps> = ({
             >
                 <Carousel
                     ref={carouselRef}
-                    loop={true}
+                    loop={stackItems.length > 2}
                     width={cardWidth}
                     height={screenHeight}
                     data={stackItems}
                     renderItem={renderCard}
-                    // onSnapToItem={setCurrentIndex}}
-                    windowSize={5}
+                    onSnapToItem={setCurrentIndex}
+                    windowSize={3}
                 />
 
                 {/* Stack indicator selfies with blurred footer */}

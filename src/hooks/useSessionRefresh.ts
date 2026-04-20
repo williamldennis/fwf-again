@@ -1,52 +1,40 @@
 import { useEffect } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { supabase } from '../utils/supabase';
+import { pb, isAuthenticated } from '../utils/pocketbase';
 
 export function useSessionRefresh() {
   useEffect(() => {
     console.log('[Session] 🚀 Initializing session refresh hook...');
-    
+
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       console.log('[Session] 📱 App state changed to:', nextAppState);
-      
+
       if (nextAppState === 'active') {
         console.log('[Session] 📱 App came to foreground, checking session...');
-        
+
         try {
-          // Get current session
-          const { data: { session }, error } = await supabase.auth.getSession();
-          
-          if (error) {
-            console.log('[Session] ❌ Session error:', error.message);
-            return;
-          }
-          
-          if (!session) {
+          // Check if we have a valid session
+          if (!isAuthenticated()) {
             console.log('[Session] ℹ️  No active session found');
             return;
           }
-          
-          console.log('[Session] ✅ Session found for user:', session.user.id);
-          
-          // Check if access token is expired or about to expire (within 5 minutes)
-          const now = Math.floor(Date.now() / 1000);
-          const tokenExp = session.expires_at ? Math.floor(session.expires_at / 1000) : 0;
-          const timeUntilExpiry = tokenExp - now;
-          
-          console.log(`[Session] 🔑 Token expires in ${Math.floor(timeUntilExpiry / 60)} minutes`);
-          
-          // Refresh token if it expires within 5 minutes
-          if (timeUntilExpiry < 300) { // 5 minutes
+
+          console.log('[Session] ✅ Session found for user:', pb.authStore.model?.id);
+
+          // PocketBase tokens are valid for a long time by default
+          // but we can still refresh to ensure validity
+          if (pb.authStore.isValid) {
             console.log('[Session] 🔄 Refreshing session...');
-            const { data, error: refreshError } = await supabase.auth.refreshSession();
-            
-            if (refreshError) {
-              console.log('[Session] ❌ Session refresh failed:', refreshError.message);
-            } else if (data.session) {
+            try {
+              await pb.collection('users').authRefresh();
               console.log('[Session] ✅ Session refreshed successfully');
+            } catch (refreshError) {
+              console.log('[Session] ❌ Session refresh failed:', refreshError);
+              // Token might be expired, auth will be cleared automatically
             }
           } else {
-            console.log('[Session] ✅ Session is still valid');
+            console.log('[Session] ⚠️ Session is invalid, clearing...');
+            pb.authStore.clear();
           }
         } catch (err) {
           console.log('[Session] ❌ Session check error:', err);
@@ -62,4 +50,4 @@ export function useSessionRefresh() {
       subscription?.remove();
     };
   }, []);
-} 
+}

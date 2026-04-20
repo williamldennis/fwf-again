@@ -166,9 +166,11 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
 
         slots.forEach((plant, idx) => {
             if (plant) {
+                // PocketBase expanded relations are at plant.expand.plant
+                const expandedPlant = plant.expand?.plant || plant.plant;
                 const plantName =
-                    plant.plant?.name || plant.plant_name || "Unknown";
-                const plantObject = plant.plant || {
+                    expandedPlant?.name || plant.plant_name || "Unknown";
+                const plantObject = expandedPlant || {
                     id: plant.plant_id,
                     name: plantName,
                     growth_time_hours: plant.growth_time_hours || 0,
@@ -280,8 +282,10 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 }
 
                 // Get the memoized stage for this plant
+                // PocketBase expanded relations are at plant.expand.plant
+                const expandedPlant = plant.expand?.plant || plant.plant;
                 const plantName =
-                    plant.plant?.name || plant.plant_name || "Unknown";
+                    expandedPlant?.name || plant.plant_name || "Unknown";
                 const stage = plantStages[plant.id] || 2; // Default to dirt stage
 
                 return (

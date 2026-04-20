@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '../utils/supabase';
+import { pb } from '../utils/pocketbase';
 import * as Location from 'expo-location';
 
 export interface UserProfile {
@@ -31,12 +31,12 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
 
   // Fast location fetch for weather (highest priority)
   const fetchLocationForWeather = useCallback(async (userId: string) => {
-    console.log("[Profile] 🚀 Fast location fetch for weather...");
+    console.log("[Profile] Fast location fetch for weather...");
     setWeatherLoading(true);
 
     try {
       // Always get fresh current location
-      console.log("[Profile] 📍 Getting fresh current location for weather...");
+      console.log("[Profile] Getting fresh current location for weather...");
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status === "granted") {
         const location = await Location.getCurrentPositionAsync({
@@ -47,20 +47,17 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
         const latitude = location.coords.latitude;
         const longitude = location.coords.longitude;
 
-        console.log(`[Profile] ✅ Got fresh current location: ${latitude}, ${longitude}`);
-
-        // Don't update database here - let weather service handle it
-        // This prevents the race condition with fetchFullProfile
+        console.log(`[Profile] Got fresh current location: ${latitude}, ${longitude}`);
 
         setWeatherLoading(false);
         return { latitude, longitude };
       } else {
-        console.log("[Profile] ⚠️ Location permission not granted");
+        console.log("[Profile] Location permission not granted");
         setWeatherLoading(false);
         return { latitude: null, longitude: null };
       }
     } catch (err) {
-      console.warn("[Profile] ❌ Location fetch error:", err);
+      console.warn("[Profile] Location fetch error:", err);
       setWeatherLoading(false);
       return { latitude: null, longitude: null };
     }
@@ -68,23 +65,14 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
 
   // Full profile fetch (background, lower priority)
   const fetchFullProfile = useCallback(async (userId: string) => {
-    console.log("[Profile] 👤 Fetching full profile (background)...");
+    console.log("[Profile] Fetching full profile (background)...");
     setProfileLoading(true);
 
     try {
       // Get complete profile data
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("latitude,longitude,selfie_urls,points,last_checked_activity_at")
-        .eq("id", userId)
-        .single();
+      const profileData = await pb.collection("users").getOne(userId);
 
-      if (profileError) {
-        console.error("[Profile] ❌ Profile error:", profileError);
-        throw new Error(`Profile error: ${profileError.message}`);
-      }
-
-      console.log(`[Profile] ✅ Full profile loaded: points=${profileData?.points || 0}`);
+      console.log(`[Profile] Full profile loaded: points=${profileData?.points || 0}`);
 
       // Set the complete profile data, but preserve fresh location if available
       setProfile(prev => {
@@ -101,7 +89,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
 
       setProfileLoading(false);
     } catch (err) {
-      console.error("[Profile] ❌ Full profile fetch error:", err);
+      console.error("[Profile] Full profile fetch error:", err);
       setProfileLoading(false);
       // Don't throw - this is background loading
     }
@@ -113,29 +101,20 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
       throw new Error("No user ID provided");
     }
 
-    console.log("[Profile] 💰 Updating user points...");
+    console.log("[Profile] Updating user points...");
 
     try {
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("points")
-        .eq("id", userId)
-        .single();
-
-      if (error) {
-        console.error("[Profile] ❌ Error fetching updated points:", error);
-        throw new Error(`Failed to update points: ${error.message}`);
-      }
+      const profileData = await pb.collection("users").getOne(userId);
 
       const newPoints = profileData?.points || 0;
-      console.log(`[Profile] ✅ Points updated: ${newPoints}`);
+      console.log(`[Profile] Points updated: ${newPoints}`);
 
       // Update local state
       setProfile(prev => prev ? { ...prev, points: newPoints } : null);
 
       return newPoints;
     } catch (err) {
-      console.error("[Profile] ❌ Points update error:", err);
+      console.error("[Profile] Points update error:", err);
       throw err;
     }
   }, [userId]);
@@ -146,7 +125,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
       throw new Error("No user ID provided");
     }
 
-    console.log("[Profile] 🔄 Updating profile...", updates);
+    console.log("[Profile] Updating profile...", updates);
 
     try {
       const updateData: any = {};
@@ -156,22 +135,14 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
       if (updates.selfieUrls !== undefined) updateData.selfie_urls = updates.selfieUrls;
       if (updates.points !== undefined) updateData.points = updates.points;
 
-      const { error } = await supabase
-        .from("profiles")
-        .update(updateData)
-        .eq("id", userId);
-
-      if (error) {
-        console.error("[Profile] ❌ Profile update error:", error);
-        throw new Error(`Failed to update profile: ${error.message}`);
-      }
+      await pb.collection("users").update(userId, updateData);
 
       // Update local state
       setProfile(prev => prev ? { ...prev, ...updates } : null);
 
-      console.log("[Profile] ✅ Profile updated successfully");
+      console.log("[Profile] Profile updated successfully");
     } catch (err) {
-      console.error("[Profile] ❌ Profile update error:", err);
+      console.error("[Profile] Profile update error:", err);
       throw err;
     }
   }, [userId]);
@@ -180,7 +151,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
   const refreshProfile = useCallback(async (): Promise<void> => {
     if (!userId) return;
 
-    console.log("[Profile] 🔄 Refreshing profile...");
+    console.log("[Profile] Refreshing profile...");
     setLoading(true);
     setError(null);
 
@@ -191,9 +162,9 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
       // Then fetch full profile (will preserve fresh location)
       await fetchFullProfile(userId);
 
-      console.log("[Profile] ✅ Profile refresh completed!");
+      console.log("[Profile] Profile refresh completed!");
     } catch (err) {
-      console.error("[Profile] ❌ Profile refresh error:", err);
+      console.error("[Profile] Profile refresh error:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       setError(`Profile refresh failed: ${errorMessage}`);
     } finally {
@@ -212,7 +183,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
       return;
     }
 
-    console.log("[Profile] 🚀 Initial profile fetch with priority loading...");
+    console.log("[Profile] Initial profile fetch with priority loading...");
     setLoading(true);
     setError(null);
 
@@ -235,10 +206,10 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
       })
       .then(() => {
         // Ensure fresh location is preserved after full profile fetch
-        console.log("[Profile] ✅ Initial profile fetch completed");
+        console.log("[Profile] Initial profile fetch completed");
       })
       .catch((err) => {
-        console.error("[Profile] ❌ Initial profile fetch error:", err);
+        console.error("[Profile] Initial profile fetch error:", err);
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
         setError(`Profile fetch failed: ${errorMessage}`);
       })
@@ -259,4 +230,4 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
   };
 }
 
-export default useUserProfile; 
+export default useUserProfile;

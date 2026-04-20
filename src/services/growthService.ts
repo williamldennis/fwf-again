@@ -7,34 +7,38 @@ export class GrowthService {
    * Calculate the weather bonus multiplier for a plant based on current weather
    */
   static getWeatherBonus(plant: Plant, weatherCondition: string): number {
+    // Handle undefined plant or weather_bonus
+    if (!plant || !plant.weather_bonus) {
+      return 1.0;
+    }
+
     // Check if this is a known weather condition
     const knownConditions = ['Clear', 'Clouds', 'Rain', 'Drizzle', 'Mist', 'Fog', 'Haze', 'Snow', 'Thunderstorm'];
-    const isKnownCondition = knownConditions.some(condition => 
+    const isKnownCondition = knownConditions.some(condition =>
       condition.toLowerCase() === weatherCondition.toLowerCase()
     );
-    
+
     if (!isKnownCondition) {
       // Return 1.0 for unknown weather conditions
       return 1.0;
     }
-    
+
     // Use the single source of truth for weather condition mapping
     const normalizedKey = getNormalizedWeatherKey(weatherCondition);
-    
+
     // Map normalized key to plant weather bonus
-    const weatherMapping: Record<string, keyof typeof plant.weather_bonus> = {
+    const weatherMapping: Record<string, 'sunny' | 'cloudy' | 'rainy'> = {
       'sunny': 'sunny',
-      'cloudy': 'cloudy', 
+      'cloudy': 'cloudy',
       'rainy': 'rainy'
     };
-    
+
     const mappedKey = weatherMapping[normalizedKey];
-    
-    if (mappedKey) {
-      const bonus = plant.weather_bonus[mappedKey];
-      return bonus;
+
+    if (mappedKey && plant.weather_bonus[mappedKey] !== undefined) {
+      return plant.weather_bonus[mappedKey];
     }
-    
+
     // Default to 1.0 if weather not found or not mapped
     return 1.0;
   }

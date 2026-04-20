@@ -14,7 +14,7 @@ import {
 import tzlookup from "tz-lookup";
 import { DateTime } from "luxon";
 import { Stack, router } from "expo-router";
-import { supabase } from "../utils/supabase";
+import { pb, clearAuth } from "../utils/pocketbase";
 import { useHeaderHeight } from "@react-navigation/elements";
 
 // Import our custom hooks
@@ -1055,11 +1055,11 @@ export default function Home() {
 
     // Logout handler
     const handleLogout = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-            Alert.alert("Logout failed", error.message);
-        } else {
+        try {
+            await clearAuth();
             router.replace("/login");
+        } catch (error: any) {
+            Alert.alert("Logout failed", error?.message || "Unknown error");
         }
     };
 
@@ -1398,9 +1398,7 @@ export default function Home() {
 
         try {
             // Get current user
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
+            const user = pb.authStore.model;
             if (!user) {
                 console.error("[Plant] No authenticated user found");
                 return;
@@ -1427,20 +1425,9 @@ export default function Home() {
             }
 
             // Check if slot is already occupied
-            const { data: slotPlants, error: slotError } = await supabase
-                .from("planted_plants")
-                .select("id")
-                .eq("garden_owner_id", friendId)
-                .eq("slot", slotIdx)
-                .is("harvested_at", null);
-            if (slotError) {
-                console.error(
-                    "[Plant] Error checking slot occupancy:",
-                    slotError
-                );
-                Alert.alert("Error", "Could not check slot occupancy");
-                return;
-            }
+            const slotPlants = await pb.collection("planted_plants").getFullList({
+                filter: `garden_owner = "${friendId}" && slot = ${slotIdx} && harvested_at = null`,
+            });
             if (slotPlants && slotPlants.length > 0) {
                 Alert.alert("Slot Occupied", "This pot is already occupied");
                 return;
@@ -1465,18 +1452,8 @@ export default function Home() {
                     `[Plant] Deducting ${plantingCost} points for planting ${selectedPlant.name}. New balance: ${newPoints}`
                 );
 
-                const { error: pointsError } = await supabase
-                    .from("profiles")
-                    .update({ points: newPoints })
-                    .eq("id", user.id);
-
-                if (pointsError) {
-                    console.error(
-                        "[Plant] Error updating points:",
-                        pointsError
-                    );
-                    // Don't fail the planting if points update fails
-                } else {
+                try {
+                    await pb.collection("users").update(user.id, { points: newPoints });
                     console.log("[Plant] Points updated successfully");
                     // Refresh user profile to update points display
                     try {
@@ -1487,6 +1464,12 @@ export default function Home() {
                             error
                         );
                     }
+                } catch (pointsError) {
+                    console.error(
+                        "[Plant] Error updating points:",
+                        pointsError
+                    );
+                    // Don't fail the planting if points update fails
                 }
 
                 // Update growth after planting to ensure new plants start correctly
@@ -1503,11 +1486,7 @@ export default function Home() {
                             weather?.weather?.[0]?.main || "clear";
                     } else {
                         // Planting in friend's garden - get friend's weather
-                        const { data: friendProfile } = await supabase
-                            .from("profiles")
-                            .select("weather_condition")
-                            .eq("id", friendId)
-                            .single();
+                        const friendProfile = await pb.collection("users").getOne(friendId);
                         friendWeatherCondition =
                             friendProfile?.weather_condition || "clear";
                     }
@@ -1528,11 +1507,7 @@ export default function Home() {
                     });
 
                     // Get the actor's name from the database
-                    const { data: actorProfile } = await supabase
-                        .from("profiles")
-                        .select("full_name")
-                        .eq("id", user.id)
-                        .single();
+                    const actorProfile = await pb.collection("users").getOne(user.id);
                     const actorName = actorProfile?.full_name || "Unknown";
 
                     const activityResult = await ActivityService.logActivity(
@@ -1594,14 +1569,15 @@ export default function Home() {
         friendWeather: string
     ) => {
         let planterName = "Unknown";
-        if (plant.planter_id) {
-            const { data: profile, error } = await supabase
-                .from("profiles")
-                .select("full_name")
-                .eq("id", plant.planter_id)
-                .single();
-            if (profile && profile.full_name) {
-                planterName = profile.full_name;
+        if (plant.planter_id || plant.planter) {
+            try {
+                const planterId = plant.planter_id || plant.planter;
+                const profile = await pb.collection("users").getOne(planterId);
+                if (profile && profile.full_name) {
+                    planterName = profile.full_name;
+                }
+            } catch (error) {
+                console.error("[Plant Details] Error fetching planter profile:", error);
             }
         }
         setSelectedPlanterName(planterName);
