@@ -1,6 +1,6 @@
 import * as Contacts from "expo-contacts";
 import { parsePhoneNumberFromString, CountryCode } from "libphonenumber-js";
-import { pb } from "../utils/pocketbase";
+import { pb, getSelfieUrls } from "../utils/pocketbase";
 import { WeatherDataType, WeatherService } from "./weatherService";
 
 export interface Contact {
@@ -297,6 +297,8 @@ export class ContactsService {
 
                 friendsWithNamesCitiesAndWeather.push({
                     ...friend,
+                    // Convert PocketBase file fields to selfie_urls format
+                    selfie_urls: getSelfieUrls(friend),
                     contact_name: contactName || "Unknown",
                     city_name: cityName,
                     // Use fresh weather data if available, otherwise fall back to stored data

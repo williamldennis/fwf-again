@@ -99,3 +99,26 @@ export function isAuthenticated(): boolean {
 
 // Re-export types that will be commonly used
 export type { RecordModel, RecordSubscription } from 'pocketbase';
+
+/**
+ * Get selfie URLs from a PocketBase user record
+ * Converts file fields (selfie_sunny, selfie_cloudy, etc.) to URL format
+ */
+export function getSelfieUrls(record: any): Record<string, string> {
+    if (!record) return {};
+
+    const weatherTypes = ['sunny', 'cloudy', 'rainy', 'snowy', 'thunderstorm'];
+    const selfieUrls: Record<string, string> = {};
+
+    for (const weatherType of weatherTypes) {
+        const fieldName = `selfie_${weatherType}`;
+        const fileName = record[fieldName];
+
+        if (fileName) {
+            // PocketBase file URL format: /api/files/COLLECTION_ID/RECORD_ID/FILENAME
+            selfieUrls[weatherType] = pb.files.getUrl(record, fileName);
+        }
+    }
+
+    return selfieUrls;
+}

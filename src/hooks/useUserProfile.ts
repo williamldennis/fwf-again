@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { pb } from '../utils/pocketbase';
+import { pb, getSelfieUrls } from '../utils/pocketbase';
 import * as Location from 'expo-location';
 
 export interface UserProfile {
@@ -76,8 +76,10 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
 
       // Set the complete profile data, but preserve fresh location if available
       setProfile(prev => {
+        // Get selfie URLs from PocketBase file fields
+        const selfieUrls = getSelfieUrls(profileData);
         const userProfile: UserProfile = {
-          selfieUrls: profileData.selfie_urls || null,
+          selfieUrls: Object.keys(selfieUrls).length > 0 ? selfieUrls : null,
           points: profileData.points || 0,
           // Preserve fresh location if we have it, otherwise use database location
           latitude: prev?.latitude || profileData.latitude,

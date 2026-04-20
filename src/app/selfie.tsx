@@ -7,11 +7,13 @@ import {
     TouchableOpacity,
     Dimensions,
     Image,
+    Platform,
 } from "react-native";
 import { router } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { pb } from "../utils/pocketbase";
 import LottieView from "lottie-react-native";
+import * as FileSystem from "expo-file-system";
 
 const { width: screenWidth } = Dimensions.get("window");
 const CAMERA_SIZE = Math.min(screenWidth * 0.3, 300);
@@ -74,27 +76,24 @@ export default function Selfie() {
 
             const profile = await pb.collection("users").getOne(user.id);
 
-            if (profile?.selfie_urls) {
-                const requiredSelfies = [
-                    "sunny",
-                    "cloudy",
-                    "rainy",
-                    "snowy",
-                    "thunderstorm",
-                ];
-                const existingSelfies = profile.selfie_urls || {};
-                const hasAllSelfies = requiredSelfies.every(
-                    (key) =>
-                        existingSelfies[key] &&
-                        typeof existingSelfies[key] === "string" &&
-                        existingSelfies[key].trim().length > 0
-                );
+            // Check for file fields (selfie_sunny, selfie_cloudy, etc.)
+            const requiredSelfies = [
+                "sunny",
+                "cloudy",
+                "rainy",
+                "snowy",
+                "thunderstorm",
+            ];
 
-                if (hasAllSelfies) {
-                    // User already has all selfies, redirect to home
-                    router.replace("/home");
-                    return;
-                }
+            const hasAllSelfies = requiredSelfies.every((key) => {
+                const fieldName = `selfie_${key}`;
+                return profile[fieldName] && profile[fieldName].length > 0;
+            });
+
+            if (hasAllSelfies) {
+                // User already has all selfies, redirect to home
+                router.replace("/home");
+                return;
             }
         } catch (error) {
             console.error("Error checking existing selfies:", error);
@@ -107,13 +106,13 @@ export default function Selfie() {
     const handleCapture = async () => {
         if (cameraRef.current) {
             const photo = await cameraRef.current.takePictureAsync({
-                base64: true,
                 quality: 0.7,
             });
             setCapturedPhoto(photo.uri);
+            // Store the file URI for later upload
             setSelfies((prev) => ({
                 ...prev,
-                [currentWeather.key]: `data:image/jpeg;base64,${photo.base64}`,
+                [currentWeather.key]: photo.uri,
             }));
 
             // Auto-advance to next weather type after a short delay
@@ -125,7 +124,7 @@ export default function Selfie() {
                     // For the last selfie, ensure we include the just-captured photo
                     const updatedSelfies = {
                         ...selfies,
-                        [currentWeather.key]: `data:image/jpeg;base64,${photo.base64}`,
+                        [currentWeather.key]: photo.uri,
                     };
                     saveSelfiesWithData(updatedSelfies);
                 }
@@ -152,13 +151,32 @@ export default function Selfie() {
             const user = pb.authStore.model;
             if (!user) throw new Error("No user found");
 
-            await pb.collection("users").update(user.id, {
-                selfie_urls: selfieData
-            });
+            // Create FormData for file uploads
+            const formData = new FormData();
+
+            for (const [weatherKey, fileUri] of Object.entries(selfieData)) {
+                if (fileUri && fileUri.startsWith('file://')) {
+                    // Get file info
+                    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+                    if (fileInfo.exists) {
+                        // Create a file object for FormData
+                        const fileName = `selfie_${weatherKey}_${Date.now()}.jpg`;
+                        formData.append(`selfie_${weatherKey}`, {
+                            uri: fileUri,
+                            type: 'image/jpeg',
+                            name: fileName,
+                        } as any);
+                    }
+                }
+            }
+
+            // Upload files to PocketBase
+            await pb.collection("users").update(user.id, formData);
 
             router.replace("/home");
-        } catch (error) {
-            Alert.alert("Error", "Failed to save selfies");
+        } catch (error: any) {
+            console.error("Failed to save selfies:", error);
+            Alert.alert("Error", `Failed to save selfies: ${error?.message || error}`);
         } finally {
             setLoading(false);
         }

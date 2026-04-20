@@ -1,0 +1,457 @@
+[
+  {
+    "name": "users",
+    "type": "auth",
+    "schema": [
+      {
+        "name": "phone_number",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "full_name",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "country_code",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "weather_temp",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "weather_condition",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "weather_icon",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "weather_updated_at",
+        "type": "date",
+        "required": false
+      },
+      {
+        "name": "latitude",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "longitude",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "selfie_sunny",
+        "type": "file",
+        "required": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": ["image/jpeg", "image/png"]
+        }
+      },
+      {
+        "name": "selfie_cloudy",
+        "type": "file",
+        "required": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": ["image/jpeg", "image/png"]
+        }
+      },
+      {
+        "name": "selfie_rainy",
+        "type": "file",
+        "required": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": ["image/jpeg", "image/png"]
+        }
+      },
+      {
+        "name": "selfie_snowy",
+        "type": "file",
+        "required": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": ["image/jpeg", "image/png"]
+        }
+      },
+      {
+        "name": "selfie_thunderstorm",
+        "type": "file",
+        "required": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": ["image/jpeg", "image/png"]
+        }
+      },
+      {
+        "name": "points",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "total_xp",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "current_level",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "xp_to_next_level",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "contacts_approved",
+        "type": "bool",
+        "required": false
+      },
+      {
+        "name": "location_approved",
+        "type": "bool",
+        "required": false
+      },
+      {
+        "name": "contacts_count",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "last_checked_activity_at",
+        "type": "date",
+        "required": false
+      }
+    ],
+    "options": {
+      "allowEmailAuth": true,
+      "allowUsernameAuth": false,
+      "allowOAuth2Auth": false,
+      "minPasswordLength": 8,
+      "requireEmail": true
+    }
+  },
+  {
+    "name": "plants",
+    "type": "base",
+    "schema": [
+      {
+        "name": "name",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "growth_time_hours",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "weather_bonus",
+        "type": "json",
+        "required": false
+      },
+      {
+        "name": "image_path",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "planting_cost",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "harvest_points",
+        "type": "number",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "planted_plants",
+    "type": "base",
+    "schema": [
+      {
+        "name": "garden_owner",
+        "type": "relation",
+        "required": true,
+        "options": {
+          "collectionId": "users",
+          "cascadeDelete": false,
+          "maxSelect": 1,
+          "displayFields": ["email"]
+        }
+      },
+      {
+        "name": "planter",
+        "type": "relation",
+        "required": true,
+        "options": {
+          "collectionId": "users",
+          "cascadeDelete": false,
+          "maxSelect": 1,
+          "displayFields": ["email"]
+        }
+      },
+      {
+        "name": "plant",
+        "type": "relation",
+        "required": true,
+        "options": {
+          "collectionId": "plants",
+          "cascadeDelete": false,
+          "maxSelect": 1,
+          "displayFields": ["name"]
+        }
+      },
+      {
+        "name": "planted_at",
+        "type": "date",
+        "required": false
+      },
+      {
+        "name": "current_stage",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "is_mature",
+        "type": "bool",
+        "required": false
+      },
+      {
+        "name": "slot",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "harvested_at",
+        "type": "date",
+        "required": false
+      },
+      {
+        "name": "harvester_id",
+        "type": "text",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "user_contacts",
+    "type": "base",
+    "schema": [
+      {
+        "name": "user",
+        "type": "relation",
+        "required": true,
+        "options": {
+          "collectionId": "users",
+          "cascadeDelete": true,
+          "maxSelect": 1,
+          "displayFields": ["email"]
+        }
+      },
+      {
+        "name": "contact_phone",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "contact_name",
+        "type": "text",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "xp_transactions",
+    "type": "base",
+    "schema": [
+      {
+        "name": "user",
+        "type": "relation",
+        "required": true,
+        "options": {
+          "collectionId": "users",
+          "cascadeDelete": true,
+          "maxSelect": 1,
+          "displayFields": ["email"]
+        }
+      },
+      {
+        "name": "amount",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "action_type",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "context_data",
+        "type": "json",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "garden_activities",
+    "type": "base",
+    "schema": [
+      {
+        "name": "garden_owner",
+        "type": "relation",
+        "required": true,
+        "options": {
+          "collectionId": "users",
+          "cascadeDelete": false,
+          "maxSelect": 1,
+          "displayFields": ["email"]
+        }
+      },
+      {
+        "name": "actor",
+        "type": "relation",
+        "required": true,
+        "options": {
+          "collectionId": "users",
+          "cascadeDelete": false,
+          "maxSelect": 1,
+          "displayFields": ["email"]
+        }
+      },
+      {
+        "name": "activity_type",
+        "type": "select",
+        "required": true,
+        "options": {
+          "maxSelect": 1,
+          "values": ["planted", "harvested"]
+        }
+      },
+      {
+        "name": "plant",
+        "type": "relation",
+        "required": false,
+        "options": {
+          "collectionId": "plants",
+          "cascadeDelete": false,
+          "maxSelect": 1,
+          "displayFields": ["name"]
+        }
+      },
+      {
+        "name": "planted_plant",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "plant_name",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "actor_name",
+        "type": "text",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "user_achievements",
+    "type": "base",
+    "schema": [
+      {
+        "name": "user",
+        "type": "relation",
+        "required": true,
+        "options": {
+          "collectionId": "users",
+          "cascadeDelete": true,
+          "maxSelect": 1,
+          "displayFields": ["email"]
+        }
+      },
+      {
+        "name": "achievement_id",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "unlocked_at",
+        "type": "date",
+        "required": false
+      },
+      {
+        "name": "progress_data",
+        "type": "json",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "weather_data",
+    "type": "base",
+    "schema": [
+      {
+        "name": "coordinates",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "data",
+        "type": "json",
+        "required": false
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_weather_coords_type ON weather_data (coordinates, type)"
+    ]
+  },
+  {
+    "name": "city_coordinates",
+    "type": "base",
+    "schema": [
+      {
+        "name": "coordinates",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "city",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_city_coords ON city_coordinates (coordinates)"
+    ]
+  }
+]
