@@ -1,12 +1,15 @@
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { InteractionManager, Text, View } from "react-native";
-import { pb, isAuthenticated } from "../utils/pocketbase";
+import { pb, isAuthenticated, initAuth } from "../utils/pocketbase";
 
 export default function Index() {
     useEffect(() => {
         const task = InteractionManager.runAfterInteractions(async () => {
             try {
+                // Initialize auth from AsyncStorage first
+                await initAuth();
+
                 // Check if user is already authenticated
                 if (!isAuthenticated() || !pb.authStore.model) {
                     console.log(

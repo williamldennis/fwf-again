@@ -23,8 +23,9 @@ const getPlantImageSource = (imagePath: string) => {
         pine_tree: require("../../assets/images/plants/pine_tree/mature.png"),
     };
 
-    const normalizedPath = imagePath.toLowerCase();
-    return plantImages[normalizedPath] || plantImages.sunflower; // fallback to sunflower
+    // Extract plant name from path (e.g., "plants/sunflower" -> "sunflower")
+    const plantName = imagePath.split("/").pop()?.toLowerCase() || "";
+    return plantImages[plantName] || plantImages.sunflower; // fallback to sunflower
 };
 
 interface PlantPickerFullProps extends PlantPickerProps {

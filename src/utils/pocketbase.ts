@@ -7,6 +7,10 @@ const pocketbaseUrl = Constants.expoConfig?.extra?.pocketbaseUrl;
 // Create PocketBase instance
 export const pb = new PocketBase(pocketbaseUrl);
 
+// Disable auto-cancellation to prevent request abortion errors
+// The app makes many concurrent requests which causes cancellation spam
+pb.autoCancellation(false);
+
 // Flag to prevent clearing auth during initialization
 let isInitializing = false;
 
@@ -116,7 +120,7 @@ export function getSelfieUrls(record: any): Record<string, string> {
 
         if (fileName) {
             // PocketBase file URL format: /api/files/COLLECTION_ID/RECORD_ID/FILENAME
-            selfieUrls[weatherType] = pb.files.getUrl(record, fileName);
+            selfieUrls[weatherType] = pb.files.getURL(record, fileName);
         }
     }
 

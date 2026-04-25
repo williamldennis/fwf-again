@@ -84,7 +84,14 @@ export function useGardenData(userId: string | null, friends: { id: string }[] =
   }, [fetchAllGardens]);
 
   // Robust real-time subscription with reconnection logic
+  // Note: PocketBase real-time uses EventSource (SSE) which isn't available in React Native
+  // We disable subscriptions to avoid errors - users can pull-to-refresh instead
   const setupSubscription = useCallback(() => {
+    // Skip real-time subscriptions in React Native (EventSource not supported)
+    if (typeof EventSource === 'undefined') {
+      return;
+    }
+
     if (!userId) return;
 
     const allUserIds = getAllUserIds();

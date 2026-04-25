@@ -9,11 +9,12 @@ export default ({ config }) => ({
     icon: "./assets/images/icon.png",
     scheme: "fwf",
     userInterfaceStyle: "automatic",
-    newArchEnabled: true,
+    newArchEnabled: false,
     ios: {
         ...config.ios,
         supportsTablet: true,
         bundleIdentifier: "com.willydennis.fwf",
+        buildNumber: "4",
         infoPlist: {
             NSContactsUsageDescription:
                 "This app needs access to your contacts to help you connect with friends.",
