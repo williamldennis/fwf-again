@@ -264,7 +264,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 const harvesterName = harvesterProfile?.full_name || "Unknown";
 
                 await ActivityService.logActivity(
-                    plant.garden_owner_id, // garden owner
+                    plant.garden_owner, // garden owner
                     currentUserId!, // actor (harvester)
                     "harvested",
                     plant.plant?.id || plant.plant_id,
@@ -284,7 +284,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
             if (onAwardHarvestXP) {
                 const plantId = plant.plant?.id || plant.plant_id;
                 const plantName = plant.plant?.name || plant.plant_name;
-                const friendId = plant.garden_owner_id;
+                const friendId = plant.garden_owner;
 
                 onAwardHarvestXP(plantId, plantName, friendWeather, friendId);
             }

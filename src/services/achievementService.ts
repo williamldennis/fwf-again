@@ -287,12 +287,23 @@ export class AchievementService {
         return [];
       }
 
-      const result = await pb.collection('user_achievements').getFullList({
-        filter: `user = "${userId}"`,
-        sort: '-unlocked_at'
-      });
+      // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
+      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/user_achievements/records?perPage=100';
+      const response = await fetch(url);
 
-      return result.map(item => ({
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[AchievementService] getUserAchievements fetch failed:", response.status, errorText);
+        return [];
+      }
+
+      const data = await response.json();
+      const allAchievements = data.items || [];
+
+      // Filter for this user
+      const result = allAchievements.filter((item: any) => item.user === userId);
+
+      return result.map((item: any) => ({
         id: item.id,
         user: item.user,
         achievement_id: item.achievement_id,
@@ -332,13 +343,24 @@ export class AchievementService {
         return false;
       }
 
-      // Find existing achievement record
-      const existing = await pb.collection('user_achievements').getList(1, 1, {
-        filter: `user = "${userId}" && achievement_id = "${achievementId}"`
-      });
+      // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
+      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/user_achievements/records?perPage=100';
+      const response = await fetch(url);
 
-      if (existing.items.length > 0) {
-        await pb.collection('user_achievements').update(existing.items[0].id, {
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[AchievementService] fetch failed:", response.status, errorText);
+        return false;
+      }
+
+      const data = await response.json();
+      const allAchievements = data.items || [];
+      const existing = allAchievements.filter(
+        (item: any) => item.user === userId && item.achievement_id === achievementId
+      );
+
+      if (existing.length > 0) {
+        await pb.collection('user_achievements').update(existing[0].id, {
           progress_data: progress
         });
         return true;
@@ -361,11 +383,23 @@ export class AchievementService {
         return false;
       }
 
-      const result = await pb.collection('user_achievements').getList(1, 1, {
-        filter: `user = "${userId}" && achievement_id = "${achievementId}"`
-      });
+      // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
+      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/user_achievements/records?perPage=100';
+      const response = await fetch(url);
 
-      return result.totalItems > 0;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[AchievementService] fetch failed:", response.status, errorText);
+        return false;
+      }
+
+      const data = await response.json();
+      const allAchievements = data.items || [];
+      const result = allAchievements.filter(
+        (item: any) => item.user === userId && item.achievement_id === achievementId
+      );
+
+      return result.length > 0;
 
     } catch (error) {
       console.error("[AchievementService] Exception in hasAchievement:", error);
@@ -494,14 +528,28 @@ export class AchievementService {
     context: Record<string, any>
   ): Promise<number> {
     try {
+      // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
+      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[AchievementService] getActionCount fetch failed:", response.status, errorText);
+        return 0;
+      }
+
+      const data = await response.json();
+      const allTransactions = data.items || [];
+
+      // Filter for this user and action type
+      const userTransactions = allTransactions.filter(
+        (item: any) => item.user === userId && item.action_type === actionType
+      );
+
       // For weather achievements, filter by stored weather conditions
       if (context.weather) {
-        const result = await pb.collection('xp_transactions').getFullList({
-          filter: `user = "${userId}" && action_type = "${actionType}"`
-        });
-
         let weatherMatchCount = 0;
-        result.forEach(transaction => {
+        userTransactions.forEach(transaction => {
           if (transaction.context_data && transaction.context_data.weather_condition) {
             const storedWeather = transaction.context_data.weather_condition;
             const requiredWeather = context.weather;
@@ -515,12 +563,7 @@ export class AchievementService {
         return weatherMatchCount;
       }
 
-      // For non-weather achievements, use simple count
-      const result = await pb.collection('xp_transactions').getList(1, 1, {
-        filter: `user = "${userId}" && action_type = "${actionType}"`
-      });
-
-      let count = result.totalItems;
+      let count = userTransactions.length;
 
       // For social achievements, check if current action qualifies
       if ((context.friend_garden || context.friend_gardens) && context.garden_owner_id) {
@@ -545,12 +588,26 @@ export class AchievementService {
     actionType: string
   ): Promise<number> {
     try {
-      const result = await pb.collection('xp_transactions').getFullList({
-        filter: `user = "${userId}" && action_type = "${actionType}"`
-      });
+      // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
+      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[AchievementService] getUniquePlantCount fetch failed:", response.status, errorText);
+        return 0;
+      }
+
+      const data = await response.json();
+      const allTransactions = data.items || [];
+
+      // Filter for this user and action type
+      const result = allTransactions.filter(
+        (item: any) => item.user === userId && item.action_type === actionType
+      );
 
       const uniquePlants = new Set();
-      result.forEach(transaction => {
+      result.forEach((transaction: any) => {
         if (transaction.context_data) {
           const plantId = transaction.context_data.plantId || transaction.context_data.plant_id;
           if (plantId) {
@@ -576,14 +633,28 @@ export class AchievementService {
     context: Record<string, any>
   ): Promise<number> {
     try {
-      // Query for both plant_seed and social_planting actions
-      const result = await pb.collection('xp_transactions').getFullList({
-        filter: `user = "${userId}" && (action_type = "plant_seed" || action_type = "social_planting")`
-      });
+      // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
+      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[AchievementService] fetch failed:", response.status, errorText);
+        return 0;
+      }
+
+      const data = await response.json();
+      const allItems = data.items || [];
+
+      // Filter for this user's plant_seed and social_planting actions
+      const allTransactions = allItems.filter(
+        (item: any) => item.user === userId &&
+          (item.action_type === 'plant_seed' || item.action_type === 'social_planting')
+      );
 
       const uniqueFriendGardens = new Set();
 
-      result.forEach(transaction => {
+      allTransactions.forEach((transaction: any) => {
         if (transaction.context_data && transaction.context_data.garden_owner_id) {
           const gardenOwnerId = transaction.context_data.garden_owner_id;
           if (gardenOwnerId !== userId) {
@@ -622,9 +693,23 @@ export class AchievementService {
         return await this.getUniqueFriendGardenCount(userId, actionType, context);
       }
 
-      const result = await pb.collection('xp_transactions').getFullList({
-        filter: `user = "${userId}" && action_type = "${actionType}"`
-      });
+      // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
+      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[AchievementService] fetch failed:", response.status, errorText);
+        return 0;
+      }
+
+      const data = await response.json();
+      const allTransactions = data.items || [];
+
+      // Filter for this user and action type
+      const result = allTransactions.filter(
+        (item: any) => item.user === userId && item.action_type === actionType
+      );
 
       return result.length;
 
@@ -642,10 +727,23 @@ export class AchievementService {
     actionType: string
   ): Promise<number> {
     try {
-      const result = await pb.collection('xp_transactions').getFullList({
-        filter: `user = "${userId}" && action_type = "${actionType}"`,
-        sort: '-created'
-      });
+      // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
+      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[AchievementService] fetch failed:", response.status, errorText);
+        return 0;
+      }
+
+      const data = await response.json();
+      const allTransactions = data.items || [];
+
+      // Filter for this user and action type
+      const result = allTransactions.filter(
+        (item: any) => item.user === userId && item.action_type === actionType
+      );
 
       if (!result || result.length === 0) {
         return 0;
@@ -654,25 +752,47 @@ export class AchievementService {
       // Calculate consecutive day streak
       let currentStreak = 0;
       const today = new Date();
+
+      // Validate today's date is valid
+      if (isNaN(today.getTime())) {
+        return 0;
+      }
+
       const todayStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
+      // Validate todayStart is valid
+      if (isNaN(todayStart.getTime())) {
+        return 0;
+      }
 
       // Group transactions by day
       const transactionsByDay = new Map<string, boolean>();
       result.forEach(transaction => {
-        const transactionDate = new Date(transaction.created);
-        const dayKey = transactionDate.toISOString().split('T')[0];
-        transactionsByDay.set(dayKey, true);
+        // PocketBase uses "2024-01-15 12:30:45.123Z" format (space instead of T)
+        const createdStr = transaction.created?.replace(' ', 'T') || '';
+        const transactionDate = new Date(createdStr);
+        if (!isNaN(transactionDate.getTime())) {
+          const dayKey = transactionDate.toISOString().split('T')[0];
+          transactionsByDay.set(dayKey, true);
+        }
       });
 
-      // Check consecutive days starting from today
+      // Check consecutive days starting from today (max 365 days to prevent infinite loops)
       let checkDate = new Date(todayStart);
-      while (true) {
-        const dayKey = checkDate.toISOString().split('T')[0];
+      const maxDays = 365;
 
-        if (transactionsByDay.has(dayKey)) {
-          currentStreak++;
-          checkDate.setDate(checkDate.getDate() - 1);
-        } else {
+      for (let i = 0; i < maxDays; i++) {
+        try {
+          const dayKey = checkDate.toISOString().split('T')[0];
+
+          if (transactionsByDay.has(dayKey)) {
+            currentStreak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+          } else {
+            break;
+          }
+        } catch (dateError) {
+          // Date became invalid, stop checking
           break;
         }
       }
