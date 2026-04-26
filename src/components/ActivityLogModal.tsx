@@ -172,8 +172,8 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
 
     // Format activity message
     const formatActivityMessage = (activity: GardenActivity) => {
-        const isOwnActivity = activity.actor_id === currentUserId;
-        const isOwnGarden = activity.garden_owner_id === currentUserId;
+        const isOwnActivity = activity.actor === currentUserId;
+        const isOwnGarden = activity.garden_owner === currentUserId;
 
         switch (activity.activity_type) {
             case "planted":
@@ -195,7 +195,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
 
     // Format garden context
     const formatGardenContext = (activity: GardenActivity) => {
-        const isOwnGarden = activity.garden_owner_id === currentUserId;
+        const isOwnGarden = activity.garden_owner === currentUserId;
 
         if (isOwnGarden) {
             return "Your garden";
@@ -206,8 +206,20 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
     };
 
     // Format timestamp
-    const formatTimestamp = (timestamp: string) => {
-        const date = DateTime.fromISO(timestamp, { zone: "utc" });
+    const formatTimestamp = (timestamp: string | undefined) => {
+        if (!timestamp) {
+            return "recently";
+        }
+
+        // PocketBase uses "2024-01-15 12:30:45.123Z" format (space instead of T)
+        // Convert to ISO format for parsing
+        const isoTimestamp = timestamp.replace(' ', 'T');
+        const date = DateTime.fromISO(isoTimestamp, { zone: "utc" });
+
+        if (!date.isValid) {
+            return "recently";
+        }
+
         const now = DateTime.now();
         const diffMinutes = now.diff(date, "minutes").minutes;
         const diffHours = now.diff(date, "hours").hours;
@@ -246,7 +258,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
 
     // Render activity item
     const renderActivityItem = ({ item }: { item: GardenActivity }) => {
-        const isOwnActivity = item.actor_id === currentUserId;
+        const isOwnActivity = item.actor === currentUserId;
 
         return (
             <View style={styles.activityItem}>
@@ -256,7 +268,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
                     </Text>
                     <Text style={styles.activityGardenContext}>
                         {formatGardenContext(item)} -{" "}
-                        {formatTimestamp(item.created_at)}
+                        {formatTimestamp(item.created)}
                     </Text>
                 </View>
                 <View style={styles.activityIcon}>

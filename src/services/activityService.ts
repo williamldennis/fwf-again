@@ -68,21 +68,51 @@ export class ActivityService {
         gardenOwnerId,
       });
 
-      const result = await pb.collection('garden_activities').getList(1, 1, {
-        filter: `garden_owner = "${gardenOwnerId}" && actor != "${gardenOwnerId}"`,
-        sort: '-created',
-      });
+      // Use native fetch to bypass PocketBase SDK issues in React Native
+      // Hardcode URL for testing
+      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/garden_activities/records?perPage=50';
+      console.log('[ActivityService] 🔍 Fetching URL:', url);
 
-      if (result.items.length === 0) {
-        console.log(`[ActivityService] No activities found for user ${gardenOwnerId}`);
+      // Note: These collections are public, no auth needed
+      const response = await fetch(url);
+
+      console.log('[ActivityService] 📡 Response status:', response.status, response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ActivityService] ❌ Fetch failed:', response.status, errorText);
         return null;
       }
 
-      const timestamp = result.items[0].created;
+      const data = await response.json();
+      console.log('[ActivityService] ✅ Data received, items count:', data.items?.length || 0);
+
+      // Sort in JS instead
+      const items = (data.items || []).sort((a: any, b: any) =>
+        new Date(b.created).getTime() - new Date(a.created).getTime()
+      );
+
+      // Filter in JavaScript for this garden owner, excluding self-actions
+      const relevantActivities = items.filter(
+        (item: any) => item.garden_owner === gardenOwnerId && item.actor !== gardenOwnerId
+      );
+
+      if (relevantActivities.length === 0) {
+        console.log(`[ActivityService] No activities from other users found for ${gardenOwnerId}`);
+        return null;
+      }
+
+      const timestamp = relevantActivities[0].created;
       console.log(`[ActivityService] Latest activity timestamp fetched:`, timestamp);
       return timestamp;
-    } catch (error) {
-      console.error('[ActivityService] Exception fetching latest activity timestamp:', error);
+    } catch (error: any) {
+      // Log more details about the error
+      console.error('[ActivityService] Exception fetching latest activity timestamp:', {
+        message: error?.message,
+        status: error?.status,
+        data: error?.data,
+        originalError: error
+      });
       return null;
     }
   }
@@ -117,14 +147,48 @@ export class ActivityService {
         limit,
       });
 
-      // PocketBase uses 1-based pagination
-      const pbPage = page + 1;
+      // Use native fetch to bypass PocketBase SDK issues in React Native
+      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/garden_activities/records?perPage=100';
+      console.log('[ActivityService] 🔍 Fetching garden activities URL:', url);
 
-      // Fetch activities where user is garden owner OR actor
-      const result = await pb.collection('garden_activities').getList(pbPage, limit, {
-        filter: `garden_owner = "${gardenOwnerId}" || actor = "${gardenOwnerId}"`,
-        sort: '-created',
-      });
+      const response = await fetch(url);
+
+      console.log('[ActivityService] 📡 getGardenActivities response status:', response.status, response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ActivityService] ❌ getGardenActivities fetch failed:', response.status, errorText);
+        return {
+          success: false,
+          error: `HTTP ${response.status}: ${errorText}`,
+          activities: [],
+        };
+      }
+
+      const data = await response.json();
+      const allItems = data.items || [];
+
+      // Sort by created date descending in JS
+      const sortedItems = allItems.sort((a: any, b: any) =>
+        new Date(b.created).getTime() - new Date(a.created).getTime()
+      );
+
+      // Filter for activities where user is garden owner OR actor
+      const relevantItems = sortedItems.filter(
+        (item: any) => item.garden_owner === gardenOwnerId || item.actor === gardenOwnerId
+      );
+
+      // Apply pagination to filtered results
+      const startIdx = page * limit;
+      const endIdx = Math.min(startIdx + limit, relevantItems.length);
+      const paginatedItems = relevantItems.slice(startIdx, endIdx);
+
+      // Create a mock result object for compatibility
+      const result = {
+        items: paginatedItems,
+        totalPages: Math.ceil(relevantItems.length / limit),
+        totalItems: relevantItems.length
+      };
 
       if (result.items.length === 0) {
         return {
@@ -142,15 +206,20 @@ export class ActivityService {
 
       if (gardenOwnerIds.length > 0) {
         try {
-          // Build filter for multiple IDs
-          const idFilters = gardenOwnerIds.map(id => `id = "${id}"`).join(' || ');
-          const users = await pb.collection('users').getFullList({
-            filter: idFilters,
-          });
+          // Use native fetch to get user profiles
+          const usersUrl = 'https://fwf-pocketbase-production.up.railway.app/api/collections/users/records?perPage=100';
+          const usersResponse = await fetch(usersUrl);
 
-          users.forEach(user => {
-            gardenOwnerNames.set(user.id, user.full_name || 'Unknown');
-          });
+          if (usersResponse.ok) {
+            const usersData = await usersResponse.json();
+            const allUsers = usersData.items || [];
+
+            // Filter to only the garden owner IDs we need
+            const relevantUsers = allUsers.filter((user: any) => gardenOwnerIds.includes(user.id));
+            relevantUsers.forEach((user: any) => {
+              gardenOwnerNames.set(user.id, user.full_name || 'Unknown');
+            });
+          }
         } catch (profilesError) {
           console.error('[ActivityService] Error fetching profiles:', profilesError);
           // Continue without garden owner names
@@ -171,7 +240,7 @@ export class ActivityService {
         created: item.created,
       }));
 
-      const hasMore = result.totalPages > pbPage;
+      const hasMore = result.totalPages > (page + 1);
 
       console.log(`[ActivityService] Fetched ${activities.length} activities, hasMore: ${hasMore}`);
 
@@ -191,11 +260,21 @@ export class ActivityService {
 
   /**
    * Subscribe to real-time activity updates
+   * Note: PocketBase real-time uses EventSource (SSE) which isn't available in React Native
+   * We disable subscriptions to avoid errors - users can pull-to-refresh instead
    */
   static subscribeToActivities(
     gardenOwnerId: string,
     onActivity: (activity: GardenActivity) => void
   ) {
+    // Skip real-time subscriptions in React Native (EventSource not supported)
+    if (typeof EventSource === 'undefined') {
+      console.log(`[ActivityService] Skipping subscription - EventSource not available in React Native`);
+      return {
+        unsubscribe: () => {} // No-op
+      };
+    }
+
     console.log(`[ActivityService] Subscribing to activities for user: ${gardenOwnerId}`);
 
     // Unsubscribe from any existing subscription for this user
@@ -244,6 +323,11 @@ export class ActivityService {
    * Unsubscribe from real-time updates
    */
   static unsubscribeFromActivities(gardenOwnerId: string) {
+    // Skip if EventSource not available (React Native)
+    if (typeof EventSource === 'undefined') {
+      return;
+    }
+
     console.log(`[ActivityService] Unsubscribing from activities for garden: ${gardenOwnerId}`);
 
     const cleanup = activeSubscriptions.get(gardenOwnerId);
