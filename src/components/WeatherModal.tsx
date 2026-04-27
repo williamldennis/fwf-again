@@ -106,10 +106,41 @@ const WeatherModal: React.FC<WeatherModalProps> = ({
                     style={styles.content}
                     showsVerticalScrollIndicator={false}
                 >
+                    {/* Current Temperature */}
+                    {currentWeather?.main && (
+                        <View style={styles.currentTempSection}>
+                            <View style={styles.currentTempMain}>
+                                <Text style={styles.currentTempLarge}>
+                                    {Math.round(currentWeather.main.temp)}°
+                                </Text>
+                                <Image
+                                    source={{
+                                        uri: getWeatherIcon(currentWeather.weather),
+                                    }}
+                                    style={styles.currentTempIcon}
+                                    resizeMode="contain"
+                                />
+                            </View>
+                            <Text style={styles.currentTempDescription}>
+                                {getWeatherDescription(currentWeather.weather)}
+                            </Text>
+                            {currentWeather.main.feels_like && (
+                                <Text style={styles.currentTempFeelsLike}>
+                                    Feels like {Math.round(currentWeather.main.feels_like)}°
+                                </Text>
+                            )}
+                            {dailyForecast.length > 0 && (
+                                <Text style={styles.currentTempHighLow}>
+                                    H:{Math.round(dailyForecast[0].temp.max)}° L:{Math.round(dailyForecast[0].temp.min)}°
+                                </Text>
+                            )}
+                        </View>
+                    )}
+
                     {/* Weather Graphs */}
                     {hourlyForecast.length > 0 && (
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>
+                        <View style={styles.forecastSection}>
+                            <Text style={styles.forecastSectionTitle}>
                                 Today's Forecast
                             </Text>
                             <WeatherGraph hourlyForecast={hourlyForecast} hourlyForGraph={hourlyForGraph} city={cityName} />
@@ -209,10 +240,9 @@ const styles = StyleSheet.create({
     header: {
         backgroundColor: "#fff",
         paddingTop: 60,
-        paddingBottom: 20,
+        paddingBottom: 16,
         paddingHorizontal: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: "#e9ecef",
+        borderBottomWidth: 0,
         alignItems: "center",
         position: "relative",
     },
@@ -245,6 +275,46 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         paddingHorizontal: 20,
+    },
+    currentTempSection: {
+        alignItems: "center",
+        paddingTop: 8,
+        paddingBottom: 20,
+        backgroundColor: "#fff",
+        marginHorizontal: -20,
+        paddingHorizontal: 20,
+    },
+    currentTempMain: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    currentTempLarge: {
+        fontSize: 72,
+        fontWeight: "200",
+        color: "#212529",
+        letterSpacing: -2,
+    },
+    currentTempIcon: {
+        width: 64,
+        height: 64,
+        marginLeft: 4,
+    },
+    currentTempDescription: {
+        fontSize: 20,
+        color: "#495057",
+        fontWeight: "500",
+        marginTop: -4,
+    },
+    currentTempFeelsLike: {
+        fontSize: 16,
+        color: "#6c757d",
+        marginTop: 4,
+    },
+    currentTempHighLow: {
+        fontSize: 16,
+        color: "#6c757d",
+        marginTop: 2,
     },
     currentSection: {
         backgroundColor: "#fff",
@@ -309,6 +379,18 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: "#212529",
+    },
+    forecastSection: {
+        paddingHorizontal: 0,
+        paddingTop: 20,
+        paddingBottom: 10,
+    },
+    forecastSectionTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: "#212529",
+        marginBottom: 12,
+        paddingHorizontal: 0,
     },
     section: {
         backgroundColor: "#fff",

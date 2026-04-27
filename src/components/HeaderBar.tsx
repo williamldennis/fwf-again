@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 interface HeaderBarProps {
     points: number;
@@ -67,7 +68,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                     onPress={onActivityLogPress}
                     activeOpacity={0.7}
                 >
-                    <Text style={styles.activityLogIcon}>🔔</Text>
+                    <MaterialCommunityIcons name="shovel" size={22} color="#8B4513" />
                     {hasNewActivity && (<View style={styles.redDot} />)}
                 </TouchableOpacity>
             </View>
@@ -164,7 +165,7 @@ const styles = StyleSheet.create({
     activityLogButton: {
         padding: 8,
         borderRadius: 8,
-        backgroundColor: "rgba(255, 193, 7, 0.1)",
+        backgroundColor: "rgba(139, 69, 19, 0.1)",
         minWidth: 40,
         alignItems: "center",
         justifyContent: "center",

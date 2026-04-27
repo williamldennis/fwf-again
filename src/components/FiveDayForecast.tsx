@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 
 interface DailyForecast {
     date: string; // ISO date string
@@ -11,6 +11,7 @@ interface DailyForecast {
 interface FiveDayForecastProps {
     forecastData: DailyForecast[];
     style?: any;
+    onPress?: () => void;
 }
 
 const getDayLabel = (date: string, idx: number) => {
@@ -22,8 +23,9 @@ const getDayLabel = (date: string, idx: number) => {
 const FiveDayForecast: React.FC<FiveDayForecastProps> = ({
     forecastData,
     style,
+    onPress,
 }) => {
-    return (
+    const content = (
         <View style={[styles.container, style]}>
             {forecastData.map((day, idx) => (
                 <View key={day.date} style={styles.column}>
@@ -44,6 +46,16 @@ const FiveDayForecast: React.FC<FiveDayForecastProps> = ({
             ))}
         </View>
     );
+
+    if (onPress) {
+        return (
+            <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+                {content}
+            </TouchableOpacity>
+        );
+    }
+
+    return content;
 };
 
 const styles = StyleSheet.create({

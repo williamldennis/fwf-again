@@ -1,8 +1,10 @@
-import React from "react";
-import { View, Text, Image, ScrollView, Dimensions } from "react-native";
+import React, { useState } from "react";
+import { View, Text, Image, ScrollView, Dimensions, TouchableOpacity } from "react-native";
+import { TapGestureHandler, State } from "react-native-gesture-handler";
 import LottieView from "lottie-react-native";
 import GardenArea from "./GardenArea";
 import { WeatherCard } from "./WeatherCard";
+import WeatherModal from "./WeatherModal";
 import {
     getWeatherLottieFile,
     getWeatherSelfieKey,
@@ -114,6 +116,8 @@ export const FriendCard: React.FC<FriendCardProps> = ({
     dailyForecast = [],
     hourlyForGraph = [],
 }) => {
+    const [showWeatherModal, setShowWeatherModal] = useState(false);
+
     // Validate friend data
     if (!friend || !friend.id) {
         if (__DEV__) {
@@ -459,32 +463,39 @@ export const FriendCard: React.FC<FriendCardProps> = ({
 
                     {/* Hourly Forecast Card */}
                     {hourlyForecast.length > 0 && (
-                        <View
-                            style={{
-                                width: cardWidth - 40,
-                                maxWidth: cardWidth - 40,
-                                backgroundColor: "#fff",
-                                borderRadius: 16,
-                                padding: 20,
-                                marginTop: 10,
-                                shadowColor: "#000",
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.1,
-                                shadowRadius: 8,
-                                elevation: 3,
-                                overflow: "hidden",
+                        <TapGestureHandler
+                            onHandlerStateChange={(event) => {
+                                if (event.nativeEvent.state === State.ACTIVE) {
+                                    setShowWeatherModal(true);
+                                }
                             }}
                         >
-                            <Text
+                            <View
                                 style={{
-                                    fontSize: 18,
-                                    fontWeight: "600",
-                                    color: "#212529",
-                                    marginBottom: 16,
+                                    width: cardWidth - 40,
+                                    maxWidth: cardWidth - 40,
+                                    backgroundColor: "#fff",
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    marginTop: 10,
+                                    shadowColor: "#000",
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.1,
+                                    shadowRadius: 8,
+                                    elevation: 3,
+                                    overflow: "hidden",
                                 }}
                             >
-                                Today's Hourly Forecast
-                            </Text>
+                                <Text
+                                    style={{
+                                        fontSize: 18,
+                                        fontWeight: "600",
+                                        color: "#212529",
+                                        marginBottom: 16,
+                                    }}
+                                >
+                                    Today's Hourly Forecast
+                                </Text>
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
@@ -573,7 +584,8 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                                         </View>
                                     ))}
                             </ScrollView>
-                        </View>
+                            </View>
+                        </TapGestureHandler>
                     )}
 
                     {/* 7-Day Forecast Card */}
@@ -708,6 +720,22 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                     )}
                 </View>
             </ScrollView>
+
+            {/* Weather Modal for hourly forecast tap */}
+            <WeatherModal
+                visible={showWeatherModal}
+                onClose={() => setShowWeatherModal(false)}
+                currentWeather={{
+                    main: { temp: friend.weather_temp, humidity: 0 },
+                    weather: [{ main: friend.weather_condition || "Clear" }],
+                    wind: { speed: 0 },
+                    name: friend.city || friend.contact_name,
+                }}
+                hourlyForecast={hourlyForecast}
+                hourlyForGraph={hourlyForGraph}
+                dailyForecast={dailyForecast}
+                cityName={friend.city || friend.contact_name}
+            />
         </View>
     );
 };
