@@ -338,22 +338,27 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                                 </View>
                             )}
                         </View>
-                        <Text
+                        <View
                             style={{
-                                fontSize: 10,
-                                color: stage === 5 ? "white" : "#333",
                                 marginBottom: 20,
                                 marginTop: 10,
-                                fontWeight: "bold",
-                                padding: 6,
+                                paddingVertical: 6,
                                 paddingHorizontal: 12,
-                                borderRadius: 10,
+                                borderRadius: 999,
                                 backgroundColor:
                                     stage === 5 ? "#4CAF50" : "transparent",
                             }}
                         >
-                            {plantName}
-                        </Text>
+                            <Text
+                                style={{
+                                    fontSize: 10,
+                                    color: stage === 5 ? "white" : "#333",
+                                    fontWeight: "bold",
+                                }}
+                            >
+                                {plantName}
+                            </Text>
+                        </View>
                     </TouchableOpacity>
                 );
             })}

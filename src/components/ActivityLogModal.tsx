@@ -10,6 +10,7 @@ import {
     RefreshControl,
 } from "react-native";
 import { Image } from "expo-image";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 // @ts-ignore
 import { DateTime } from "luxon";
@@ -69,21 +70,12 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
                     error: result.error,
                 });
 
-                // if (result.activities && result.activities.length > 0) {
-                //     console.log(
-                //         "[ActivityLogModal] 📋 Activities data:",
-                //         result.activities.map((a) => ({
-                //             id: a.id,
-                //             activity_type: a.activity_type,
-                //             plant_name: a.plant_name,
-                //             actor_name: a.actor_name,
-                //             garden_owner_name: a.garden_owner_name,
-                //             created_at: a.created_at,
-                //             actor_id: a.actor_id,
-                //             garden_owner_id: a.garden_owner_id,
-                //         }))
-                //     );
-                // }
+                if (result.activities && result.activities.length > 0) {
+                    console.log(
+                        "[ActivityLogModal] 📋 First activity created field:",
+                        result.activities[0].created
+                    );
+                }
 
                 if (result.success && result.activities) {
                     if (append) {
@@ -208,32 +200,54 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
     // Format timestamp
     const formatTimestamp = (timestamp: string | undefined) => {
         if (!timestamp) {
+            console.log("[ActivityLogModal] formatTimestamp: No timestamp provided");
             return "recently";
         }
 
-        // PocketBase uses "2024-01-15 12:30:45.123Z" format (space instead of T)
-        // Convert to ISO format for parsing
-        const isoTimestamp = timestamp.replace(' ', 'T');
-        const date = DateTime.fromISO(isoTimestamp, { zone: "utc" });
+        try {
+            // PocketBase uses "2024-01-15 12:30:45.123Z" format (space instead of T)
+            // Convert to ISO format for parsing
+            const isoTimestamp = timestamp.replace(' ', 'T');
 
-        if (!date.isValid) {
+            // Try parsing with Luxon first
+            let date = DateTime.fromISO(isoTimestamp);
+
+            // If that fails, try parsing as SQL format
+            if (!date.isValid) {
+                date = DateTime.fromSQL(timestamp, { zone: "utc" });
+            }
+
+            // If still invalid, try JavaScript Date
+            if (!date.isValid) {
+                const jsDate = new Date(isoTimestamp);
+                if (!isNaN(jsDate.getTime())) {
+                    date = DateTime.fromJSDate(jsDate);
+                }
+            }
+
+            if (!date.isValid) {
+                console.log("[ActivityLogModal] formatTimestamp: Invalid date -", timestamp, "reason:", date.invalidReason);
+                return "recently";
+            }
+
+            const now = DateTime.now();
+            const diffMinutes = now.diff(date, "minutes").minutes;
+            const diffHours = now.diff(date, "hours").hours;
+            const diffDays = now.diff(date, "days").days;
+
+            // Handle very recent activities (within 1 minute)
+            if (diffMinutes < 1) {
+                return "just now";
+            } else if (diffMinutes < 60) {
+                return `${Math.round(diffMinutes)}m ago`;
+            } else if (diffHours < 24) {
+                return `${Math.round(diffHours)}h ago`;
+            } else {
+                return `${Math.round(diffDays)}d ago`;
+            }
+        } catch (err) {
+            console.error("[ActivityLogModal] formatTimestamp error:", err, "timestamp:", timestamp);
             return "recently";
-        }
-
-        const now = DateTime.now();
-        const diffMinutes = now.diff(date, "minutes").minutes;
-        const diffHours = now.diff(date, "hours").hours;
-        const diffDays = now.diff(date, "days").days;
-
-        // Handle very recent activities (within 1 minute)
-        if (diffMinutes < 1) {
-            return "just now";
-        } else if (diffMinutes < 60) {
-            return `${Math.round(diffMinutes)}m ago`;
-        } else if (diffHours < 24) {
-            return `${Math.round(diffHours)}h ago`;
-        } else {
-            return `${Math.round(diffDays)}d ago`;
         }
     };
 
@@ -300,7 +314,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
 
         return (
             <View style={styles.emptyState}>
-                <Text style={styles.emptyStateIcon}>🔔</Text>
+                <MaterialCommunityIcons name="shovel" size={48} color="#8B4513" />
                 <Text style={styles.emptyStateTitle}>No activities yet</Text>
                 <Text style={styles.emptyStateMessage}>
                     Plant some seeds or have friends visit your garden to see

@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     ScrollView,
 } from "react-native";
+import { TapGestureHandler, State } from "react-native-gesture-handler";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LottieView from "lottie-react-native";
 import GardenArea from "./GardenArea";
@@ -349,32 +350,39 @@ export const UserCard: React.FC<UserCardProps> = ({
 
                     {/* Hourly Forecast Card */}
                     {hourlyForecast.length > 0 && (
-                        <View
-                            style={{
-                                width: cardWidth - 40,
-                                maxWidth: cardWidth - 40,
-                                backgroundColor: "#fff",
-                                borderRadius: 16,
-                                padding: 20,
-                                marginTop: 10,
-                                shadowColor: "#000",
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.1,
-                                shadowRadius: 8,
-                                elevation: 3,
-                                overflow: "hidden",
+                        <TapGestureHandler
+                            onHandlerStateChange={(event) => {
+                                if (event.nativeEvent.state === State.ACTIVE && onWeatherPress) {
+                                    onWeatherPress();
+                                }
                             }}
                         >
-                            <Text
+                            <View
                                 style={{
-                                    fontSize: 18,
-                                    fontWeight: "600",
-                                    color: "#212529",
-                                    marginBottom: 16,
+                                    width: cardWidth - 40,
+                                    maxWidth: cardWidth - 40,
+                                    backgroundColor: "#fff",
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    marginTop: 10,
+                                    shadowColor: "#000",
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.1,
+                                    shadowRadius: 8,
+                                    elevation: 3,
+                                    overflow: "hidden",
                                 }}
                             >
-                                Today's Hourly Forecast
-                            </Text>
+                                <Text
+                                    style={{
+                                        fontSize: 18,
+                                        fontWeight: "600",
+                                        color: "#212529",
+                                        marginBottom: 16,
+                                    }}
+                                >
+                                    Today's Hourly Forecast
+                                </Text>
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
@@ -448,7 +456,8 @@ export const UserCard: React.FC<UserCardProps> = ({
                                         </View>
                                     ))}
                             </ScrollView>
-                        </View>
+                            </View>
+                        </TapGestureHandler>
                     )}
 
                     {/* 7-Day Forecast Card */}

@@ -86,11 +86,15 @@ export const WEATHER_MAPPINGS: WeatherMapping[] = [
 /**
  * Get weather mapping by API condition
  */
-export function getWeatherMapping(apiCondition: string): WeatherMapping {
+export function getWeatherMapping(apiCondition: string | undefined | null): WeatherMapping {
+  if (!apiCondition) {
+    return WEATHER_MAPPINGS[0]; // Default to sunny
+  }
+
   const mapping = WEATHER_MAPPINGS.find(
     w => w.apiCondition.toLowerCase() === apiCondition.toLowerCase()
   );
-  
+
   // Default to sunny if not found
   return mapping || WEATHER_MAPPINGS[0];
 }
@@ -126,23 +130,28 @@ export function getWeatherSelfieKey(apiCondition: string): string {
 /**
  * Check if two weather conditions are equivalent
  * Useful for achievement checking and other comparisons
- * 
+ *
  * This function handles both API conditions (e.g., "Clouds") and normalized keys (e.g., "cloudy")
  */
-export function areWeatherConditionsEquivalent(condition1: string, condition2: string): boolean {
+export function areWeatherConditionsEquivalent(condition1: string | undefined | null, condition2: string | undefined | null): boolean {
+  // Return false if either condition is undefined or null
+  if (!condition1 || !condition2) {
+    return false;
+  }
+
   // If both conditions are normalized keys, compare them directly
   const normalizedKeys = ['sunny', 'cloudy', 'rainy'];
   const isNormalized1 = normalizedKeys.includes(condition1.toLowerCase());
   const isNormalized2 = normalizedKeys.includes(condition2.toLowerCase());
-  
+
   if (isNormalized1 && isNormalized2) {
     return condition1.toLowerCase() === condition2.toLowerCase();
   }
-  
+
   // If one is normalized and one is API condition, normalize both
   const key1 = isNormalized1 ? condition1.toLowerCase() : getNormalizedWeatherKey(condition1);
   const key2 = isNormalized2 ? condition2.toLowerCase() : getNormalizedWeatherKey(condition2);
-  
+
   return key1 === key2;
 }
 
