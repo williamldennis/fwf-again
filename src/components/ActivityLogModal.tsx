@@ -71,9 +71,14 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
                 });
 
                 if (result.activities && result.activities.length > 0) {
+                    const firstActivity = result.activities[0];
                     console.log(
-                        "[ActivityLogModal] 📋 First activity created field:",
-                        result.activities[0].created
+                        "[ActivityLogModal] 📋 First activity details:",
+                        JSON.stringify({
+                            id: firstActivity.id,
+                            created: firstActivity.created,
+                            activity_type: firstActivity.activity_type,
+                        })
                     );
                 }
 
@@ -200,8 +205,8 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
     // Format timestamp
     const formatTimestamp = (timestamp: string | undefined) => {
         if (!timestamp) {
-            console.log("[ActivityLogModal] formatTimestamp: No timestamp provided");
-            return "recently";
+            // Don't log every time - it's expected for old records
+            return "";  // Return empty string instead of "recently"
         }
 
         try {
@@ -209,8 +214,8 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
             // Convert to ISO format for parsing
             const isoTimestamp = timestamp.replace(' ', 'T');
 
-            // Try parsing with Luxon first
-            let date = DateTime.fromISO(isoTimestamp);
+            // Parse as UTC, then convert to local for comparison
+            let date = DateTime.fromISO(isoTimestamp, { zone: "utc" });
 
             // If that fails, try parsing as SQL format
             if (!date.isValid) {
@@ -221,7 +226,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
             if (!date.isValid) {
                 const jsDate = new Date(isoTimestamp);
                 if (!isNaN(jsDate.getTime())) {
-                    date = DateTime.fromJSDate(jsDate);
+                    date = DateTime.fromJSDate(jsDate, { zone: "utc" });
                 }
             }
 
@@ -230,10 +235,15 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
                 return "recently";
             }
 
+            // Convert to local timezone for comparison
+            const localDate = date.toLocal();
             const now = DateTime.now();
-            const diffMinutes = now.diff(date, "minutes").minutes;
-            const diffHours = now.diff(date, "hours").hours;
-            const diffDays = now.diff(date, "days").days;
+
+            // Calculate difference in various units
+            const diffMs = now.toMillis() - localDate.toMillis();
+            const diffMinutes = diffMs / (1000 * 60);
+            const diffHours = diffMs / (1000 * 60 * 60);
+            const diffDays = diffMs / (1000 * 60 * 60 * 24);
 
             // Handle very recent activities (within 1 minute)
             if (diffMinutes < 1) {
@@ -281,8 +291,8 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
                         {formatActivityMessage(item)}
                     </Text>
                     <Text style={styles.activityGardenContext}>
-                        {formatGardenContext(item)} -{" "}
-                        {formatTimestamp(item.created)}
+                        {formatGardenContext(item)}
+                        {formatTimestamp(item.created) ? ` - ${formatTimestamp(item.created)}` : ""}
                     </Text>
                 </View>
                 <View style={styles.activityIcon}>

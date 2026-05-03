@@ -1483,12 +1483,13 @@ export default function Home() {
                 }
 
                 // Log activity for planting (non-blocking)
+                // Note: Use selectedPlant.name which has the correct plant name
                 try {
                     console.log("[Plant] 🌱 Logging planting activity:", {
                         gardenOwnerId: friendId,
                         actorId: user.id,
                         plantId,
-                        plantName: newPlant.plant?.name || "Unknown Plant",
+                        plantName: selectedPlant.name,
                     });
 
                     // Get the actor's name from the database
@@ -1500,7 +1501,7 @@ export default function Home() {
                         user.id, // actor (planter)
                         "planted",
                         plantId,
-                        newPlant.plant?.name || "Unknown Plant",
+                        selectedPlant.name,  // Use selectedPlant.name instead of newPlant.plant?.name
                         actorName,
                         newPlant.id // planted_plant_id
                     );
@@ -1529,7 +1530,7 @@ export default function Home() {
                 // Award XP for planting (non-blocking)
                 awardPlantingXP(
                     plantId,
-                    newPlant.plant?.name || "Unknown Plant",
+                    selectedPlant.name,  // Use selectedPlant.name instead of newPlant.plant?.name
                     friendWeatherCondition,
                     friendId
                 ).catch((error) => {

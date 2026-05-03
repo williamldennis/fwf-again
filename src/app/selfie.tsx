@@ -13,7 +13,8 @@ import { router } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { pb } from "../utils/pocketbase";
 import LottieView from "lottie-react-native";
-import * as FileSystem from "expo-file-system";
+// Note: expo-file-system legacy API for SDK 55 compatibility
+import * as FileSystem from "expo-file-system/legacy";
 
 const { width: screenWidth } = Dimensions.get("window");
 const CAMERA_SIZE = Math.min(screenWidth * 0.3, 300);

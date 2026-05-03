@@ -258,6 +258,7 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
             }
 
             // Log activity for harvesting (non-blocking)
+            // Note: plantName is already defined at component level (line ~133)
             try {
                 // Get the harvester's name from the database
                 const harvesterProfile = await pb.collection("users").getOne(currentUserId!);
@@ -267,8 +268,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                     plant.garden_owner, // garden owner
                     currentUserId!, // actor (harvester)
                     "harvested",
-                    plant.plant?.id || plant.plant_id,
-                    plant.plant?.name || plant.plant_name,
+                    plant.plant?.id || plant.plant_id || plant.id,
+                    plantName, // Use the already-computed plantName
                     harvesterName,
                     plant.id // planted_plant_id
                 );
@@ -281,12 +282,12 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
             }
 
             // Award XP for harvesting (non-blocking) - simple approach like planting
+            // Note: plantName is already defined at component level (line ~133)
             if (onAwardHarvestXP) {
-                const plantId = plant.plant?.id || plant.plant_id;
-                const plantName = plant.plant?.name || plant.plant_name;
+                const harvestPlantId = plant.plant?.id || plant.plant_id || plant.id;
                 const friendId = plant.garden_owner;
 
-                onAwardHarvestXP(plantId, plantName, friendWeather, friendId);
+                onAwardHarvestXP(harvestPlantId, plantName, friendWeather, friendId);
             }
 
             // Call harvest callback to refresh data

@@ -10,7 +10,7 @@ export interface GardenActivity {
   plant_name: string;
   actor_name: string;
   garden_owner_name?: string;
-  created: string;
+  created: string;  // Timestamp from PocketBase
 }
 
 export interface ActivityLogResponse {
@@ -52,6 +52,7 @@ export class ActivityService {
         plant_name: plantName,
         actor_name: actorName,
         planted_plant: plantedPlantId || null,
+        // Note: 'created' field is auto-set by PocketBase on record creation
       });
 
       console.log(`[ActivityService] Activity logged successfully: ${activityType}`);
@@ -168,10 +169,13 @@ export class ActivityService {
       const data = await response.json();
       const allItems = data.items || [];
 
-      // Sort by created date descending in JS
-      const sortedItems = allItems.sort((a: any, b: any) =>
-        new Date(b.created).getTime() - new Date(a.created).getTime()
-      );
+      // Sort by created date descending in JS (most recent first)
+      // Handle empty/missing dates by putting them at the end
+      const sortedItems = allItems.sort((a: any, b: any) => {
+        const dateA = a.created ? new Date(a.created).getTime() : 0;
+        const dateB = b.created ? new Date(b.created).getTime() : 0;
+        return dateB - dateA;  // Descending order (newest first)
+      });
 
       // Filter for activities where user is garden owner OR actor
       const relevantItems = sortedItems.filter(
@@ -237,7 +241,7 @@ export class ActivityService {
         plant_name: item.plant_name,
         actor_name: item.actor_name,
         garden_owner_name: gardenOwnerNames.get(item.garden_owner) || 'Unknown',
-        created: item.created,
+        created: item.created || item.created,  // Try both fields
       }));
 
       const hasMore = result.totalPages > (page + 1);
