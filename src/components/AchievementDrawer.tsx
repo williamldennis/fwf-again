@@ -9,11 +9,7 @@ import {
     Animated,
     ScrollView,
 } from "react-native";
-import {
-    GestureHandlerRootView,
-    PanGestureHandler,
-    State,
-} from "react-native-gesture-handler";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import useAchievements from "../hooks/useAchievements";
 import AchievementCategory from "./AchievementCategory";
@@ -114,26 +110,6 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
         onClose();
     };
 
-    const handleGestureEvent = (event: any) => {
-        const { translationY, state } = event.nativeEvent;
-
-        if (state === State.ACTIVE) {
-            const newTranslateY = Math.max(
-                screenHeight - DRAWER_HEIGHT,
-                screenHeight - DRAWER_HEIGHT + translationY
-            );
-            translateY.setValue(newTranslateY);
-        } else if (state === State.END) {
-            // Snap back to open position - no drag-to-close
-            Animated.spring(translateY, {
-                toValue: screenHeight - DRAWER_HEIGHT,
-                useNativeDriver: true,
-                tension: 100,
-                friction: 8,
-            }).start();
-        }
-    };
-
     return (
         <Modal
             visible={visible}
@@ -167,8 +143,7 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                         },
                     ]}
                 >
-                    <PanGestureHandler onGestureEvent={handleGestureEvent}>
-                        <Animated.View style={styles.drawerContent}>
+                    <View style={styles.drawerContent}>
                             {/* Close button */}
                             <TouchableOpacity
                                 style={styles.closeButton}
@@ -401,8 +376,7 @@ export const AchievementDrawer: React.FC<AchievementDrawerProps> = ({
                                     )}
                                 </View>
                             </ScrollView>
-                        </Animated.View>
-                    </PanGestureHandler>
+                        </View>
                 </Animated.View>
             </GestureHandlerRootView>
         </Modal>

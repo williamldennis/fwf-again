@@ -8,7 +8,6 @@ import {
     TouchableOpacity,
     ScrollView,
 } from "react-native";
-import { TapGestureHandler, State } from "react-native-gesture-handler";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LottieView from "lottie-react-native";
 import GardenArea from "./GardenArea";
@@ -350,12 +349,9 @@ export const UserCard: React.FC<UserCardProps> = ({
 
                     {/* Hourly Forecast Card */}
                     {hourlyForecast.length > 0 && (
-                        <TapGestureHandler
-                            onHandlerStateChange={(event) => {
-                                if (event.nativeEvent.state === State.ACTIVE && onWeatherPress) {
-                                    onWeatherPress();
-                                }
-                            }}
+                        <TouchableOpacity
+                            onPress={() => onWeatherPress?.()}
+                            activeOpacity={0.8}
                         >
                             <View
                                 style={{
@@ -457,7 +453,7 @@ export const UserCard: React.FC<UserCardProps> = ({
                                     ))}
                             </ScrollView>
                             </View>
-                        </TapGestureHandler>
+                        </TouchableOpacity>
                     )}
 
                     {/* 7-Day Forecast Card */}

@@ -18,7 +18,7 @@ import {
 import { router , Stack } from "expo-router";
 import * as Location from "expo-location";
 import * as Contacts from "expo-contacts";
-import { Video, ResizeMode } from "expo-av";
+import { VideoView, useVideoPlayer } from "expo-video";
 
 export const options = { headerShown: false };
 
@@ -40,6 +40,13 @@ export default function Login() {
         "signin" | "signup" | null
     >(null);
     const spinValue = useRef(new Animated.Value(0)).current;
+
+    // Video player for background
+    const player = useVideoPlayer(require("../../assets/videos/login-bg.mp4"), player => {
+        player.loop = true;
+        player.muted = true;
+        player.play();
+    });
 
     useEffect(() => {
         const keyboardWillShow = Keyboard.addListener(
@@ -214,13 +221,11 @@ export default function Login() {
     return (
         <>
             <View style={{ flex: 1 }}>
-                <Video
-                    source={require("../../assets/videos/login-bg.mp4")}
+                <VideoView
+                    player={player}
                     style={StyleSheet.absoluteFill}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay
-                    isLooping
-                    isMuted
+                    contentFit="cover"
+                    nativeControls={false}
                 />
                 <KeyboardAvoidingView
                     style={{ flex: 1 }}

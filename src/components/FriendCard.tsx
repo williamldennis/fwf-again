@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { View, Text, Image, ScrollView, Dimensions, TouchableOpacity } from "react-native";
-import { TapGestureHandler, State } from "react-native-gesture-handler";
 import LottieView from "lottie-react-native";
 import GardenArea from "./GardenArea";
 import { WeatherCard } from "./WeatherCard";
@@ -463,12 +462,9 @@ export const FriendCard: React.FC<FriendCardProps> = ({
 
                     {/* Hourly Forecast Card */}
                     {hourlyForecast.length > 0 && (
-                        <TapGestureHandler
-                            onHandlerStateChange={(event) => {
-                                if (event.nativeEvent.state === State.ACTIVE) {
-                                    setShowWeatherModal(true);
-                                }
-                            }}
+                        <TouchableOpacity
+                            onPress={() => setShowWeatherModal(true)}
+                            activeOpacity={0.8}
                         >
                             <View
                                 style={{
@@ -585,7 +581,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                                     ))}
                             </ScrollView>
                             </View>
-                        </TapGestureHandler>
+                        </TouchableOpacity>
                     )}
 
                     {/* 7-Day Forecast Card */}
