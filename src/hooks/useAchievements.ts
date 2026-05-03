@@ -96,17 +96,12 @@ export const useAchievements = (userId: string | null): UseAchievementsReturn =>
         await fetchAchievements();
     }, [fetchAchievements]);
 
-    // Initial fetch
-    useEffect(() => {
-        fetchAchievements();
-    }, [fetchAchievements]);
-
-    // Auto-refresh when userId changes
+    // Fetch when userId changes (single useEffect to avoid duplicate fetches)
     useEffect(() => {
         if (userId) {
             fetchAchievements();
         }
-    }, [userId, fetchAchievements]);
+    }, [userId]); // Only depend on userId, not fetchAchievements
 
     return {
         achievements,

@@ -24,11 +24,26 @@ export default function RootLayout() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <ErrorBoundary>
-                <Stack screenOptions={{ headerShown: false }}>
+                <Stack screenOptions={{ headerShown: false, animation: "none" }}>
+                    <Stack.Screen
+                        name="index"
+                        options={{
+                            headerShown: false,
+                            animation: "none",
+                        }}
+                    />
                     <Stack.Screen
                         name="home"
                         options={{
                             headerShown: false,
+                            animation: "none",
+                        }}
+                    />
+                    <Stack.Screen
+                        name="selfie"
+                        options={{
+                            headerShown: false,
+                            animation: "none",
                         }}
                     />
                 </Stack>

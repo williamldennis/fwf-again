@@ -104,40 +104,52 @@ export function useWeatherData(
                 console.warn("[Weather] ⚠️ Could not determine timezone, using default hour");
             }
             const bgColor = getBackgroundColor(localHour);
+
+            // STEP 1: Fetch main weather data FIRST and show UI immediately
             const weatherData = await WeatherService.fetchWeatherData(lat, lon);
-            const weatherDataForGraph = await WeatherService.fetchWeatherDataForGraph(lat, lon);
-            const completeWeatherData: WeatherData = {
-                current: weatherData.current,
-                forecast: weatherData.forecast,
-                hourly: weatherData.hourly,
-                hourlyForGraph: weatherDataForGraph.hourly,
-                daily: weatherData.daily,
-                cityName: cityNameResult,
-                localHour,
-                backgroundColor: bgColor,
-            };
+            console.log(`[Weather] ✅ Main weather loaded for ${cityNameResult}`);
+
+            // Set ALL main weather state at once and unblock UI
             setWeather(weatherData.current);
             setForecast(weatherData.forecast);
             setHourly(weatherData.hourly || []);
-            setHourlyForGraph(weatherDataForGraph.hourly || []);
             setDaily(weatherData.daily || []);
             setCityName(cityNameResult);
             setBackgroundColor(bgColor);
             setLastUpdated(new Date());
             currentLocation.current = { latitude: lat, longitude: lon };
+            setLoading(false); // UI UNBLOCKS HERE - user sees content
 
-            await WeatherService.saveWeatherData(lat, lon, completeWeatherData, WeatherDataType.Complete);
-            // Update user's weather and location in database if userId is provided
-            if (userId) {
-                try {
-                    console.log("[Weather] 💾 Updating user's weather and location in database...");
-                    await WeatherService.updateUserWeatherInDatabase(userId, weatherData, { latitude: lat, longitude: lon });
-                    console.log("[Weather] ✅ Weather and location updated in database");
-                } catch (err) {
-                    console.warn("[Weather] ⚠️ Could not update weather and location in database:", err);
-                }
-            }
             console.log(`[Weather] ✅ Weather data fetched successfully for ${cityNameResult}`);
+
+            // STEP 2: Fetch graph data in BACKGROUND (non-blocking)
+            WeatherService.fetchWeatherDataForGraph(lat, lon)
+                .then(weatherDataForGraph => {
+                    console.log("[Weather] ✅ Graph data loaded in background");
+                    setHourlyForGraph(weatherDataForGraph.hourly || []);
+
+                    // Save complete data to cache (including graph)
+                    const completeWeatherData: WeatherData = {
+                        current: weatherData.current,
+                        forecast: weatherData.forecast,
+                        hourly: weatherData.hourly,
+                        hourlyForGraph: weatherDataForGraph.hourly,
+                        daily: weatherData.daily,
+                        cityName: cityNameResult,
+                        localHour,
+                        backgroundColor: bgColor,
+                    };
+                    WeatherService.saveWeatherData(lat, lon, completeWeatherData, WeatherDataType.Complete)
+                        .catch(err => console.warn("[Weather] ⚠️ Could not save weather to cache:", err));
+                })
+                .catch(err => console.warn("[Weather] ⚠️ Graph data fetch failed:", err));
+
+            // Update user in database (background)
+            if (userId) {
+                WeatherService.updateUserWeatherInDatabase(userId, weatherData, { latitude: lat, longitude: lon })
+                    .then(() => console.log("[Weather] ✅ Weather and location updated in database"))
+                    .catch(err => console.warn("[Weather] ⚠️ Could not update weather in database:", err));
+            }
         } catch (err) {
             console.error("[Weather] ❌ Error fetching weather data:", err);
             const errorMessage = err instanceof Error ? err.message : "Unknown error";
@@ -157,7 +169,7 @@ export function useWeatherData(
                 setBackgroundColor(data.backgroundColor);
                 setLastUpdated(new Date(cachedData.timestamp));
             }
-        } finally {
+            // Only set loading false in error case (success case already set it)
             setLoading(false);
         }
     }, [userId]);

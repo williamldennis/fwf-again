@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { View, Text, Image, TouchableOpacity } from "react-native";
 import { getWeatherSelfieKey } from "../utils/weatherUtils";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,7 +16,7 @@ interface SelfieIndicatorProps {
     index: number;
 }
 
-const USER_CACHE_KEY = 'user_profile_cache'; // add userId to this if needed?
+const USER_CACHE_KEY = 'user_profile_cache';
 
 export const SelfieIndicator: React.FC<SelfieIndicatorProps> = ({
     item,
@@ -27,12 +27,21 @@ export const SelfieIndicator: React.FC<SelfieIndicatorProps> = ({
     index,
 }) => {
     const [cachedSelfieUrl, setCachedSelfieUrl] = useState<string | null>(null);
-    const size = 40; // Increased from 24 to 40
+    const lastCachedUrlRef = useRef<string | null>(null);
+    const size = 40;
     const borderWidth = 2;
     const activeBorderColor = "#007AFF";
-    const inactiveBorderColor = "#D1D5DB";
 
-    // Load cached selfie URL on mount
+    // Compute current selfie URL based on weather (memoized)
+    const currentSelfieUrl = useMemo(() => {
+        if (item.type === "user" && selfieUrls && weather?.weather?.[0]?.main) {
+            const weatherKey = getWeatherSelfieKey(weather.weather[0].main);
+            return selfieUrls[weatherKey] || null;
+        }
+        return null;
+    }, [item.type, selfieUrls, weather?.weather]);
+
+    // Load cached selfie URL on mount (only for user type)
     useEffect(() => {
         if (item.type === "user") {
             AsyncStorage.getItem(USER_CACHE_KEY)
@@ -45,46 +54,41 @@ export const SelfieIndicator: React.FC<SelfieIndicatorProps> = ({
                                 setCachedSelfieUrl(parsed.selfieUrl);
                             }
                         } catch (e) {
-                            console.warn("[SelfieIndicator] ⚠️ Failed to parse cached user selfie URL:", e);
+                            // Silently fail
                         }
                     }
                 })
-                .catch(err => {
-                    console.warn("[SelfieIndicator] ⚠️ Failed to load cached user selfie URL:", err);
-                });
+                .catch(() => {});
         }
     }, [item.type]);
+
+    // Cache selfie URL when it changes (NOT on every render)
+    useEffect(() => {
+        if (item.type === "user" && currentSelfieUrl && currentSelfieUrl !== lastCachedUrlRef.current) {
+            lastCachedUrlRef.current = currentSelfieUrl;
+            console.log("[SelfieIndicator] ✅ Caching new user selfie URL");
+            AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify({
+                selfieUrl: currentSelfieUrl,
+                timestamp: Date.now()
+            })).catch(() => {});
+        }
+    }, [item.type, currentSelfieUrl]);
 
     const getIndicatorContent = () => {
         if (item.type === "user") {
             // User card - show user's selfie based on current weather
             // Priority 1: Fresh selfie based on current weather
-            if (selfieUrls && weather?.weather?.[0]?.main) {
-                const weatherKey = getWeatherSelfieKey(weather.weather[0].main);
-                const selfieUrl = selfieUrls[weatherKey];
-                if (selfieUrl) {
-                    // Save selfieUrl to AsyncStorage cache
-                    AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify({
-                        selfieUrl,
-                        timestamp: Date.now()
-                    }))
-                        .then(() => {
-                            console.log("[SelfieIndicator] ✅ User selfie URL cached successfully");
-                        })
-                        .catch(err => {
-                            console.warn("[SelfieIndicator] ⚠️ Failed to cache user selfie URL:", err);
-                        });
-                    return (
-                        <Image
-                            source={{ uri: selfieUrl }}
-                            style={{
-                                width: size - borderWidth * 2,
-                                height: size - borderWidth * 2,
-                                borderRadius: (size - borderWidth * 2) / 2,
-                            }}
-                        />
-                    );
-                }
+            if (currentSelfieUrl) {
+                return (
+                    <Image
+                        source={{ uri: currentSelfieUrl }}
+                        style={{
+                            width: size - borderWidth * 2,
+                            height: size - borderWidth * 2,
+                            borderRadius: (size - borderWidth * 2) / 2,
+                        }}
+                    />
+                );
             }
 
             // Priority 2: Cached selfie (shows immediately while fresh data loads)

@@ -346,72 +346,88 @@ export class WeatherService {
             const utcTimestamp = Math.floor(localMidnightJS.getTime() / 1000);
             const now = new Date();
             const nowTimestamp = Math.floor(now.getTime() / 1000);
-            const hourlyForecasts: HourlyForGraph[] = [];
             console.log(`[Weather] Local timezone: ${timezone}, local midnight: ${localMidnightJS.toISOString()}, UTC timestamp: ${utcTimestamp}, nowTimestamp ${nowTimestamp}`);
+
+            // STEP 1: Determine which hours need historical data vs forecast
+            const historicalHours: number[] = [];
+            let forecastStartIndex = -1;
 
             for (let i = 0; i <= 24; i++) {
                 const time = utcTimestamp + i * 3600;
-                let data;
                 if (time < nowTimestamp) {
-                    const url = `https://api.openweathermap.org/data/3.0/onecall/timemachine?lat=${latitude}&lon=${longitude}&units=imperial&dt=${time}&appid=${OPENWEATHER_API_KEY}`
-                    const response = await fetch(url);
-                    data = await response.json();
-                    if (data.cod && data.cod !== 200) {
-                        throw new Error(`Weather API error: ${data.message}`);
-                    }
-                    if (data.data?.length > 0) {
-                        const hour = data.data[0];
-                        const hourlyForecast: HourlyForGraph = {
-                            dt: hour.dt,
-                            temp: hour.temp,
-                            feels_like: hour.feels_like,
-                            humidity: hour.humidity,
-                            pressure: hour.pressure,
-                            weather: hour.weather,
-                            wind_speed: hour.wind_speed,
-                            wind_deg: hour.wind_deg,
-                            uvi: hour.uvi,
-                            visibility: hour.visibility,
-                            clouds: hour.clouds,
-                        };
-                        hourlyForecasts.push(hourlyForecast);
-                    }
+                    historicalHours.push(time);
                 } else {
-                    const url = `https://api.openweathermap.org/data/3.0/onecall?lat=${latitude}&lon=${longitude}&units=imperial&exclude=minutely,daily,alerts&appid=${OPENWEATHER_API_KEY}`;
-                    const response = await fetch(url);
-                    data = await response.json();
-                    if (data.cod && data.cod !== 200) {
-                        throw new Error(`Weather API error: ${data.message}`);
-                    }
-                    const { dt } = hourlyForecasts.length > 0 ? hourlyForecasts[hourlyForecasts.length - 1] : { dt: null };
-                    const firstDt = data.hourly && data.hourly.length > 0 ? data.hourly[0].dt : null;
-                    const start = dt && firstDt && dt === firstDt ? 1 : 0;
-                    const remaining = 25 - hourlyForecasts.length;
-                    data.hourly?.slice(start, start + remaining).forEach((hour: any) => {
-                        hourlyForecasts.push
-                            ({
-                                dt: hour.dt,
-                                temp: hour.temp,
-                                feels_like: hour.feels_like,
-                                humidity: hour.humidity,
-                                pressure: hour.pressure,
-                                weather: hour.weather,
-                                wind_speed: hour.wind_speed,
-                                wind_deg: hour.wind_deg,
-                                pop: hour.pop,
-                                uvi: hour.uvi,
-                                visibility: hour.visibility,
-                                clouds: hour.clouds,
-                            })
-                    });
+                    forecastStartIndex = i;
                     break;
                 }
             }
+
+            // STEP 2: Fetch ALL historical data in PARALLEL (instead of sequential)
+            const historicalPromises = historicalHours.map(async (time) => {
+                const url = `https://api.openweathermap.org/data/3.0/onecall/timemachine?lat=${latitude}&lon=${longitude}&units=imperial&dt=${time}&appid=${OPENWEATHER_API_KEY}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.cod && data.cod !== 200) {
+                    console.warn(`[Weather] Historical API error for time ${time}: ${data.message}`);
+                    return null;
+                }
+                if (data.data?.length > 0) {
+                    const hour = data.data[0];
+                    return {
+                        dt: hour.dt,
+                        temp: hour.temp,
+                        feels_like: hour.feels_like,
+                        humidity: hour.humidity,
+                        pressure: hour.pressure,
+                        weather: hour.weather,
+                        wind_speed: hour.wind_speed,
+                        wind_deg: hour.wind_deg,
+                        uvi: hour.uvi,
+                        visibility: hour.visibility,
+                        clouds: hour.clouds,
+                    } as HourlyForGraph;
+                }
+                return null;
+            });
+
+            console.log(`[Weather] Fetching ${historicalHours.length} historical hours in parallel...`);
+            const historicalResults = await Promise.all(historicalPromises);
+            const hourlyForecasts: HourlyForGraph[] = historicalResults.filter((r): r is HourlyForGraph => r !== null);
+
+            // STEP 3: Fetch forecast data for remaining hours
+            if (forecastStartIndex >= 0 && hourlyForecasts.length < 25) {
+                const url = `https://api.openweathermap.org/data/3.0/onecall?lat=${latitude}&lon=${longitude}&units=imperial&exclude=minutely,daily,alerts&appid=${OPENWEATHER_API_KEY}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.cod && data.cod !== 200) {
+                    throw new Error(`Weather API error: ${data.message}`);
+                }
+                const lastDt = hourlyForecasts.length > 0 ? hourlyForecasts[hourlyForecasts.length - 1].dt : null;
+                const firstDt = data.hourly && data.hourly.length > 0 ? data.hourly[0].dt : null;
+                const start = lastDt && firstDt && lastDt === firstDt ? 1 : 0;
+                const remaining = 25 - hourlyForecasts.length;
+                data.hourly?.slice(start, start + remaining).forEach((hour: any) => {
+                    hourlyForecasts.push({
+                        dt: hour.dt,
+                        temp: hour.temp,
+                        feels_like: hour.feels_like,
+                        humidity: hour.humidity,
+                        pressure: hour.pressure,
+                        weather: hour.weather,
+                        wind_speed: hour.wind_speed,
+                        wind_deg: hour.wind_deg,
+                        pop: hour.pop,
+                        uvi: hour.uvi,
+                        visibility: hour.visibility,
+                        clouds: hour.clouds,
+                    });
+                });
+            }
+
             console.log(`[Weather] Fetched ${hourlyForecasts.length} hourly data points for graph`);
             return { hourly: hourlyForecasts };
 
-        }
-        catch (error) {
+        } catch (error) {
             console.error("[Weather] Error fetching weather data for graph:", error);
             throw error;
         }

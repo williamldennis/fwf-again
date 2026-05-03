@@ -174,7 +174,7 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
     }
   }, [userId, fetchLocationForWeather, fetchFullProfile]);
 
-  // Initial profile fetch with prioritized loading
+  // Initial profile fetch with parallel loading for speed
   useEffect(() => {
     if (!userId) {
       setProfile(null);
@@ -185,30 +185,30 @@ export function useUserProfile(userId: string | null): UseUserProfileResult {
       return;
     }
 
-    console.log("[Profile] Initial profile fetch with priority loading...");
+    console.log("[Profile] Initial profile fetch with PARALLEL loading...");
     setLoading(true);
     setError(null);
 
-    // Start with fast location fetch for weather
-    fetchLocationForWeather(userId)
-      .then(({ latitude, longitude }) => {
-        // Set minimal profile for weather loading
-        if (latitude && longitude) {
-          setProfile(prev => ({
+    // Run location and profile fetch in PARALLEL for faster loading
+    Promise.all([
+      fetchLocationForWeather(userId),
+      fetchFullProfile(userId)
+    ])
+      .then(([locationResult]) => {
+        // Merge fresh location into profile if available
+        if (locationResult.latitude && locationResult.longitude) {
+          setProfile(prev => prev ? {
+            ...prev,
+            latitude: locationResult.latitude,
+            longitude: locationResult.longitude,
+          } : {
             selfieUrls: null,
             points: 0,
-            latitude,
-            longitude,
-            ...prev
-          }));
+            latitude: locationResult.latitude,
+            longitude: locationResult.longitude,
+          });
         }
-
-        // Then fetch full profile in background
-        return fetchFullProfile(userId);
-      })
-      .then(() => {
-        // Ensure fresh location is preserved after full profile fetch
-        console.log("[Profile] Initial profile fetch completed");
+        console.log("[Profile] Initial parallel fetch completed");
       })
       .catch((err) => {
         console.error("[Profile] Initial profile fetch error:", err);

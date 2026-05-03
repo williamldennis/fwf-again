@@ -1,11 +1,12 @@
 import { router } from "expo-router";
 import { useEffect } from "react";
-import { InteractionManager, Text, View } from "react-native";
+import { View } from "react-native";
 import { pb, isAuthenticated, initAuth } from "../utils/pocketbase";
 
 export default function Index() {
     useEffect(() => {
-        const task = InteractionManager.runAfterInteractions(async () => {
+        // Use requestAnimationFrame instead of deprecated InteractionManager
+        const checkAuth = async () => {
             try {
                 // Initialize auth from AsyncStorage first
                 await initAuth();
@@ -48,6 +49,8 @@ export default function Index() {
                     );
                     router.replace("/location-permission");
                 } else {
+                    // Check for file fields (selfie_sunny, selfie_cloudy, etc.)
+                    // This matches the check in selfie.tsx to avoid navigation bouncing
                     const requiredSelfies = [
                         "sunny",
                         "cloudy",
@@ -55,13 +58,10 @@ export default function Index() {
                         "snowy",
                         "thunderstorm",
                     ];
-                    const selfies = user.selfie_urls || {};
-                    const hasAllSelfies = requiredSelfies.every(
-                        (key) =>
-                            selfies[key] &&
-                            typeof selfies[key] === "string" &&
-                            selfies[key].trim().length > 0
-                    );
+                    const hasAllSelfies = requiredSelfies.every((key) => {
+                        const fieldName = `selfie_${key}`;
+                        return user[fieldName] && user[fieldName].length > 0;
+                    });
                     console.log("[Index] hasAllSelfies result:", hasAllSelfies);
 
                     if (!hasAllSelfies) {
@@ -80,20 +80,19 @@ export default function Index() {
                 console.log("[Index] Unexpected error:", error);
                 router.replace("/login");
             }
-        });
+        };
 
-        return () => task.cancel();
+        checkAuth();
     }, []);
 
+    // Minimal loading screen - just show background while redirecting
+    // This prevents flashing of loading text during quick redirects
     return (
         <View
             style={{
                 flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
+                backgroundColor: "#87CEEB", // Match default home background
             }}
-        >
-            <Text>Loading...</Text>
-        </View>
+        />
     );
 }

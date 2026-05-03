@@ -1,16 +1,13 @@
 import 'react-native-gesture-handler/jestSetup';
 
 // Mock expo modules
-jest.mock('expo-av', () => ({
-  Video: 'Video',
-  ResizeMode: {
-    CONTAIN: 'contain',
-    COVER: 'cover',
-    STRETCH: 'stretch'
-  },
-  Audio: {
-    Sound: jest.fn()
-  }
+jest.mock('expo-video', () => ({
+  VideoView: 'VideoView',
+  useVideoPlayer: jest.fn(() => ({
+    play: jest.fn(),
+    pause: jest.fn(),
+    replace: jest.fn(),
+  })),
 }));
 jest.mock('expo-location');
 jest.mock('expo-contacts', () => ({
@@ -40,35 +37,28 @@ jest.mock('expo-router', () => ({
   }
 }));
 
-// Mock Supabase
-jest.mock('./src/utils/supabase', () => ({
-  supabase: {
-    auth: {
-      getUser: jest.fn(),
-      getSession: jest.fn(),
-      signOut: jest.fn(),
-      onAuthStateChange: jest.fn(),
-      refreshSession: jest.fn()
+// Mock PocketBase
+jest.mock('./src/utils/pocketbase', () => ({
+  pb: {
+    authStore: {
+      isValid: true,
+      model: { id: 'test-user-id' },
+      token: 'test-token',
+      clear: jest.fn(),
+      onChange: jest.fn(),
     },
-    from: jest.fn(() => ({
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      in: jest.fn().mockReturnThis(),
-      is: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      range: jest.fn().mockReturnThis(),
-      single: jest.fn(),
-      then: jest.fn()
+    collection: jest.fn(() => ({
+      getOne: jest.fn().mockResolvedValue({ id: 'test-id' }),
+      getList: jest.fn().mockResolvedValue({ items: [], totalItems: 0 }),
+      getFullList: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockResolvedValue({ id: 'new-id' }),
+      update: jest.fn().mockResolvedValue({ id: 'test-id' }),
+      delete: jest.fn().mockResolvedValue(true),
     })),
-    channel: jest.fn(() => ({
-      on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn()
-    })),
-    removeChannel: jest.fn()
-  }
+  },
+  initAuth: jest.fn().mockResolvedValue(null),
+  clearAuth: jest.fn().mockResolvedValue(undefined),
+  getSelfieUrls: jest.fn(() => ({})),
 }));
 
 // Mock environment variables

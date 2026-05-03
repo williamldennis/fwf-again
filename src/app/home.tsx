@@ -38,7 +38,7 @@ import AddFriendsCard from "../components/AddFriendsCard";
 import CardStack from "../components/CardStack";
 import DropdownMenu from "../components/DropdownMenu";
 import HeaderBar from "../components/HeaderBar";
-import SkeletonCard from "../components/SkeletonCard";
+// SkeletonCard removed - using simple loading indicator instead to prevent UI jumping
 import AchievementDrawer from "../components/AchievementDrawer";
 import PointsInfoModal from "../components/PointsInfoModal";
 import WeatherModal from "../components/WeatherModal";
@@ -250,10 +250,10 @@ export default function Home() {
                 await refreshXP();
 
                 // Trigger achievement drawer refresh to update daily streak
-                // Add delay to ensure XP transaction is committed to database
+                // Small delay to allow state to settle after XP award
                 setTimeout(() => {
                     setAchievementRefreshTrigger((prev) => prev + 1);
-                }, 1000);
+                }, 100);
 
                 // Show toast notification (only if no achievement toast was shown)
                 if (
@@ -1095,6 +1095,8 @@ export default function Home() {
 
     // Initialize app on mount and set up periodic growth updates
     const hasInitialized = useRef(false);
+    const growthIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
     useEffect(() => {
         if (!hasInitialized.current) {
             console.log("[App] 🚀 Starting app initialization...");
@@ -1110,31 +1112,31 @@ export default function Home() {
             );
             if (currentUserId) {
                 console.log("[App] 🎯 Calling awardDailyXP...");
-                // Add a small delay to ensure all initialization is complete
-                setTimeout(() => {
-                    awardDailyXP();
-                }, 500);
+                awardDailyXP();
             } else {
                 console.log("[App] ⏳ No currentUserId yet, skipping daily XP");
             }
+
+            // Set up periodic growth updates (every 5 minutes) - only once
+            console.log("[App] ⏰ Setting up periodic growth updates...");
+            growthIntervalRef.current = setInterval(
+                () => {
+                    console.log("[App] 🔄 Running periodic growth update...");
+                    updateGrowth();
+                },
+                5 * 60 * 1000
+            ); // 5 minutes
         }
 
-        // Set up periodic growth updates (every 5 minutes)
-        console.log("[App] ⏰ Setting up periodic growth updates...");
-        const growthInterval = setInterval(
-            () => {
-                console.log("[App] 🔄 Running periodic growth update...");
-                updateGrowth();
-            },
-            5 * 60 * 1000
-        ); // 5 minutes
-
-        // Cleanup interval on unmount
+        // Cleanup interval on unmount only
         return () => {
-            console.log("[App] 🧹 Cleaning up growth interval...");
-            clearInterval(growthInterval);
+            if (growthIntervalRef.current) {
+                console.log("[App] 🧹 Cleaning up growth interval...");
+                clearInterval(growthIntervalRef.current);
+                growthIntervalRef.current = null;
+            }
         };
-    }, [updateGrowth]); // Include updateGrowth in dependencies
+    }, []); // Empty deps - only run once on mount
 
     // Track screen view for analytics
     useEffect(() => {
@@ -1148,30 +1150,26 @@ export default function Home() {
     }, [currentUserId, plantedPlants, friends, xpData?.current_level]);
 
     // Handle app state changes (foreground/background)
+    // Use refs to avoid re-creating the listener on every render
+    const updateGrowthRef = useRef(updateGrowth);
+    const refreshProfileRef = useRef(refreshProfile);
+    const awardDailyXPRef = useRef(awardDailyXP);
+    const currentUserIdRef = useRef(currentUserId);
+
+    useEffect(() => {
+        updateGrowthRef.current = updateGrowth;
+        refreshProfileRef.current = refreshProfile;
+        awardDailyXPRef.current = awardDailyXP;
+        currentUserIdRef.current = currentUserId;
+    });
+
     useEffect(() => {
         const handleAppStateChange = (nextAppState: string) => {
             console.log(`[App] 🔄 App state changed to: ${nextAppState}`);
-            if (nextAppState === "active") {
-                console.log(
-                    "[App] 📱 App came to foreground, updating growth and location..."
-                );
-                updateGrowth();
-
-                // Refresh location and weather when app comes to foreground
-                if (currentUserId) {
-                    console.log("[App] 📍 Refreshing location and weather...");
-                    refreshProfile().catch((error) => {
-                        console.warn(
-                            "[App] ⚠️ Could not refresh profile:",
-                            error
-                        );
-                    });
-                }
-
-                // Check for daily XP when app comes to foreground
-                if (currentUserId) {
-                    awardDailyXP();
-                }
+            if (nextAppState === "active" && currentUserIdRef.current) {
+                console.log("[App] 📱 App came to foreground");
+                updateGrowthRef.current();
+                awardDailyXPRef.current();
             }
         };
 
@@ -1183,7 +1181,7 @@ export default function Home() {
         return () => {
             subscription?.remove();
         };
-    }, [updateGrowth, currentUserId, refreshProfile]);
+    }, []); // Empty deps - only set up once
 
     // Award daily XP when currentUserId becomes available (if not already done)
     useEffect(() => {
@@ -1191,10 +1189,7 @@ export default function Home() {
             console.log(
                 "[App] 🎯 currentUserId became available, checking daily XP..."
             );
-            // Add a small delay to ensure all initialization is complete
-            setTimeout(() => {
-                awardDailyXP();
-            }, 1000);
+            awardDailyXP();
         }
     }, [currentUserId]);
 
@@ -1212,54 +1207,44 @@ export default function Home() {
         }
     }, [forecast]);
 
-    // Activity bell badge related logic
-    const checkNewActivity = async () => {
-        if (!currentUserId) return;
-        console.log("[App] 🔔 Checking for new activity...");
-        refreshProfile().catch((error) => {
-            console.warn(
-                "[App] ⚠️ Could not refresh profile from checkNewActivity:",
-                error
-            );
-        });
-        let delay = 1000;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        let latestActivityTs = await ActivityService.getLatestActivityTimestamp(currentUserId);
-        const maxRetries = 3;
-        for (let i = 0; i < maxRetries; i++) {
-            if (latestActivityTs) break;
-            console.log(`[App] 🔔 No latest activity timestamp, retrying fetch (${i + 1}/${maxRetries})...`)
-            await new Promise((resolve) => setTimeout(resolve, delay));
-            latestActivityTs = await ActivityService.getLatestActivityTimestamp(currentUserId);
-            delay *= 2; // Exponential backoff
-        }
-        console.log(`[App] 🔔 Latest activity timestamp: ${latestActivityTs}, User last checked at: ${userProfile?.lastCheckedActivityAt}`);
-        if (latestActivityTs && !userProfile?.lastCheckedActivityAt) {
-            console.log("[App] 🔔 Set new activity to true (no last checked timestamp)");
-            setHasNewActivity(true);
-        } else if (latestActivityTs && userProfile?.lastCheckedActivityAt) {
-            let latest = DateTime.fromISO(latestActivityTs);
-            const lastChecked = DateTime.fromISO(userProfile.lastCheckedActivityAt);
-            const maxRetries = 3;
-            let delay = 1000;
-            for (let i = 0; i < maxRetries; i++) {
-                if (latest > lastChecked) break;
-                console.log(`[App] 🔔 Latest activity (${latest.toISO()}) not newer than last checked (${lastChecked.toISO()}), retrying fetch (${i + 1}/${maxRetries})...`)
-                await new Promise((resolve) => setTimeout(resolve, delay));
-                const latestActivityTsRetry = await ActivityService.getLatestActivityTimestamp(currentUserId);
-                if (latestActivityTsRetry) {
-                    latest = DateTime.fromISO(latestActivityTsRetry);
-                }
-                delay *= 2; // Exponential backoff
-            }
-            console.log(`[App] 🔔 Comparing latest activity (${latest.toISO()}) with last checked (${lastChecked.toISO()}), set new activity to ${latest > lastChecked}`);
-            setHasNewActivity(latest > lastChecked);
-        }
-    }
+    // Activity bell badge related logic - simplified without retries
+    const activityCheckRef = useRef(false);
+    const checkNewActivity = useCallback(async () => {
+        if (!currentUserId || !userProfile) return;
 
+        // Prevent duplicate concurrent checks
+        if (activityCheckRef.current) return;
+        activityCheckRef.current = true;
+
+        try {
+            console.log("[App] 🔔 Checking for new activity...");
+            const latestActivityTs = await ActivityService.getLatestActivityTimestamp(currentUserId);
+
+            if (latestActivityTs && !userProfile.lastCheckedActivityAt) {
+                console.log("[App] 🔔 New activity found (no last checked timestamp)");
+                setHasNewActivity(true);
+            } else if (latestActivityTs && userProfile.lastCheckedActivityAt) {
+                const latest = DateTime.fromISO(latestActivityTs);
+                const lastChecked = DateTime.fromISO(userProfile.lastCheckedActivityAt);
+                const hasNew = latest > lastChecked;
+                console.log(`[App] 🔔 Activity check: hasNew=${hasNew}`);
+                setHasNewActivity(hasNew);
+            }
+        } catch (error) {
+            console.warn("[App] ⚠️ Activity check failed:", error);
+        } finally {
+            activityCheckRef.current = false;
+        }
+    }, [currentUserId, userProfile?.lastCheckedActivityAt]);
+
+    // Check for new activity only when user profile is ready (once)
+    const hasCheckedActivity = useRef(false);
     useEffect(() => {
-        checkNewActivity();
-    }, [activities, plantedPlants, xpData, showActivityLogModal]);
+        if (currentUserId && userProfile && !hasCheckedActivity.current) {
+            hasCheckedActivity.current = true;
+            checkNewActivity();
+        }
+    }, [currentUserId, userProfile, checkNewActivity]);
 
     useEffect(() => {
         if (currentUserId) {
@@ -1720,22 +1705,14 @@ export default function Home() {
         }
     }, [showPlantPicker, availablePlants.length, fetchPlants]);
 
-    // Show skeleton loading for initial app setup
-    // Prioritize weather loading - show user card as soon as we have coordinates
-    const hasCoordinates = userProfile?.latitude && userProfile?.longitude;
-    const showSkeletonLoading = weatherLoading || (!hasCoordinates && !weather);
-
-    // TEMPORARY: Force skeleton loading for testing (remove this later)
-    const forceSkeletonForTesting = false; // Set to false to disable
-    const finalShowSkeleton = showSkeletonLoading || forceSkeletonForTesting;
+    // Progressive loading - always show UI, let data populate as it arrives
+    // No loading screen = no visual jumping
 
     // Debug logging for loading states
     console.log("[Home] 🔍 Loading Debug:", {
         weatherLoading,
         userProfile: !!userProfile,
         weather: !!weather,
-        showSkeletonLoading,
-        finalShowSkeleton,
         friendsCount: friends.length,
     });
 
@@ -1803,8 +1780,7 @@ export default function Home() {
                     />
                 </View>
                 {/* Progressive Loading Indicators */}
-                {(weatherLoading || availablePlantsLoading) &&
-                    !finalShowSkeleton && (
+                {(weatherLoading || availablePlantsLoading) && (
                         <View
                             style={{
                                 position: "absolute",
@@ -1848,14 +1824,8 @@ export default function Home() {
                         </View>
                     )}
 
-                {/* Show skeleton loading or actual content */}
-                {finalShowSkeleton ? (
-                    <View style={{ flex: 1 }}>
-                        {/* Single skeleton card */}
-                        <SkeletonCard width={cardWidth} height={screenHeight} />
-                    </View>
-                ) : (
-                    <CardStack
+                {/* Always show UI - data populates progressively */}
+                <CardStack
                         weather={weather}
                         selfieUrls={userProfile?.selfieUrls || null}
                         userPoints={userProfile?.points || 0}
@@ -1881,7 +1851,6 @@ export default function Home() {
                             });
                         }}
                     />
-                )}
             </View>
 
             {/* Dropdown Menu */}

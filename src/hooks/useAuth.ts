@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { pb, initAuth, clearAuth, getCurrentUserId, isAuthenticated as checkIsAuthenticated } from '../utils/pocketbase';
 import { analytics } from '../services/analyticsService';
 import type { RecordModel } from 'pocketbase';
@@ -20,10 +20,49 @@ export function useAuth(): UseAuthResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Refs to track current values and avoid duplicate state updates
+  const currentUserIdRef = useRef<string | null>(null);
+  const hasInitializedRef = useRef(false);
+
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
     setError(null);
+
+    // Helper to update user state only if changed
+    const updateUserState = (model: RecordModel | null, source: string) => {
+      const newUserId = model?.id ?? null;
+
+      // Skip if same user (debounce duplicate updates)
+      if (newUserId === currentUserIdRef.current && hasInitializedRef.current) {
+        console.log(`[Auth] ⏭️ Skipping duplicate update from ${source}`);
+        return false;
+      }
+
+      currentUserIdRef.current = newUserId;
+      hasInitializedRef.current = true;
+
+      if (model) {
+        console.log(`[Auth] ✅ User authenticated (${source}):`, model.id);
+        setUser(model);
+        setCurrentUserId(model.id);
+        setError(null);
+
+        // Identify user in analytics (only once per user)
+        analytics.identify(model.id, {
+          email: model.email,
+          phone: model.phone_number,
+        });
+      } else {
+        console.log(`[Auth] 👋 User signed out (${source})`);
+        setUser(null);
+        setCurrentUserId(null);
+        setError(null);
+        analytics.reset();
+      }
+
+      return true;
+    };
 
     // Initial session check
     const initializeAuth = async () => {
@@ -34,26 +73,16 @@ export function useAuth(): UseAuthResult {
         if (!isMounted) return;
 
         if (isValid && pb.authStore.model) {
-          console.log('[Auth] ✅ User authenticated:', pb.authStore.model.id);
-          setUser(pb.authStore.model);
-          setCurrentUserId(pb.authStore.model.id);
-
-          // Identify user in analytics
-          analytics.identify(pb.authStore.model.id, {
-            email: pb.authStore.model.email,
-            phone: pb.authStore.model.phone_number,
-          });
+          updateUserState(pb.authStore.model, 'init');
         } else {
           console.log('[Auth] ℹ️  No user found');
-          setUser(null);
-          setCurrentUserId(null);
+          updateUserState(null, 'init');
         }
       } catch (err) {
         console.log('[Auth] ❌ Auth exception:', err);
         if (!isMounted) return;
         setError(err instanceof Error ? err.message : 'Unknown error');
-        setUser(null);
-        setCurrentUserId(null);
+        updateUserState(null, 'error');
       } finally {
         if (isMounted) {
           console.log('[Auth] ✅ Auth initialization complete');
@@ -65,32 +94,12 @@ export function useAuth(): UseAuthResult {
     // Set up auth state change listener
     console.log('[Auth] 🔄 Setting up auth state change listener...');
     const unsubscribe = pb.authStore.onChange((token, model) => {
-      console.log('[Auth] 🔄 Auth state changed:', !!token, model?.id);
-
       if (!isMounted) return;
 
-      if (token && model) {
-        console.log('[Auth] ✅ User authenticated:', model.id);
-        setUser(model);
-        setCurrentUserId(model.id);
-        setError(null);
-
-        // Identify user in analytics
-        analytics.identify(model.id, {
-          email: model.email,
-          phone: model.phone_number,
-        });
-      } else {
-        console.log('[Auth] 👋 User signed out');
-        setUser(null);
-        setCurrentUserId(null);
-        setError(null);
-
-        // Reset analytics
-        analytics.reset();
+      // Only update if actually changed (debounce)
+      if (updateUserState(token && model ? model : null, 'onChange')) {
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
     // Initialize auth state
