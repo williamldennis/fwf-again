@@ -43,6 +43,7 @@ import AchievementDrawer from "../components/AchievementDrawer";
 import PointsInfoModal from "../components/PointsInfoModal";
 import WeatherModal from "../components/WeatherModal";
 import ActivityLogModal from "../components/ActivityLogModal";
+import GardenProfileModal from "../components/GardenProfileModal";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -962,6 +963,9 @@ export default function Home() {
     // Achievement drawer state
     const [showAchievementDrawer, setShowAchievementDrawer] = useState(false);
 
+    // Garden profile modal state
+    const [showGardenProfileModal, setShowGardenProfileModal] = useState(false);
+
     // Weather modal state
     const [showWeatherModal, setShowWeatherModal] = useState(false);
 
@@ -1669,6 +1673,29 @@ export default function Home() {
         setShowPointsInfoModal(false);
     };
 
+    // Garden profile modal handlers
+    const openGardenProfileModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowGardenProfileModal(true);
+        // Trigger refresh when opening to ensure latest data
+        setAchievementRefreshTrigger((prev) => prev + 1);
+        // Also ensure daily XP is awarded if not already done
+        if (currentUserId) {
+            setTimeout(() => {
+                awardDailyXP();
+            }, 100);
+        }
+    };
+
+    const closeGardenProfileModal = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+            // Ignore haptic errors
+        });
+        setShowGardenProfileModal(false);
+    };
+
     // Weather modal handlers
     const openWeatherModal = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
@@ -1773,8 +1800,8 @@ export default function Home() {
                     <HeaderBar
                         points={userProfile?.points || 0}
                         onMenuPress={() => setShowMenu(true)}
-                        onXPPress={openAchievementDrawer}
-                        onPointsPress={openPointsInfoModal}
+                        onXPPress={openGardenProfileModal}
+                        onPointsPress={openGardenProfileModal}
                         onActivityLogPress={openActivityLogModal}
                         xpData={xpData}
                         hasNewActivity={hasNewActivity}
@@ -1939,6 +1966,16 @@ export default function Home() {
                 currentUserId={currentUserId || ""}
                 activities={activities}
                 setActivities={setActivities}
+            />
+
+            {/* GARDEN PROFILE MODAL */}
+            <GardenProfileModal
+                visible={showGardenProfileModal}
+                onClose={closeGardenProfileModal}
+                userId={currentUserId}
+                currentPoints={userProfile?.points || 0}
+                xpData={xpData}
+                refreshTrigger={achievementRefreshTrigger}
             />
         </>
     );

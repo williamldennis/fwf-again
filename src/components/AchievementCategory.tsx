@@ -36,24 +36,6 @@ export const AchievementCategory: React.FC<AchievementCategoryProps> = ({
         }
     };
 
-    const getCategoryColor = (category: string): string => {
-        switch (category) {
-            case "daily":
-                return "#3b82f6"; // Blue
-            case "milestones":
-                return "#8b5cf6"; // Purple
-            case "weather":
-                return "#06b6d4"; // Cyan
-            case "social":
-                return "#ec4899"; // Pink
-            case "collection":
-                return "#10b981"; // Green
-            default:
-                return "#6b7280"; // Gray
-        }
-    };
-
-    const categoryColor = getCategoryColor(category);
     const completionPercentage =
         categoryStats.total > 0
             ? Math.round((categoryStats.completed / categoryStats.total) * 100)
@@ -63,39 +45,12 @@ export const AchievementCategory: React.FC<AchievementCategoryProps> = ({
         <View style={styles.container}>
             {/* Category Header */}
             <View style={styles.categoryHeader}>
-                <View style={styles.categoryTitleRow}>
-                    <Text style={styles.categoryTitle}>
-                        {getCategoryDisplayName(category)}
-                    </Text>
-                    <View
-                        style={[
-                            styles.completionBadge,
-                            { backgroundColor: categoryColor },
-                        ]}
-                    >
-                        <Text style={styles.completionText}>
-                            {categoryStats.completed}/{categoryStats.total}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Category Progress Bar */}
-                <View style={styles.categoryProgressContainer}>
-                    <View style={styles.categoryProgressBar}>
-                        <View
-                            style={[
-                                styles.categoryProgressFill,
-                                {
-                                    width: `${completionPercentage}%`,
-                                    backgroundColor: categoryColor,
-                                },
-                            ]}
-                        />
-                    </View>
-                    <Text style={styles.categoryProgressText}>
-                        {completionPercentage}% complete
-                    </Text>
-                </View>
+                <Text style={styles.categoryTitle}>
+                    {getCategoryDisplayName(category)}
+                </Text>
+                <Text style={styles.completionText}>
+                    {categoryStats.completed}/{categoryStats.total}
+                </Text>
             </View>
 
             {/* Achievement Cards */}
@@ -124,53 +79,23 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     categoryHeader: {
-        marginBottom: 16,
-        paddingHorizontal: 4,
-    },
-    categoryTitleRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 8,
+        marginBottom: 12,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: "#eee",
     },
     categoryTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "#1f2937",
-    },
-    completionBadge: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
-        minWidth: 60,
-        alignItems: "center",
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#222",
     },
     completionText: {
-        fontSize: 14,
-        fontWeight: "bold",
-        color: "#ffffff",
-    },
-    categoryProgressContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-    },
-    categoryProgressBar: {
-        flex: 1,
-        height: 8,
-        backgroundColor: "#e5e7eb",
-        borderRadius: 4,
-        overflow: "hidden",
-    },
-    categoryProgressFill: {
-        height: "100%",
-        borderRadius: 4,
-    },
-    categoryProgressText: {
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: "500",
-        color: "#6b7280",
-        minWidth: 80,
+        color: "#888",
     },
     achievementsList: {
         // No additional styling needed - AchievementCard handles its own spacing
