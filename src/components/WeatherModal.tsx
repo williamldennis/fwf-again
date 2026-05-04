@@ -58,7 +58,7 @@ const WeatherModal: React.FC<WeatherModalProps> = ({
     };
 
     const getWeatherDescription = (weather: any) => {
-        if (!weather || !weather[0]) return "";
+        if (!weather || !weather[0] || !weather[0].description) return "";
         return (
             weather[0].description.charAt(0).toUpperCase() +
             weather[0].description.slice(1)
@@ -66,7 +66,7 @@ const WeatherModal: React.FC<WeatherModalProps> = ({
     };
 
     const getWeatherIcon = (weather: any) => {
-        if (!weather || !weather[0]) return "";
+        if (!weather || !weather[0] || !weather[0].icon) return "";
         return `https://openweathermap.org/img/wn/${weather[0].icon}@2x.png`;
     };
 
