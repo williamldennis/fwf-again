@@ -258,21 +258,38 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
             }
 
             // Log activity for harvesting (non-blocking)
-            // Note: plantName is already defined at component level (line ~133)
+            // Note: plantName and expandedPlant are already defined at component level
             try {
                 // Get the harvester's name from the database
                 const harvesterProfile = await pb.collection("users").getOne(currentUserId!);
                 const harvesterName = harvesterProfile?.full_name || "Unknown";
 
-                await ActivityService.logActivity(
-                    plant.garden_owner, // garden owner
-                    currentUserId!, // actor (harvester)
-                    "harvested",
-                    plant.plant?.id || plant.plant_id || plant.id,
-                    plantName, // Use the already-computed plantName
+                // Get the plant type ID - use expand structure like we do for plantName
+                const plantTypeId = plant.expand?.plant?.id || plant.plant?.id || plant.plant_id;
+
+                console.log("[Activity] Harvest activity params:", {
+                    gardenOwner: plant.garden_owner,
+                    actor: currentUserId,
+                    plantTypeId,
+                    plantName,
                     harvesterName,
-                    plant.id // planted_plant_id
-                );
+                    plantedPlantId: plant.id,
+                });
+
+                if (!plantTypeId) {
+                    console.error("[Activity] No plant type ID found, skipping harvest activity log");
+                } else {
+                    await ActivityService.logActivity(
+                        plant.garden_owner, // garden owner
+                        currentUserId!, // actor (harvester)
+                        "harvested",
+                        plantTypeId,
+                        plantName, // Use the already-computed plantName
+                        harvesterName,
+                        plant.id // planted_plant_id
+                    );
+                    console.log("[Activity] Harvest activity logged successfully");
+                }
             } catch (error) {
                 console.error(
                     "[Activity] Error logging harvesting activity:",
