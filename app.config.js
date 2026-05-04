@@ -4,7 +4,7 @@ export default ({ config }) => ({
     ...config,
     name: "fwf",
     slug: "fwf",
-    version: "1.0.14",
+    version: "1.0.15",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "fwf",
@@ -14,7 +14,7 @@ export default ({ config }) => ({
         ...config.ios,
         supportsTablet: true,
         bundleIdentifier: "com.willydennis.fwf",
-        buildNumber: "7",
+        buildNumber: "8",
         infoPlist: {
             NSContactsUsageDescription:
                 "This app needs access to your contacts to help you connect with friends.",
