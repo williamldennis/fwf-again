@@ -215,8 +215,10 @@ export class ContactsService {
         const uniquePhones = Array.from(new Set(contactPhones));
         console.log(`Unique phone numbers: ${uniquePhones.length}`);
 
-        // Batch into chunks of 500
-        const BATCH_SIZE = 500;
+        // Batch into chunks of 30 - PocketBase has filter length limits
+        // Each filter like `phone_number = "+12345678901"` is ~25 chars
+        // 30 phones = ~750 chars filter, well under PocketBase limits
+        const BATCH_SIZE = 30;
         const phoneChunks = this.chunkArray<string>(uniquePhones, BATCH_SIZE);
         console.log(`Batching into ${phoneChunks.length} chunks...`);
 
