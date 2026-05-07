@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, TouchableOpacity, Text, Alert } from "react-native";
+import { View, TouchableOpacity, Text } from "react-native";
 import { Image } from "expo-image";
 import LottieView from "lottie-react-native";
 import { GardenAreaProps, GrowthStage } from "../types/garden";
@@ -204,10 +204,27 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
         }
     };
 
-    // Handler for planted plant tap
-    const handlePlantPress = (plant: any) => {
+    // Refs for pot positions
+    const potRefs = useRef<(View | null)[]>([null, null, null]);
+
+    // Handler for planted plant tap - captures screen position
+    const handlePlantPress = (plant: any, slotIdx: number) => {
         if (onPlantDetailsPress) {
-            onPlantDetailsPress(plant, weatherCondition);
+            const potRef = potRefs.current[slotIdx];
+            if (potRef) {
+                // Measure the pot's position on screen
+                potRef.measureInWindow((x, y, width, height) => {
+                    const position = {
+                        x: x + width / 2, // Center of pot
+                        y: y + height / 2,
+                    };
+                    console.log("[GardenArea] 📍 Pot position measured:", position);
+                    onPlantDetailsPress(plant, weatherCondition, position);
+                });
+            } else {
+                // Fallback if ref not available
+                onPlantDetailsPress(plant, weatherCondition, undefined);
+            }
         }
     };
 
@@ -291,10 +308,13 @@ export const GardenArea: React.FC<GardenAreaProps> = (props) => {
                 return (
                     <TouchableOpacity
                         key={plant.id || `plant-${idx}`}
-                        onPress={() => handlePlantPress(plant)}
+                        onPress={() => handlePlantPress(plant, idx)}
                         style={{ flex: 1, alignItems: "center" }}
                     >
-                        <View style={{ position: "relative" }}>
+                        <View
+                            ref={(ref) => { potRefs.current[idx] = ref; }}
+                            style={{ position: "relative" }}
+                        >
                             <Image
                                 source={getPlantImage(plantName, stage)}
                                 style={{ width: 90, height: 90 }}

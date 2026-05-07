@@ -19,7 +19,7 @@ interface CardStackProps {
     currentUserId: string | null;
     plantedPlants: Record<string, any[]>;
     onPlantPress: (friendId: string, slotIdx: number) => void;
-    onPlantDetailsPress: (plant: any, friendWeather: string) => void;
+    onPlantDetailsPress: (plant: any, friendWeather: string, potPosition?: { x: number; y: number }) => void;
     onWeatherPress?: () => void;
     forecastData: any[];
     hourlyForecast?: any[];

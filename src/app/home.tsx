@@ -31,7 +31,7 @@ import AchievementToast from "../components/AchievementToast";
 
 import GardenArea from "../components/GardenArea";
 import PlantPicker from "../components/PlantPicker";
-import PlantDetailsModal from "../components/PlantDetailsModal";
+import PlantDetailsModal, { HarvestInfo } from "../components/PlantDetailsModal";
 import UserCard from "../components/UserCard";
 import FriendCard from "../components/FriendCard";
 import AddFriendsCard from "../components/AddFriendsCard";
@@ -44,6 +44,7 @@ import PointsInfoModal from "../components/PointsInfoModal";
 import WeatherModal from "../components/WeatherModal";
 import ActivityLogModal from "../components/ActivityLogModal";
 import GardenProfileModal from "../components/GardenProfileModal";
+import SparkleParticles from "../components/SparkleParticles";
 import { Plant } from "../types/garden";
 import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
@@ -54,6 +55,8 @@ import { analytics } from "../services/analyticsService";
 import { GardenService } from "../services/gardenService";
 import { AchievementService } from "../services/achievementService";
 import { ActivityService, GardenActivity } from "../services/activityService";
+import { WidgetService } from "../services/widgetService";
+import { registerWidgetBackgroundTask } from "../services/backgroundWidgetTask";
 import * as Haptics from "expo-haptics";
 import { ca } from "zod/v4/locales";
 
@@ -185,6 +188,38 @@ export default function Home() {
         weatherLoading,
         weather,
     ]);
+
+    // Register background task for widget updates (runs once on mount)
+    useEffect(() => {
+        registerWidgetBackgroundTask();
+    }, []);
+
+    // Update iOS widget when weather or plant data changes
+    // Uses timeline updates so widget shows plant growth even when app is closed
+    useEffect(() => {
+        const updateWidgetData = async () => {
+            if (!weather || !currentUserId) return;
+
+            // Get user's plants
+            const userPlants = plantedPlants[currentUserId] || [];
+
+            // Get weather condition string
+            const weatherCondition = weather.weather?.[0]?.main || "Unknown";
+
+            // Update widget with timeline for growth progression
+            await WidgetService.updateWidgetWithGrowthTimeline(
+                {
+                    temperature: weather.temp || 72,
+                    condition: weatherCondition,
+                    cityName: cityName || "Your Location",
+                },
+                userPlants,
+                weatherCondition
+            );
+        };
+
+        updateWidgetData();
+    }, [weather, plantedPlants, currentUserId, cityName]);
 
     // XP data hook
     const {
@@ -915,6 +950,14 @@ export default function Home() {
         undefined
     );
 
+    // Harvest sparkle animation state
+    const [showHarvestSparkle, setShowHarvestSparkle] = useState(false);
+    const [harvestSparklePosition, setHarvestSparklePosition] = useState({ x: 0, y: 0 });
+    const [harvestedPlantName, setHarvestedPlantName] = useState("");
+    const [harvestedPlantPoints, setHarvestedPlantPoints] = useState(0);
+    // Store pot position when plant is tapped for sparkle animation origin
+    const [lastTappedPotPosition, setLastTappedPotPosition] = useState<{ x: number; y: number } | null>(null);
+
     // Achievement Toast state
     const [showAchievementToast, setShowAchievementToast] = useState(false);
     const [achievementToastData, setAchievementToastData] = useState<{
@@ -1556,8 +1599,15 @@ export default function Home() {
 
     const handlePlantDetailsPress = async (
         plant: any,
-        friendWeather: string
+        friendWeather: string,
+        potPosition?: { x: number; y: number }
     ) => {
+        // Store pot position for sparkle animation
+        if (potPosition) {
+            console.log("[Home] 📍 Storing pot position for sparkle:", potPosition);
+            setLastTappedPotPosition(potPosition);
+        }
+
         let planterName = "Unknown";
         if (plant.planter_id || plant.planter) {
             try {
@@ -1580,10 +1630,39 @@ export default function Home() {
         setSelectedPlant(null);
     };
 
-    const handlePlantHarvested = async () => {
+    const handlePlantHarvested = async (harvestInfo: HarvestInfo) => {
         console.log(
-            "handlePlantHarvested called - updating points and gardens..."
+            "handlePlantHarvested called - updating points and gardens...",
+            harvestInfo
         );
+
+        // Use stored pot position or fallback to screen center
+        const sparklePosition = lastTappedPotPosition || {
+            x: screenWidth / 2,
+            y: screenHeight / 2,
+        };
+        console.log("[Home] ✨ Triggering sparkle at position:", sparklePosition);
+
+        setHarvestSparklePosition(sparklePosition);
+        setHarvestedPlantName(harvestInfo.plantName);
+        setHarvestedPlantPoints(harvestInfo.harvestPoints);
+        setShowHarvestSparkle(true);
+
+        // Show harvest success toast immediately
+        setXpToastMessage(`Harvested ${harvestInfo.plantName}!`);
+        setXpToastSubtitle(`+${harvestInfo.harvestPoints} points`);
+        setXpToastAmount(undefined);
+        setShowXPToast(true);
+
+        // Haptic feedback for successful harvest
+        try {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error) {
+            console.log("[Haptics] Could not trigger notification feedback");
+        }
+
+        // Clear stored pot position
+        setLastTappedPotPosition(null);
 
         // Update user points after harvest
         if (currentUserId) {
@@ -1724,6 +1803,12 @@ export default function Home() {
             // Ignore haptic errors
         });
         setShowActivityLogModal(false);
+    };
+
+    // Harvest sparkle animation completion handler
+    const handleHarvestSparkleComplete = () => {
+        setShowHarvestSparkle(false);
+        // Toast is shown immediately in handlePlantHarvested, so no need to show it here
     };
 
     // Fetch available plants when PlantPicker is opened and not already loaded
@@ -1913,6 +1998,13 @@ export default function Home() {
                 friendWeather={selectedPlant?.friendWeather}
                 planterName={selectedPlanterName}
                 onAwardHarvestXP={awardHarvestingXP}
+            />
+
+            {/* HARVEST SPARKLE ANIMATION */}
+            <SparkleParticles
+                visible={showHarvestSparkle}
+                position={harvestSparklePosition}
+                onAnimationComplete={handleHarvestSparkleComplete}
             />
 
             {/* XP TOAST NOTIFICATION */}

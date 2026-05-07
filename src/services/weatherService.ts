@@ -5,7 +5,7 @@ import tzlookup from "tz-lookup";
 import { DateTime } from "luxon";
 
 const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
-const WEATHER_CACHE_DURATION = 60 * 60 * 1000; // 60 minutes
+const WEATHER_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 const ZWeatherCondition = z.object({
     main: z.string(),
@@ -190,6 +190,7 @@ export interface SaveToDBCacheResponse {
 export enum WeatherDataType {
     Partial = 'partial',
     Complete = 'complete',
+    Graph = 'graph', // For hourly graph data (25 hours)
 }
 
 export class WeatherService {
@@ -332,11 +333,30 @@ export class WeatherService {
 
     static async fetchWeatherDataForGraph(latitude: number, longitude: number): Promise<{ hourly: HourlyForGraph[] }> {
         try {
-            console.log("[Weather] Fetching weather data for graph with OneCall API 3.0...");
+            console.log("[Weather] Fetching weather data for graph...");
 
             if (!OPENWEATHER_API_KEY) {
                 throw new Error("OpenWeather API key is missing");
             }
+
+            // CHECK CACHE FIRST - This saves up to 25 API calls per request!
+            const cacheKey = this.getCacheKey(latitude, longitude);
+            try {
+                const cached = await pb.collection('weather_data').getFirstListItem(
+                    `coordinates = "${cacheKey}" && type = "${WeatherDataType.Graph}"`
+                );
+                const isFresh = cached && (Date.now() - new Date(cached.updated).getTime() <= WEATHER_CACHE_DURATION);
+                if (isFresh && cached.data?.hourly) {
+                    console.log("[Weather] ✅ Using cached graph data (saved ~25 API calls)");
+                    return { hourly: cached.data.hourly as HourlyForGraph[] };
+                }
+            } catch (error: any) {
+                if (error?.status !== 404) {
+                    console.warn("[Weather] Cache check failed:", error);
+                }
+            }
+
+            console.log("[Weather] Cache miss - fetching fresh graph data from API...");
 
             // given lat/lon, need to find out current time in local tz
             const timezone = tzlookup(latitude, longitude);
@@ -425,6 +445,31 @@ export class WeatherService {
             }
 
             console.log(`[Weather] Fetched ${hourlyForecasts.length} hourly data points for graph`);
+
+            // SAVE TO CACHE - prevents redundant API calls for 60 minutes
+            try {
+                const cacheKey = this.getCacheKey(latitude, longitude);
+                const existingRecord = await pb.collection('weather_data').getFirstListItem(
+                    `coordinates = "${cacheKey}" && type = "${WeatherDataType.Graph}"`
+                ).catch(() => null);
+
+                if (existingRecord) {
+                    await pb.collection('weather_data').update(existingRecord.id, {
+                        data: { hourly: hourlyForecasts },
+                    });
+                } else {
+                    await pb.collection('weather_data').create({
+                        coordinates: cacheKey,
+                        type: WeatherDataType.Graph,
+                        data: { hourly: hourlyForecasts },
+                    });
+                }
+                console.log("[Weather] ✅ Graph data cached successfully");
+            } catch (cacheError) {
+                console.warn("[Weather] Failed to cache graph data:", cacheError);
+                // Don't throw - caching failure shouldn't break the feature
+            }
+
             return { hourly: hourlyForecasts };
 
         } catch (error) {

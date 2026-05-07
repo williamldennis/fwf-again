@@ -65,13 +65,19 @@ export interface PlantPickerProps {
   weatherCondition: string;
 }
 
+// Position for sparkle animation
+export interface SparklePosition {
+  x: number;
+  y: number;
+}
+
 // Garden area props
 export interface GardenAreaProps {
   gardenOwnerId: string;
   plants: any[]; // Using any[] to handle the joined data structure from PocketBase
   weatherCondition: string;
   onPlantPress: (slotIdx: number) => void;
-  onPlantDetailsPress?: (plant: any, weatherCondition: string) => void; // Optional callback for plant details
+  onPlantDetailsPress?: (plant: any, weatherCondition: string, potPosition?: SparklePosition) => void; // Optional callback for plant details with pot position
   isGardenFull: boolean;
 }
 

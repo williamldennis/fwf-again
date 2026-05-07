@@ -25,11 +25,16 @@ import { GrowthService } from "../services/growthService";
 import { TimeCalculationService } from "../services/timeCalculationService";
 import { ActivityService } from "../services/activityService";
 
+export interface HarvestInfo {
+    plantName: string;
+    harvestPoints: number;
+}
+
 interface PlantDetailsModalProps {
     visible: boolean;
     onClose: () => void;
     plant: any; // The planted plant data with joined plant info
-    onHarvest?: () => void; // Callback to refresh plants after harvest
+    onHarvest?: (harvestInfo: HarvestInfo) => void; // Callback to refresh plants after harvest with plant info
     currentUserId?: string; // Current user's ID to check if they can harvest
     friendWeather?: string; // Friend's current weather for accurate growth calculation
     planterName: string; // Name of the person who planted the plant
@@ -307,12 +312,13 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 onAwardHarvestXP(harvestPlantId, plantName, friendWeather, friendId);
             }
 
-            // Call harvest callback to refresh data
+            // Call harvest callback to refresh data and trigger animation
             console.log("[Harvest] 🔄 Calling onHarvest callback...");
             if (onHarvest) {
-                onHarvest();
+                const harvestPoints = plant.plant?.harvest_points || 10;
+                onHarvest({ plantName, harvestPoints });
                 console.log(
-                    "[Harvest] ✅ onHarvest callback called successfully"
+                    "[Harvest] ✅ onHarvest callback called successfully with plant info"
                 );
             } else {
                 console.log("[Harvest] ⚠️ No onHarvest callback provided");
