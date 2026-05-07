@@ -28,7 +28,7 @@ interface UserCardProps {
     currentUserId: string | null;
     plantedPlants: Record<string, any[]>;
     onPlantPress: (friendId: string, slotIdx: number) => void;
-    onPlantDetailsPress: (plant: any, friendWeather: string) => void;
+    onPlantDetailsPress: (plant: any, friendWeather: string, potPosition?: { x: number; y: number }) => void;
     onWeatherPress?: () => void;
     forecastData: any[];
     hourlyForecast?: any[];
@@ -94,7 +94,7 @@ const formatDay = (timestamp: number) => {
 };
 
 const getWeatherDescriptionFromData = (weather: any) => {
-    if (!weather || !weather[0]) return "";
+    if (!weather || !weather[0] || !weather[0].description) return "";
     return (
         weather[0].description.charAt(0).toUpperCase() +
         weather[0].description.slice(1)
@@ -102,7 +102,7 @@ const getWeatherDescriptionFromData = (weather: any) => {
 };
 
 const getWeatherIcon = (weather: any) => {
-    if (!weather || !weather[0]) return "";
+    if (!weather || !weather[0] || !weather[0].icon) return "";
     return `https://openweathermap.org/img/wn/${weather[0].icon}@2x.png`;
 };
 

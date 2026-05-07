@@ -4,7 +4,7 @@ export default ({ config }) => ({
     ...config,
     name: "fwf",
     slug: "fwf",
-    version: "1.0.16",
+    version: "1.0.17",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "fwf",
@@ -14,7 +14,7 @@ export default ({ config }) => ({
         ...config.ios,
         supportsTablet: true,
         bundleIdentifier: "com.willydennis.fwf",
-        buildNumber: "9",
+        buildNumber: "11",
         infoPlist: {
             NSContactsUsageDescription:
                 "This app needs access to your contacts to help you connect with friends.",
@@ -26,6 +26,7 @@ export default ({ config }) => ({
                 "This app needs your location to show your friends your weather even when the app is in the background.",
             NSCameraUsageDescription: "This app needs your camera to take selfies.",
             ITSAppUsesNonExemptEncryption: false,
+            UIBackgroundModes: ["fetch"], // Enable background fetch for widget updates
         },
     },
     android: {
@@ -59,6 +60,30 @@ export default ({ config }) => ({
             },
         ],
         "expo-video",
+        [
+            "expo-widgets",
+            {
+                bundleIdentifier: "com.willydennis.fwf.widgets",
+                groupIdentifier: "group.com.willydennis.fwf",
+                // Include widget assets in the extension bundle
+                assets: ["./widgets/assets"],
+                widgets: [
+                    {
+                        name: "WeatherWidget",
+                        displayName: "FWF Weather",
+                        description: "Your weather and garden status at a glance",
+                        supportedFamilies: [
+                            "systemSmall",
+                            "systemMedium",
+                            "systemLarge",
+                            "accessoryRectangular",
+                            "accessoryCircular",
+                            "accessoryInline",
+                        ],
+                    },
+                ],
+            },
+        ],
     ],
     experiments: {
         typedRoutes: true,

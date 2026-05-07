@@ -14,7 +14,7 @@ interface FriendCardProps {
     friend: any;
     plantedPlants: Record<string, any[]>;
     onPlantPress: (friendId: string, slotIdx: number) => void;
-    onPlantDetailsPress: (plant: any, friendWeather: string) => void;
+    onPlantDetailsPress: (plant: any, friendWeather: string, potPosition?: { x: number; y: number }) => void;
     forecastData: any[];
     cardWidth: number;
     cardHeight?: number;
@@ -723,7 +723,10 @@ export const FriendCard: React.FC<FriendCardProps> = ({
                 onClose={() => setShowWeatherModal(false)}
                 currentWeather={{
                     main: { temp: friend.weather_temp, humidity: 0 },
-                    weather: [{ main: friend.weather_condition || "Clear" }],
+                    weather: [{
+                        main: friend.weather_condition || "Clear",
+                        description: getWeatherDescription(friend.weather_condition || "Clear")
+                    }],
                     wind: { speed: 0 },
                     name: friend.city || friend.contact_name,
                 }}
