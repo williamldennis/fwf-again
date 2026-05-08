@@ -239,7 +239,11 @@ export class XPService {
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
       console.log('[XPService] 🔍 Fetching XP history URL:', url);
 
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       console.log('[XPService] 📡 getXPHistory response status:', response.status, response.ok);
 
@@ -294,7 +298,11 @@ export class XPService {
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
       console.log('[XPService] 🔍 Fetching XP for action URL:', url);
 
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       console.log('[XPService] 📡 getTotalXPForAction response status:', response.status, response.ok);
 
@@ -333,7 +341,11 @@ export class XPService {
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
       console.log('[XPService] 🔍 Fetching XP statistics URL:', url);
 
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       console.log('[XPService] 📡 getXPStatistics response status:', response.status, response.ok);
 
@@ -378,7 +390,11 @@ export class XPService {
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=100';
       console.log('[XPService] 🔍 Fetching URL:', url);
 
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       console.log('[XPService] 📡 Response status:', response.status, response.ok);
 

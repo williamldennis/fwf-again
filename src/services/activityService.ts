@@ -70,12 +70,15 @@ export class ActivityService {
       });
 
       // Use native fetch to bypass PocketBase SDK issues in React Native
-      // Hardcode URL for testing
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/garden_activities/records?perPage=50';
       console.log('[ActivityService] 🔍 Fetching URL:', url);
 
-      // Note: These collections are public, no auth needed
-      const response = await fetch(url);
+      // Include auth token if available
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       console.log('[ActivityService] 📡 Response status:', response.status, response.ok);
 
@@ -152,7 +155,12 @@ export class ActivityService {
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/garden_activities/records?perPage=100';
       console.log('[ActivityService] 🔍 Fetching garden activities URL:', url);
 
-      const response = await fetch(url);
+      // Include auth token if available
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       console.log('[ActivityService] 📡 getGardenActivities response status:', response.status, response.ok);
 
@@ -212,7 +220,11 @@ export class ActivityService {
         try {
           // Use native fetch to get user profiles
           const usersUrl = 'https://fwf-pocketbase-production.up.railway.app/api/collections/users/records?perPage=100';
-          const usersResponse = await fetch(usersUrl);
+          const usersHeaders: Record<string, string> = {};
+          if (pb.authStore.token) {
+            usersHeaders['Authorization'] = `Bearer ${pb.authStore.token}`;
+          }
+          const usersResponse = await fetch(usersUrl, { headers: usersHeaders });
 
           if (usersResponse.ok) {
             const usersData = await usersResponse.json();

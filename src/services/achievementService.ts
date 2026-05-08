@@ -289,7 +289,11 @@ export class AchievementService {
 
       // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/user_achievements/records?perPage=100';
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -345,7 +349,11 @@ export class AchievementService {
 
       // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/user_achievements/records?perPage=100';
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -385,7 +393,11 @@ export class AchievementService {
 
       // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/user_achievements/records?perPage=100';
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -530,7 +542,11 @@ export class AchievementService {
     try {
       // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -590,7 +606,11 @@ export class AchievementService {
     try {
       // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -635,7 +655,11 @@ export class AchievementService {
     try {
       // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -695,7 +719,11 @@ export class AchievementService {
 
       // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -729,7 +757,11 @@ export class AchievementService {
     try {
       // Use native fetch with hardcoded URL to bypass PocketBase SDK issues
       const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (pb.authStore.token) {
+        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
+      }
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         const errorText = await response.text();
