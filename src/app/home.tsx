@@ -1047,17 +1047,15 @@ export default function Home() {
                     );
                     await WeatherService.saveWeatherData(friend.latitude, friend.longitude, weatherData, WeatherDataType.Partial);
                 }
-                const weatherDataForGraph = await WeatherService.fetchWeatherDataForGraph(
-                    friend.latitude,
-                    friend.longitude
-                );
+                // Use hourly forecast for graph (saves ~25 API calls per friend)
+                const hourlyData = weatherData.hourly || [];
                 setFriendForecasts((prev) => ({
                     ...prev,
                     [friend.id]: {
                         forecast: weatherData.forecast,
-                        hourly: weatherData.hourly || [],
+                        hourly: hourlyData,
                         daily: weatherData.daily || [],
-                        hourlyForGraph: weatherDataForGraph.hourly || [],
+                        hourlyForGraph: hourlyData.slice(0, 25),
                     },
                 }));
                 let cityNameResult;
@@ -1080,8 +1078,8 @@ export default function Home() {
                 const completeWeatherData: CompleteWeatherData = {
                     current: weatherData.current,
                     forecast: weatherData.forecast,
-                    hourly: weatherData.hourly,
-                    hourlyForGraph: weatherDataForGraph.hourly,
+                    hourly: hourlyData,
+                    hourlyForGraph: hourlyData.slice(0, 25),
                     daily: weatherData.daily,
                     cityName: cityNameResult,
                     localHour,

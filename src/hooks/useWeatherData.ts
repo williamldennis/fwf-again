@@ -109,10 +109,13 @@ export function useWeatherData(
             const weatherData = await WeatherService.fetchWeatherData(lat, lon);
             console.log(`[Weather] ✅ Main weather loaded for ${cityNameResult}`);
 
-            // Set ALL main weather state at once and unblock UI
+            // Set ALL weather state at once - use hourly forecast for graph too
+            // This saves ~25 API calls by reusing the 48-hour forecast from OneCall API
+            const hourlyData = weatherData.hourly || [];
             setWeather(weatherData.current);
             setForecast(weatherData.forecast);
-            setHourly(weatherData.hourly || []);
+            setHourly(hourlyData);
+            setHourlyForGraph(hourlyData.slice(0, 25) as HourlyForGraph[]); // Next 24 hours for graph
             setDaily(weatherData.daily || []);
             setCityName(cityNameResult);
             setBackgroundColor(bgColor);
@@ -122,27 +125,19 @@ export function useWeatherData(
 
             console.log(`[Weather] ✅ Weather data fetched successfully for ${cityNameResult}`);
 
-            // STEP 2: Fetch graph data in BACKGROUND (non-blocking)
-            WeatherService.fetchWeatherDataForGraph(lat, lon)
-                .then(weatherDataForGraph => {
-                    console.log("[Weather] ✅ Graph data loaded in background");
-                    setHourlyForGraph(weatherDataForGraph.hourly || []);
-
-                    // Save complete data to cache (including graph)
-                    const completeWeatherData: WeatherData = {
-                        current: weatherData.current,
-                        forecast: weatherData.forecast,
-                        hourly: weatherData.hourly,
-                        hourlyForGraph: weatherDataForGraph.hourly,
-                        daily: weatherData.daily,
-                        cityName: cityNameResult,
-                        localHour,
-                        backgroundColor: bgColor,
-                    };
-                    WeatherService.saveWeatherData(lat, lon, completeWeatherData, WeatherDataType.Complete)
-                        .catch(err => console.warn("[Weather] ⚠️ Could not save weather to cache:", err));
-                })
-                .catch(err => console.warn("[Weather] ⚠️ Graph data fetch failed:", err));
+            // Save to cache (no separate graph fetch needed)
+            const completeWeatherData: WeatherData = {
+                current: weatherData.current,
+                forecast: weatherData.forecast,
+                hourly: hourlyData,
+                hourlyForGraph: hourlyData.slice(0, 25) as HourlyForGraph[],
+                daily: weatherData.daily,
+                cityName: cityNameResult,
+                localHour,
+                backgroundColor: bgColor,
+            };
+            WeatherService.saveWeatherData(lat, lon, completeWeatherData, WeatherDataType.Complete)
+                .catch(err => console.warn("[Weather] ⚠️ Could not save weather to cache:", err));
 
             // Update user in database (background)
             if (userId) {
