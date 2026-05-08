@@ -14,7 +14,7 @@ export default ({ config }) => ({
         ...config.ios,
         supportsTablet: true,
         bundleIdentifier: "com.willydennis.fwf",
-        buildNumber: "12",
+        buildNumber: "13",
         infoPlist: {
             NSContactsUsageDescription:
                 "This app needs access to your contacts to help you connect with friends.",

@@ -29,6 +29,7 @@ export interface WidgetData {
 
 // Import the widget - this will be available after the widget is set up
 let WeatherWidget: any = null;
+let widgetInitialized = false;
 
 // Lazy load the widget to avoid errors on Android or when not configured
 const getWidget = async () => {
@@ -47,6 +48,38 @@ const getWidget = async () => {
         }
     }
     return WeatherWidget;
+};
+
+/**
+ * Initialize the widget early in app lifecycle
+ * This ensures the widget layout is registered even before we have data
+ * Call this from _layout.tsx or app entry point
+ */
+export const initializeWidget = async (): Promise<void> => {
+    if (widgetInitialized || Platform.OS !== "ios") {
+        return;
+    }
+
+    try {
+        const widget = await getWidget();
+        if (widget) {
+            // Send initial snapshot with default values
+            // This ensures the widget has something to show immediately
+            await widget.updateSnapshot({
+                temperature: 72,
+                weatherCondition: "Loading...",
+                weatherEmoji: "☀️",
+                cityName: "Open app to update",
+                plants: [],
+                totalPlants: 0,
+                plantsReady: 0,
+            });
+            widgetInitialized = true;
+            console.log("[Widget] Widget initialized with default data");
+        }
+    } catch (error) {
+        console.log("[Widget] Failed to initialize widget:", error);
+    }
 };
 
 /**
@@ -306,6 +339,7 @@ export const reloadWidgets = async (): Promise<void> => {
 };
 
 export const WidgetService = {
+    initializeWidget,
     updateWidget,
     updateWidgetWithGrowthTimeline,
     reloadWidgets,
