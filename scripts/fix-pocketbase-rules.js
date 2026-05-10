@@ -64,7 +64,9 @@ async function main() {
                 listRule: '@request.auth.id != ""',
                 viewRule: '@request.auth.id != ""',
                 createRule: '@request.auth.id != ""',
-                updateRule: 'garden_owner = @request.auth.id || planter = @request.auth.id',
+                // Allow any authenticated user to update (for harvesting friend's plants)
+                // The app logic controls what fields can be updated
+                updateRule: '@request.auth.id != ""',
                 deleteRule: 'garden_owner = @request.auth.id'
             },
             'garden_activities': {

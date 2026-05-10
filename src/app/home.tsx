@@ -1003,6 +1003,10 @@ export default function Home() {
         >
     >({});
 
+    // Track which friends we've already started fetching weather for
+    // This prevents duplicate fetches when the component re-renders
+    const fetchedFriendIdsRef = useRef<Set<string>>(new Set());
+
     // Achievement drawer state
     const [showAchievementDrawer, setShowAchievementDrawer] = useState(false);
 
@@ -1012,10 +1016,17 @@ export default function Home() {
     // Weather modal state
     const [showWeatherModal, setShowWeatherModal] = useState(false);
 
-    // Helper to fetch and cache friend forecast - updated to fetch complete weather data
-    const fetchFriendForecast = async (friend: any) => {
+    // Helper to fetch and cache friend forecast - memoized to prevent duplicate calls
+    // Uses a ref to track in-flight fetches, preventing race conditions when component re-renders
+    const fetchFriendForecast = useCallback(async (friend: any) => {
         if (!friend.latitude || !friend.longitude) return;
-        if (friendForecasts[friend.id]) return; // Already cached
+
+        // Use ref to prevent duplicate fetches (checks both in-flight and completed)
+        if (fetchedFriendIdsRef.current.has(friend.id)) return;
+
+        // Mark as fetching IMMEDIATELY to prevent concurrent calls
+        fetchedFriendIdsRef.current.add(friend.id);
+
         try {
             console.log(
                 `[Friends] 🌤️ Fetching complete weather data for ${friend.contact_name} at ${friend.latitude}, ${friend.longitude}`
@@ -1091,12 +1102,14 @@ export default function Home() {
                 );
             }
         } catch (e) {
+            // Remove from ref on error so it can be retried
+            fetchedFriendIdsRef.current.delete(friend.id);
             console.warn(
                 `[Friends] ⚠️ Could not fetch weather data for ${friend.contact_name}:`,
                 e
             );
         }
-    };
+    }, []); // Empty deps - uses ref and state setter functions only
 
     // Logout handler
     const handleLogout = async () => {
@@ -2022,14 +2035,16 @@ export default function Home() {
                 onHide={() => setShowAchievementToast(false)}
             />
 
-            {/* ACHIEVEMENT DRAWER */}
-            <AchievementDrawer
-                visible={showAchievementDrawer}
-                onClose={closeAchievementDrawer}
-                userId={currentUserId}
-                xpData={xpData}
-                refreshTrigger={achievementRefreshTrigger}
-            />
+            {/* ACHIEVEMENT DRAWER - only mount when visible to avoid duplicate useAchievements fetch */}
+            {showAchievementDrawer && (
+                <AchievementDrawer
+                    visible={showAchievementDrawer}
+                    onClose={closeAchievementDrawer}
+                    userId={currentUserId}
+                    xpData={xpData}
+                    refreshTrigger={achievementRefreshTrigger}
+                />
+            )}
 
             {/* POINTS INFO MODAL */}
             <PointsInfoModal
@@ -2058,15 +2073,17 @@ export default function Home() {
                 setActivities={setActivities}
             />
 
-            {/* GARDEN PROFILE MODAL */}
-            <GardenProfileModal
-                visible={showGardenProfileModal}
-                onClose={closeGardenProfileModal}
-                userId={currentUserId}
-                currentPoints={userProfile?.points || 0}
-                xpData={xpData}
-                refreshTrigger={achievementRefreshTrigger}
-            />
+            {/* GARDEN PROFILE MODAL - only mount when visible to avoid duplicate useAchievements fetch */}
+            {showGardenProfileModal && (
+                <GardenProfileModal
+                    visible={showGardenProfileModal}
+                    onClose={closeGardenProfileModal}
+                    userId={currentUserId}
+                    currentPoints={userProfile?.points || 0}
+                    xpData={xpData}
+                    refreshTrigger={achievementRefreshTrigger}
+                />
+            )}
         </>
     );
 }

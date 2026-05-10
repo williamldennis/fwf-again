@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
     View,
     Text,
@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     ScrollView,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LottieView from "lottie-react-native";
 import GardenArea from "./GardenArea";
@@ -379,79 +380,80 @@ export const UserCard: React.FC<UserCardProps> = ({
                                 >
                                     Today's Hourly Forecast
                                 </Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                style={{ marginHorizontal: -10 }}
-                                nestedScrollEnabled={true}
-                                scrollEventThrottle={16}
-                                directionalLockEnabled={true}
-                                alwaysBounceHorizontal={false}
-                                alwaysBounceVertical={false}
-                                // Add gesture handling to work better with carousel
-                                scrollEnabled={true}
-                            >
-                                {hourlyForecast
-                                    .slice(0, 24)
-                                    .map((hour, index) => (
-                                        <View
-                                            key={hour.dt}
-                                            style={{
-                                                alignItems: "center",
-                                                marginHorizontal: 10,
-                                                minWidth: 60,
-                                            }}
-                                        >
-                                            <Text
+                            <GestureDetector gesture={Gesture.Native()}>
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    style={{ marginHorizontal: -10 }}
+                                    nestedScrollEnabled={true}
+                                    scrollEventThrottle={16}
+                                    directionalLockEnabled={true}
+                                    alwaysBounceHorizontal={true}
+                                    alwaysBounceVertical={false}
+                                    scrollEnabled={true}
+                                >
+                                    {hourlyForecast
+                                        .slice(0, 24)
+                                        .map((hour, index) => (
+                                            <View
+                                                key={hour.dt}
                                                 style={{
-                                                    fontSize: 12,
-                                                    color: "#6c757d",
-                                                    marginBottom: 8,
+                                                    alignItems: "center",
+                                                    marginHorizontal: 10,
+                                                    minWidth: 60,
                                                 }}
                                             >
-                                                {index === 0
-                                                    ? "Now"
-                                                    : formatTime(hour.dt)}
-                                            </Text>
-                                            <Image
-                                                source={{
-                                                    uri: getWeatherIcon(
-                                                        hour.weather
-                                                    ),
-                                                }}
-                                                style={{
-                                                    width: 40,
-                                                    height: 40,
-                                                    marginBottom: 8,
-                                                }}
-                                                resizeMode="contain"
-                                            />
-                                            <Text
-                                                style={{
-                                                    fontSize: 16,
-                                                    fontWeight: "600",
-                                                    color: "#212529",
-                                                    marginBottom: 4,
-                                                }}
-                                            >
-                                                {Math.round(hour.temp)}°
-                                            </Text>
-                                            {hour.pop > 0.1 && (
                                                 <Text
                                                     style={{
-                                                        fontSize: 10,
-                                                        color: "#007bff",
-                                                        fontWeight: "500",
+                                                        fontSize: 12,
+                                                        color: "#6c757d",
+                                                        marginBottom: 8,
                                                     }}
                                                 >
-                                                    {formatPrecipitation(
-                                                        hour.pop
-                                                    )}
+                                                    {index === 0
+                                                        ? "Now"
+                                                        : formatTime(hour.dt)}
                                                 </Text>
-                                            )}
-                                        </View>
-                                    ))}
-                            </ScrollView>
+                                                <Image
+                                                    source={{
+                                                        uri: getWeatherIcon(
+                                                            hour.weather
+                                                        ),
+                                                    }}
+                                                    style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        marginBottom: 8,
+                                                    }}
+                                                    resizeMode="contain"
+                                                />
+                                                <Text
+                                                    style={{
+                                                        fontSize: 16,
+                                                        fontWeight: "600",
+                                                        color: "#212529",
+                                                        marginBottom: 4,
+                                                    }}
+                                                >
+                                                    {Math.round(hour.temp)}°
+                                                </Text>
+                                                {hour.pop > 0.1 && (
+                                                    <Text
+                                                        style={{
+                                                            fontSize: 10,
+                                                            color: "#007bff",
+                                                            fontWeight: "500",
+                                                        }}
+                                                    >
+                                                        {formatPrecipitation(
+                                                            hour.pop
+                                                        )}
+                                                    </Text>
+                                                )}
+                                            </View>
+                                        ))}
+                                </ScrollView>
+                            </GestureDetector>
                             </View>
                         </TouchableOpacity>
                     )}

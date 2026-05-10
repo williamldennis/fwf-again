@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { View, Text, Image, TouchableOpacity } from "react-native";
 import { getWeatherSelfieKey } from "../utils/weatherUtils";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GrowthService } from "../services/growthService";
 
 interface SelfieIndicatorProps {
     item: {
@@ -14,6 +15,8 @@ interface SelfieIndicatorProps {
     weather?: any;
     onPress?: (index: number) => void;
     index: number;
+    plantedPlants?: Record<string, any[]>;
+    currentUserId?: string | null;
 }
 
 const USER_CACHE_KEY = 'user_profile_cache';
@@ -25,12 +28,73 @@ export const SelfieIndicator: React.FC<SelfieIndicatorProps> = ({
     weather,
     onPress,
     index,
+    plantedPlants,
+    currentUserId,
 }) => {
     const [cachedSelfieUrl, setCachedSelfieUrl] = useState<string | null>(null);
     const lastCachedUrlRef = useRef<string | null>(null);
     const size = 40;
     const borderWidth = 2;
     const activeBorderColor = "#007AFF";
+
+    // Check if this card has harvestable plants (calculate growth dynamically like GardenArea)
+    const harvestableCount = useMemo(() => {
+        if (!plantedPlants) return 0;
+
+        let ownerId: string | null = null;
+        let weatherCondition = "clear"; // Default weather
+
+        if (item.type === "user" && currentUserId) {
+            ownerId = currentUserId;
+            // Get weather from the weather prop
+            weatherCondition = weather?.weather?.[0]?.main || "clear";
+        } else if (item.type === "friend" && item.data?.id) {
+            ownerId = item.data.id;
+            // Get weather from friend's data
+            weatherCondition = item.data.weather_condition || "clear";
+        }
+
+        if (!ownerId) return 0;
+
+        const plants = plantedPlants[ownerId] || [];
+        const harvestable = plants.filter(plant => {
+            // Skip already harvested plants
+            if (plant.harvested_at) return false;
+
+            // Calculate growth stage dynamically (same as GardenArea)
+            const expandedPlant = plant.expand?.plant;
+            const plantObject = expandedPlant || {
+                id: plant.plant || plant.plant_id,
+                name: plant.plant_name || "Unknown",
+                growth_time_hours: 24, // Default to 24 hours if expand failed
+                weather_bonus: plant.weather_bonus || {
+                    sunny: 1,
+                    cloudy: 1,
+                    rainy: 1,
+                },
+            };
+
+            try {
+                const growthCalculation = GrowthService.calculateGrowthStage(
+                    plant,
+                    plantObject,
+                    weatherCondition
+                );
+                // Stage 5 = mature and ready to harvest
+                return growthCalculation.stage >= 5;
+            } catch (e) {
+                // If calculation fails, fall back to is_mature
+                return plant.is_mature === true;
+            }
+        });
+
+        // Debug: log when we find harvestable plants
+        if (harvestable.length > 0) {
+            console.log(`[SelfieIndicator] 🌱 ${item.type === "user" ? "User" : item.data?.contact_name || "Friend"} has ${harvestable.length} harvestable plant(s)`);
+        }
+
+        return harvestable.length;
+    }, [plantedPlants, item, currentUserId, weather]);
 
     // Compute current selfie URL based on weather (memoized)
     const currentSelfieUrl = useMemo(() => {
@@ -197,23 +261,57 @@ export const SelfieIndicator: React.FC<SelfieIndicatorProps> = ({
     };
 
     return (
-        <TouchableOpacity
-            onPress={handlePress}
-            style={{
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-                borderWidth: isActive ? borderWidth : 0,
-                borderColor: activeBorderColor,
-                backgroundColor: isActive ? "#fff" : "transparent",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-            }}
-            activeOpacity={0.7}
-        >
-            {getIndicatorContent()}
-        </TouchableOpacity>
+        <View style={{ position: "relative" }}>
+            <TouchableOpacity
+                onPress={handlePress}
+                style={{
+                    width: size,
+                    height: size,
+                    borderRadius: size / 2,
+                    borderWidth: isActive ? borderWidth : 0,
+                    borderColor: activeBorderColor,
+                    backgroundColor: isActive ? "#fff" : "transparent",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                }}
+                activeOpacity={0.7}
+            >
+                {getIndicatorContent()}
+            </TouchableOpacity>
+
+            {/* Harvest ready indicator - green dot with optional count */}
+            {harvestableCount > 0 && (
+                <View
+                    style={{
+                        position: "absolute",
+                        bottom: -2,
+                        right: -2,
+                        minWidth: 16,
+                        height: 16,
+                        borderRadius: 8,
+                        backgroundColor: "#34C759",
+                        borderWidth: 2,
+                        borderColor: "#fff",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingHorizontal: harvestableCount > 1 ? 4 : 0,
+                    }}
+                >
+                    {harvestableCount > 1 && (
+                        <Text
+                            style={{
+                                fontSize: 10,
+                                fontWeight: "bold",
+                                color: "#fff",
+                            }}
+                        >
+                            {harvestableCount}
+                        </Text>
+                    )}
+                </View>
+            )}
+        </View>
     );
 };
 

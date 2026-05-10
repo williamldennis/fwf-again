@@ -10,6 +10,7 @@ export interface GardenActivity {
   plant_name: string;
   actor_name: string;
   garden_owner_name?: string;
+  garden_owner_selfie?: string;  // URL to garden owner's selfie photo
   created: string;  // Timestamp from PocketBase
 }
 
@@ -213,8 +214,9 @@ export class ActivityService {
       // Get unique garden owner IDs (for activities in friend's gardens)
       const gardenOwnerIds = [...new Set(result.items.map(a => a.garden_owner))];
 
-      // Fetch garden owner names from users collection
+      // Fetch garden owner names and selfies from users collection
       let gardenOwnerNames = new Map<string, string>();
+      let gardenOwnerSelfies = new Map<string, string>();
 
       if (gardenOwnerIds.length > 0) {
         try {
@@ -234,11 +236,19 @@ export class ActivityService {
             const relevantUsers = allUsers.filter((user: any) => gardenOwnerIds.includes(user.id));
             relevantUsers.forEach((user: any) => {
               gardenOwnerNames.set(user.id, user.full_name || 'Unknown');
+
+              // Get selfie URL - check for PocketBase file fields
+              // PocketBase stores files as filenames, construct the full URL
+              const selfieField = user.selfie_sunny || user.selfie_cloudy || user.selfie_rainy;
+              if (selfieField && user.id && user.collectionId) {
+                const selfieUrl = `https://fwf-pocketbase-production.up.railway.app/api/files/${user.collectionId}/${user.id}/${selfieField}`;
+                gardenOwnerSelfies.set(user.id, selfieUrl);
+              }
             });
           }
         } catch (profilesError) {
           console.error('[ActivityService] Error fetching profiles:', profilesError);
-          // Continue without garden owner names
+          // Continue without garden owner names/selfies
         }
       }
 
@@ -253,6 +263,7 @@ export class ActivityService {
         plant_name: item.plant_name,
         actor_name: item.actor_name,
         garden_owner_name: gardenOwnerNames.get(item.garden_owner) || 'Unknown',
+        garden_owner_selfie: gardenOwnerSelfies.get(item.garden_owner),
         created: item.created || item.created,  // Try both fields
       }));
 

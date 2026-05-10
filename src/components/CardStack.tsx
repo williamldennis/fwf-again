@@ -86,10 +86,13 @@ export const CardStack: React.FC<CardStackProps> = ({
                 if (plants.length === 0) return Infinity;
                 return Math.min(
                     ...plants.map((plant) => {
-                        const plantObject = plant.plant || {
-                            id: plant.plant_id,
+                        // Use expanded plant data from PocketBase, or fallback to default
+                        // plant.plant is just the ID string, plant.expand.plant is the full object
+                        const expandedPlant = plant.expand?.plant;
+                        const plantObject = expandedPlant || {
+                            id: plant.plant || plant.plant_id,
                             name: plant.plant_name || "Unknown",
-                            growth_time_hours: plant.growth_time_hours || 0,
+                            growth_time_hours: 24, // Default to 24 hours if expand failed
                             weather_bonus: plant.weather_bonus || {
                                 sunny: 1,
                                 cloudy: 1,
@@ -257,19 +260,31 @@ export const CardStack: React.FC<CardStackProps> = ({
                             isActive={index === currentIndex}
                             selfieUrls={selfieUrls}
                             weather={weather}
+                            plantedPlants={plantedPlants}
+                            currentUserId={currentUserId}
                             onPress={(pressedIndex) => {
-                                setCurrentIndex(pressedIndex);
-                                // Navigate to the pressed card
+                                // Navigate to the pressed card using shortest path
                                 if (
                                     pressedIndex !== currentIndex &&
                                     carouselRef.current
                                 ) {
-                                    // Use the carousel's scrollTo method for smooth navigation
+                                    const totalItems = stackItems.length;
+
+                                    // Calculate forward and backward distances
+                                    const forwardDistance = (pressedIndex - currentIndex + totalItems) % totalItems;
+                                    const backwardDistance = (currentIndex - pressedIndex + totalItems) % totalItems;
+
+                                    // Use the shorter path (count: positive = forward, negative = backward)
+                                    const count = forwardDistance <= backwardDistance
+                                        ? forwardDistance
+                                        : -backwardDistance;
+
                                     carouselRef.current.scrollTo({
-                                        index: pressedIndex,
+                                        count,
                                         animated: true,
                                     });
                                 }
+                                // Note: currentIndex is updated via onSnapToItem callback
                             }}
                             index={index}
                         />

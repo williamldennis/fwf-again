@@ -134,12 +134,13 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
 
     // Calculate values needed for the rest of the component
     // PocketBase expanded relations are at plant.expand.plant
-    const expandedPlant = plant.expand?.plant || plant.plant;
+    // Note: plant.plant is just the ID string, not the full plant object
+    const expandedPlant = plant.expand?.plant;
     const plantName = expandedPlant?.name || plant.plant_name || "Unknown";
     const plantObject = expandedPlant || {
-        id: plant.plant_id,
+        id: plant.plant || plant.plant_id,
         name: plantName,
-        growth_time_hours: plant.growth_time_hours || 0,
+        growth_time_hours: 24, // Default to 24 hours if expand failed
         image_path: plant.image_path || "",
         created_at: plant.planted_at,
         weather_bonus: { sunny: 1.0, cloudy: 1.0, rainy: 1.0 }, // Default weather bonus
@@ -232,11 +233,35 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
         onClose();
 
         try {
+            console.log("[Harvest] 🔍 Attempting to harvest planted_plant:", plant.id);
+            console.log("[Harvest] 🔍 Full plant object:", JSON.stringify({
+                id: plant.id,
+                garden_owner: plant.garden_owner,
+                plant_field: plant.plant,
+                expand_exists: !!plant.expand,
+                expand_plant_exists: !!plant.expand?.plant,
+            }));
+
+            // First check if the plant record exists
+            try {
+                const existingPlant = await pb.collection("planted_plants").getOne(plant.id);
+                console.log("[Harvest] ✅ Plant exists, harvested_at:", existingPlant.harvested_at);
+                if (existingPlant.harvested_at) {
+                    Alert.alert("Already Harvested", "This plant has already been harvested.");
+                    return;
+                }
+            } catch (checkError: any) {
+                console.error("[Harvest] ❌ Plant not found before update:", checkError?.message);
+                Alert.alert("Error", "This plant no longer exists. It may have been harvested by someone else.");
+                return;
+            }
+
             // Update the planted_plant to mark it as harvested
             await pb.collection("planted_plants").update(plant.id, {
                 harvested_at: new Date().toISOString(),
                 harvester_id: currentUserId,
             });
+            console.log("[Harvest] ✅ planted_plants.update succeeded");
 
             // Verify the harvest was successful
             const fetchData = await pb.collection("planted_plants").getOne(plant.id);
@@ -245,12 +270,14 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 Alert.alert("Error", "Plant was not found or could not be updated.");
                 return;
             }
+            console.log("[Harvest] ✅ Verification succeeded");
 
-            // Award points for harvesting
+            // Award points for harvesting - use expanded plant data
             try {
-                const plantPoints = plant.plant?.harvest_points || 10;
-                console.log(`[Harvest] 🌱 Plant points: ${plantPoints}`);
+                const plantPoints = plantObject?.harvest_points || 10;
+                console.log(`[Harvest] 🌱 Plant points: ${plantPoints} (from ${plantObject?.harvest_points ? 'plantObject' : 'default'})`);
 
+                console.log("[Harvest] 🔍 Fetching user profile:", currentUserId);
                 const profileData = await pb.collection("users").getOne(currentUserId!);
                 const currentPoints = profileData?.points || 0;
                 const newPoints = currentPoints + plantPoints;
@@ -269,8 +296,8 @@ export const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                 const harvesterProfile = await pb.collection("users").getOne(currentUserId!);
                 const harvesterName = harvesterProfile?.full_name || "Unknown";
 
-                // Get the plant type ID - use expand structure like we do for plantName
-                const plantTypeId = plant.expand?.plant?.id || plant.plant?.id || plant.plant_id;
+                // Get the plant type ID - plant.plant is the ID string when expand works or fails
+                const plantTypeId = plant.expand?.plant?.id || plant.plant_id || plant.plant;
 
                 console.log("[Activity] Harvest activity params:", {
                     gardenOwner: plant.garden_owner,

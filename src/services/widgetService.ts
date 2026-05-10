@@ -30,10 +30,19 @@ export interface WidgetData {
 // Import the widget - this will be available after the widget is set up
 let WeatherWidget: any = null;
 let widgetInitialized = false;
+let nativeWidgetsAvailable = false;
+
+// Check if expo-widgets native module is available
+try {
+    require("expo-widgets");
+    nativeWidgetsAvailable = true;
+} catch (error) {
+    console.log("[Widget] Native expo-widgets module not available (expected in Expo Go/simulator)");
+}
 
 // Lazy load the widget to avoid errors on Android or when not configured
 const getWidget = async () => {
-    if (Platform.OS !== "ios") {
+    if (Platform.OS !== "ios" || !nativeWidgetsAvailable) {
         return null;
     }
 
@@ -56,7 +65,7 @@ const getWidget = async () => {
  * Call this from _layout.tsx or app entry point
  */
 export const initializeWidget = async (): Promise<void> => {
-    if (widgetInitialized || Platform.OS !== "ios") {
+    if (widgetInitialized || Platform.OS !== "ios" || !nativeWidgetsAvailable) {
         return;
     }
 
@@ -118,14 +127,15 @@ export const calculatePlantGrowth = (
     weatherCondition: string
 ): WidgetPlant => {
     // Get expanded plant data (PocketBase structure)
-    const expandedPlant = plant.expand?.plant || plant.plant;
+    // Note: plant.plant is just the ID string, not the full object
+    const expandedPlant = plant.expand?.plant;
     const plantName = expandedPlant?.name || plant.plant_name || "Unknown";
 
     // Build plant object for growth calculation
     const plantObject = expandedPlant || {
-        id: plant.plant_id,
+        id: plant.plant || plant.plant_id,
         name: plantName,
-        growth_time_hours: plant.growth_time_hours || 24,
+        growth_time_hours: 24, // Default to 24 hours if expand failed
         weather_bonus: plant.weather_bonus || { sunny: 1, cloudy: 1, rainy: 1 },
     };
 
@@ -235,7 +245,8 @@ export const generateGrowthTimeline = (
 
         // Simulate plant growth at this future time
         const futurePlantData = plants.map(plant => {
-            const expandedPlant = plant.expand?.plant || plant.plant;
+            // Note: plant.plant is just the ID string, not the full object
+            const expandedPlant = plant.expand?.plant;
             const plantName = expandedPlant?.name || plant.plant_name || "Unknown";
             const growthTimeHours = expandedPlant?.growth_time_hours || 24;
 

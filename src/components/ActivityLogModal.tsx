@@ -261,10 +261,10 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
         }
     };
 
-    // Get plant image for mature stage
+    // Get plant image for activity
     const getPlantImage = (plantName: string) => {
-        // Convert plant name to match the image mapping keys
         const plantNameLower = plantName.toLowerCase().replace(/\s+/g, "_");
+
         const plantImages: Record<string, any> = {
             sunflower: require("../../assets/images/plants/sunflower/mature.png"),
             mushroom: require("../../assets/images/plants/mushroom/mature.png"),
@@ -274,33 +274,49 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({
             pine_tree: require("../../assets/images/plants/pine_tree/mature.png"),
         };
 
-        return (
-            plantImages[plantNameLower] ||
-            require("../../assets/images/plants/dirt.png")
-        );
+        return plantImages[plantNameLower] || require("../../assets/images/plants/dirt.png");
     };
 
     // Render activity item
     const renderActivityItem = ({ item }: { item: GardenActivity }) => {
-        const isOwnActivity = item.actor === currentUserId;
+        const isOwnGarden = item.garden_owner === currentUserId;
+        // Only show profile photo for friend's gardens, not your own
+        const showProfilePhoto = !isOwnGarden && item.garden_owner_selfie;
 
         return (
             <View style={styles.activityItem}>
+                {/* Plant image on the left */}
+                <View style={styles.plantImageContainer}>
+                    <Image
+                        source={getPlantImage(item.plant_name)}
+                        style={styles.activityPlantImage}
+                        contentFit="contain"
+                    />
+                </View>
+
+                {/* Text content in the middle */}
                 <View style={styles.activityContent}>
                     <Text style={styles.activityMessage}>
                         {formatActivityMessage(item)}
                     </Text>
                     <Text style={styles.activityGardenContext}>
                         {formatGardenContext(item)}
-                        {formatTimestamp(item.created) ? ` - ${formatTimestamp(item.created)}` : ""}
+                        {formatTimestamp(item.created) ? ` · ${formatTimestamp(item.created)}` : ""}
                     </Text>
                 </View>
-                <View style={styles.activityIcon}>
-                    <Image
-                        source={getPlantImage(item.plant_name)}
-                        style={styles.activityPlantImage}
-                        contentFit="contain"
-                    />
+
+                {/* Profile photo on the right (only for friend's gardens) */}
+                <View style={styles.profilePhotoContainer}>
+                    {showProfilePhoto ? (
+                        <Image
+                            source={{ uri: item.garden_owner_selfie }}
+                            style={styles.profilePhoto}
+                            contentFit="cover"
+                        />
+                    ) : (
+                        // Empty spacer to maintain consistent layout
+                        <View style={styles.profilePhotoPlaceholder} />
+                    )}
                 </View>
             </View>
         );
@@ -451,29 +467,56 @@ const styles = StyleSheet.create({
     activityItem: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         borderBottomWidth: 1,
         borderBottomColor: "#F5F5F5",
+    },
+    plantImageContainer: {
+        width: 50,
+        height: 50,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 12,
+    },
+    activityPlantImage: {
+        width: 50,
+        height: 50,
     },
     activityContent: {
         flex: 1,
         marginRight: 12,
     },
     activityMessage: {
-        fontSize: 16,
+        fontSize: 15,
         color: "#1A1A1A",
-        marginBottom: 4,
-        lineHeight: 22,
+        marginBottom: 2,
+        lineHeight: 20,
     },
     activityTime: {
-        fontSize: 14,
+        fontSize: 13,
         color: "#666",
     },
     activityGardenContext: {
-        fontSize: 14,
-        color: "#666",
-        fontStyle: "italic",
+        fontSize: 13,
+        color: "#888",
+    },
+    profilePhotoContainer: {
+        width: 40,
+        height: 40,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    profilePhoto: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "#E5E5E5",
+    },
+    profilePhotoPlaceholder: {
+        width: 40,
+        height: 40,
+        // Invisible placeholder to maintain layout
     },
     activityIcon: {
         width: 40,
@@ -481,11 +524,6 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         alignItems: "center",
         justifyContent: "center",
-    },
-    activityPlantImage: {
-        width: 70,
-        height: 70,
-        marginTop: -24,
     },
     activityIconText: {
         fontSize: 18,
