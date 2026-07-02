@@ -137,6 +137,11 @@
         "name": "last_checked_activity_at",
         "type": "date",
         "required": false
+      },
+      {
+        "name": "push_token",
+        "type": "text",
+        "required": false
       }
     ],
     "options": {

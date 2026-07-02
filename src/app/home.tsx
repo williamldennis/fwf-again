@@ -19,6 +19,8 @@ import { useHeaderHeight } from "@react-navigation/elements";
 
 // Import our custom hooks
 import { useAuth } from "../hooks/useAuth";
+import { usePushNotifications } from "../hooks/usePushNotifications";
+import { unregisterPushNotificationsAsync } from "../services/notificationService";
 import { useUserProfile } from "../hooks/useUserProfile";
 import { useFriends } from "../hooks/useFriends";
 import { useGardenData } from "../hooks/useGardenData";
@@ -126,6 +128,8 @@ function aggregateToFiveDay(forecastList: any[]): any[] {
 export default function Home() {
     // Use our custom hooks
     const { user, currentUserId } = useAuth();
+    // Register this device for garden-activity push notifications once authed.
+    usePushNotifications(currentUserId);
     const {
         profile: userProfile,
         weatherLoading: profileWeatherLoading,
@@ -1056,6 +1060,10 @@ export default function Home() {
     // Logout handler
     const handleLogout = async () => {
         try {
+            // Stop delivering pushes to this device for the signed-out account.
+            if (currentUserId) {
+                await unregisterPushNotificationsAsync(currentUserId);
+            }
             await clearAuth();
             router.replace("/login");
         } catch (error: any) {
