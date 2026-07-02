@@ -102,15 +102,33 @@ async function ensureUsersCollection(def) {
     console.log(`users: ensured (${newFields.length} custom field(s) added)`);
 }
 
+// PocketBase 0.23+ no longer auto-creates created/updated fields; the app sorts
+// by `created` (e.g. XP history, activity feed), so add them explicitly.
+const AUTODATE_FIELDS = [
+    { name: "created", type: "autodate", onCreate: true, onUpdate: false },
+    { name: "updated", type: "autodate", onCreate: true, onUpdate: true },
+];
+
 async function ensureBaseCollection(def) {
     const list = await api("GET", "/api/collections?perPage=200");
     const existing = list.items.find((c) => c.name === def.name);
     if (existing) {
         nameToId[def.name] = existing.id;
-        console.log(`${def.name}: already exists, skipping`);
+        // Backfill created/updated autodate fields if a prior run created the
+        // collection without them.
+        const existingNames = new Set(existing.fields.map((f) => f.name));
+        const missing = AUTODATE_FIELDS.filter((f) => !existingNames.has(f.name));
+        if (missing.length > 0) {
+            await api("PATCH", `/api/collections/${existing.id}`, {
+                fields: [...existing.fields, ...missing],
+            });
+            console.log(`${def.name}: added ${missing.map((f) => f.name).join(", ")}`);
+        } else {
+            console.log(`${def.name}: already exists, skipping`);
+        }
         return;
     }
-    const fields = def.schema.map(translateField);
+    const fields = [...def.schema.map(translateField), ...AUTODATE_FIELDS];
     const payload = {
         name: def.name,
         type: "base",
