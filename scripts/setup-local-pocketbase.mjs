@@ -90,8 +90,16 @@ async function ensureUsersCollection(def) {
         .filter((f) => !existingNames.has(f.name))
         .map(translateField);
 
+    // Merge our extra indexes (e.g. unique phone_number) with PocketBase's
+    // built-in ones (unique email/tokenKey) so we don't drop the defaults.
+    const existingIndexes = existing.indexes || [];
+    const extraIndexes = (def.indexes || []).filter(
+        (idx) => !existingIndexes.includes(idx)
+    );
+
     const payload = {
         fields: [...existing.fields, ...newFields],
+        indexes: [...existingIndexes, ...extraIndexes],
         // Allow public sign-up and let authenticated users read profiles (needed for friends).
         createRule: "",
         listRule: "@request.auth.id != ''",
@@ -99,7 +107,9 @@ async function ensureUsersCollection(def) {
         updateRule: "@request.auth.id = id",
     };
     await api("PATCH", `/api/collections/${existing.id}`, payload);
-    console.log(`users: ensured (${newFields.length} custom field(s) added)`);
+    console.log(
+        `users: ensured (${newFields.length} custom field(s), ${extraIndexes.length} extra index(es) added)`
+    );
 }
 
 // PocketBase 0.23+ no longer auto-creates created/updated fields; the app sorts
