@@ -50,6 +50,7 @@ export default ({ config }) => ({
     },
     plugins: [
         "expo-router",
+        "expo-notifications",
         [
             "expo-splash-screen",
             {
