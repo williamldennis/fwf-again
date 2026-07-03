@@ -235,39 +235,14 @@ export class XPService {
         return [];
       }
 
-      // Use native fetch to bypass PocketBase SDK issues in React Native
-      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
-      console.log('[XPService] 🔍 Fetching XP history URL:', url);
-
-      const headers: Record<string, string> = {};
-      if (pb.authStore.token) {
-        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
-      }
-      const response = await fetch(url, { headers });
-
-      console.log('[XPService] 📡 getXPHistory response status:', response.status, response.ok);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[XPService] ❌ getXPHistory fetch failed:", response.status, errorText);
-        return [];
-      }
-
-      const data = await response.json();
-      const allTransactions = data.items || [];
-
-      // Sort by created date descending in JS
-      const sortedTransactions = allTransactions.sort((a: any, b: any) =>
-        new Date(b.created).getTime() - new Date(a.created).getTime()
-      );
-
-      // Filter for this user
-      const userTransactions = sortedTransactions.filter((item: any) => item.user === userId);
+      // Authenticated, server-side filtered query scoped to this user's records.
+      const userTransactions = await pb.collection('xp_transactions').getFullList({
+        filter: pb.filter('user = {:userId}', { userId }),
+        sort: '-created',
+      });
 
       // Apply pagination
-      const startIdx = offset;
-      const endIdx = Math.min(startIdx + limit, userTransactions.length);
-      const paginatedTransactions = userTransactions.slice(startIdx, endIdx);
+      const paginatedTransactions = userTransactions.slice(offset, offset + limit);
 
       return paginatedTransactions.map((item: any) => ({
         id: item.id,
@@ -294,31 +269,11 @@ export class XPService {
         return 0;
       }
 
-      // Use native fetch to bypass PocketBase SDK issues in React Native
-      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
-      console.log('[XPService] 🔍 Fetching XP for action URL:', url);
-
-      const headers: Record<string, string> = {};
-      if (pb.authStore.token) {
-        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
-      }
-      const response = await fetch(url, { headers });
-
-      console.log('[XPService] 📡 getTotalXPForAction response status:', response.status, response.ok);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[XPService] ❌ getTotalXPForAction fetch failed:", response.status, errorText);
-        return 0;
-      }
-
-      const data = await response.json();
-      const allTransactions = data.items || [];
-
-      // Filter for this user and action type
-      const result = allTransactions.filter(
-        (item: any) => item.user === userId && item.action_type === actionType
-      );
+      // Authenticated, server-side filtered query for this user's records of
+      // the given action type.
+      const result = await pb.collection('xp_transactions').getFullList({
+        filter: pb.filter('user = {:userId} && action_type = {:actionType}', { userId, actionType }),
+      });
 
       return result.reduce((sum: number, transaction: any) => sum + (transaction.amount || 0), 0);
 
@@ -337,29 +292,10 @@ export class XPService {
         return {};
       }
 
-      // Use native fetch to bypass PocketBase SDK issues in React Native
-      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=200';
-      console.log('[XPService] 🔍 Fetching XP statistics URL:', url);
-
-      const headers: Record<string, string> = {};
-      if (pb.authStore.token) {
-        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
-      }
-      const response = await fetch(url, { headers });
-
-      console.log('[XPService] 📡 getXPStatistics response status:', response.status, response.ok);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[XPService] ❌ getXPStatistics fetch failed:", response.status, errorText);
-        return {};
-      }
-
-      const data = await response.json();
-      const allTransactions = data.items || [];
-
-      // Filter for this user
-      const result = allTransactions.filter((item: any) => item.user === userId);
+      // Authenticated, server-side filtered query scoped to this user's records.
+      const result = await pb.collection('xp_transactions').getFullList({
+        filter: pb.filter('user = {:userId}', { userId }),
+      });
 
       const stats: Record<string, number> = {};
       result.forEach((transaction: any) => {
@@ -385,33 +321,13 @@ export class XPService {
     try {
       if (!userId) return false;
 
-      // Use native fetch to bypass PocketBase SDK issues in React Native
-      // Hardcode URL for testing
-      const url = 'https://fwf-pocketbase-production.up.railway.app/api/collections/xp_transactions/records?perPage=100';
-      console.log('[XPService] 🔍 Fetching URL:', url);
-
-      const headers: Record<string, string> = {};
-      if (pb.authStore.token) {
-        headers['Authorization'] = `Bearer ${pb.authStore.token}`;
-      }
-      const response = await fetch(url, { headers });
-
-      console.log('[XPService] 📡 Response status:', response.status, response.ok);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[XPService] ❌ Fetch failed:", response.status, errorText);
-        return false;
-      }
-
-      const data = await response.json();
-      console.log('[XPService] ✅ Data received, items count:', data.items?.length || 0);
-      const items = data.items || [];
-
-      // Filter for this user's daily_use transactions in JS
-      const userDailyTransactions = items.filter(
-        (item: any) => item.user === userId && item.action_type === 'daily_use'
-      );
+      // Authenticated, server-side filtered query for this user's daily rewards.
+      const userDailyTransactions = await pb.collection('xp_transactions').getFullList({
+        filter: pb.filter('user = {:userId} && action_type = {:actionType}', {
+          userId,
+          actionType: 'daily_use',
+        }),
+      });
 
       if (userDailyTransactions.length === 0) {
         return true; // No daily XP transactions ever

@@ -114,6 +114,7 @@ export class GardenService {
             garden_owner: friendId,
             planter: userId,
             plant: plantId,
+            planted_at: new Date().toISOString(),
             current_stage: 2,
             is_mature: false,
             slot: slotIdx,

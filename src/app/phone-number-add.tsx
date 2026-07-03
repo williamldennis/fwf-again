@@ -22,6 +22,7 @@ const TypedPhoneInput = PhoneInput as unknown as ComponentType<PhoneInputProps>;
 export default function PhoneNumberAdd() {
     const [phone, setPhone] = useState("");
     const [formattedPhone, setFormattedPhone] = useState("");
+    const [countryCode, setCountryCode] = useState("US");
     const [loading, setLoading] = useState(false);
     const [isValid, setIsValid] = useState(false);
     const phoneInput = useRef<PhoneInput>(null);
@@ -42,7 +43,8 @@ export default function PhoneNumberAdd() {
 
         try {
             await pb.collection("users").update(user.id, {
-                phone_number: formattedPhone
+                phone_number: formattedPhone,
+                country_code: countryCode,
             });
             router.replace("/name-input");
         } catch (error: any) {
@@ -72,6 +74,9 @@ export default function PhoneNumberAdd() {
                 <PhoneInput
                     ref={phoneInput}
                     defaultCode="US"
+                    onChangeCountry={(country: { cca2: string }) =>
+                        setCountryCode(country.cca2)
+                    }
                     layout="second"
                     autoFocus={true}
                     onChangeText={setPhone}

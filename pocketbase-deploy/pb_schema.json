@@ -150,7 +150,10 @@
       "allowOAuth2Auth": false,
       "minPasswordLength": 8,
       "requireEmail": true
-    }
+    },
+    "indexes": [
+      "CREATE UNIQUE INDEX `idx_users_phone_number` ON `users` (`phone_number`) WHERE `phone_number` != ''"
+    ]
   },
   {
     "name": "plants",
